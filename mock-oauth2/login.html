@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Mock OIDC Login</title>
+		<style>
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family:
+				-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0;
+			padding: 20px;
+		}
+
+		.login-container {
+			background: white;
+			border-radius: 12px;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+			padding: 40px;
+			width: 100%;
+			max-width: 420px;
+		}
+
+		h1 {
+			margin: 0 0 8px 0;
+			color: #1a1a2e;
+			font-size: 24px;
+			text-align: center;
+		}
+
+		.subtitle {
+			color: #666;
+			text-align: center;
+			margin-bottom: 32px;
+			font-size: 14px;
+		}
+
+		.form-group {
+			margin-bottom: 20px;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 8px;
+			font-weight: 600;
+			color: #333;
+			font-size: 14px;
+		}
+
+		select,
+		input {
+			width: 100%;
+			padding: 12px 16px;
+			border: 2px solid #e0e0e0;
+			border-radius: 8px;
+			font-size: 16px;
+			transition:
+				border-color 0.2s,
+				box-shadow 0.2s;
+		}
+
+		select:focus,
+		input:focus {
+			outline: none;
+			border-color: #667eea;
+			box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+		}
+
+		.user-card {
+			background: #f8f9fa;
+			border-radius: 8px;
+			padding: 16px;
+			margin-bottom: 20px;
+			border-left: 4px solid #667eea;
+		}
+
+		.user-card h3 {
+			margin: 0 0 8px 0;
+			color: #1a1a2e;
+			font-size: 16px;
+		}
+
+		.user-card .email {
+			color: #666;
+			font-size: 14px;
+			margin-bottom: 8px;
+		}
+
+		.user-card .roles {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+		}
+
+		.role-badge {
+			background: #667eea;
+			color: white;
+			padding: 4px 10px;
+			border-radius: 12px;
+			font-size: 12px;
+			font-weight: 500;
+		}
+
+		.role-badge.admin {
+			background: #e74c3c;
+		}
+
+		.role-badge.space {
+			background: #27ae60;
+		}
+
+		.role-badge.event-type {
+			background: #f39c12;
+		}
+
+		.role-badge.none {
+			background: #95a5a6;
+		}
+
+		button {
+			width: 100%;
+			padding: 14px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+			border: none;
+			border-radius: 8px;
+			font-size: 16px;
+			font-weight: 600;
+			cursor: pointer;
+			transition:
+				transform 0.2s,
+				box-shadow 0.2s;
+		}
+
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+		}
+
+		button:active {
+			transform: translateY(0);
+		}
+
+		.divider {
+			display: flex;
+			align-items: center;
+			margin: 24px 0;
+			color: #999;
+			font-size: 14px;
+		}
+
+		.divider::before,
+		.divider::after {
+			content: "";
+			flex: 1;
+			height: 1px;
+			background: #e0e0e0;
+		}
+
+		.divider span {
+			padding: 0 16px;
+		}
+
+		.custom-section {
+			display: none;
+		}
+
+		.custom-section.visible {
+			display: block;
+		}
+		</style>
+	</head>
+
+	<body>
+		<div class="login-container">
+			<h1>Mock OIDC Login</h1>
+			<p class="subtitle">Select a test user or enter custom credentials</p>
+
+			<form method="post">
+				<div class="form-group">
+					<label for="userSelect">Test User</label>
+					<select id="userSelect" onchange="updateUserInfo()">
+						<option value="admin">Admin User</option>
+						<option value="space-manager">Space Manager</option>
+						<option value="event-editor">Event Editor</option>
+						<option value="viewer">Viewer (No Permissions)</option>
+						<option value="custom">Custom User...</option>
+					</select>
+				</div>
+
+				<div class="user-card" id="userCard">
+					<h3 id="cardName">Admin User</h3>
+					<div class="email" id="cardEmail">admin@example.com</div>
+					<div class="roles" id="cardRoles">
+						<span class="role-badge admin">c4:admin</span>
+					</div>
+				</div>
+
+				<div class="custom-section" id="customSection">
+					<div class="form-group">
+						<label for="customUsername">Username</label>
+						<input type="text" id="customUsername" placeholder="Enter username">
+					</div>
+				</div>
+
+				<input type="hidden" name="username" id="username" value="admin">
+				<input type="hidden" name="claims" id="claims" value="">
+
+				<button type="submit">Sign In</button>
+			</form>
+		</div>
+
+		<script>
+		const users = {
+			admin: {
+				name: "Admin User",
+				email: "admin@example.com",
+				roles: ["c4:admin"],
+				display: [{ text: "c4:admin", class: "admin" }],
+			},
+			"space-manager": {
+				name: "Space Manager",
+				email: "space-manager@example.com",
+				roles: ["c4:space:demo", "c4:space:events"],
+				display: [
+					{ text: "c4:space:demo", class: "space" },
+					{ text: "c4:space:events", class: "space" },
+				],
+			},
+			"event-editor": {
+				name: "Event Editor",
+				email: "event-editor@example.com",
+				roles: ["c4:space:demo:event-type:meetup", "c4:event-type:workshop"],
+				display: [
+					{ text: "c4:space:demo:event-type:meetup", class: "event-type" },
+					{ text: "c4:event-type:workshop", class: "event-type" },
+				],
+			},
+			viewer: {
+				name: "Viewer User",
+				email: "viewer@example.com",
+				roles: [],
+				display: [{ text: "No permissions", class: "none" }],
+			},
+		};
+
+		function buildClaims(username, user) {
+			return JSON.stringify({
+				preferred_username: username,
+				name: user.name,
+				email: user.email,
+				email_verified: true,
+				roles: user.roles,
+			});
+		}
+
+		function updateUserInfo() {
+			const select = document.getElementById("userSelect");
+			const value = select.value;
+			const userCard = document.getElementById("userCard");
+			const customSection = document.getElementById("customSection");
+			const usernameInput = document.getElementById("username");
+			const claimsInput = document.getElementById("claims");
+
+			if (value === "custom") {
+				userCard.style.display = "none";
+				customSection.classList.add("visible");
+				const customInput = document.getElementById("customUsername");
+				customInput.addEventListener("input", function () {
+					usernameInput.value = this.value;
+					claimsInput.value = JSON.stringify({
+						preferred_username: this.value,
+						name: this.value,
+						email: `${this.value}@example.com`,
+						email_verified: true,
+						realm_access: { roles: [] },
+					});
+				});
+			} else {
+				userCard.style.display = "block";
+				customSection.classList.remove("visible");
+				usernameInput.value = value;
+
+				const user = users[value];
+				claimsInput.value = buildClaims(value, user);
+
+				document.getElementById("cardName").textContent = user.name;
+				document.getElementById("cardEmail").textContent = user.email;
+
+				const rolesContainer = document.getElementById("cardRoles");
+				rolesContainer.innerHTML = user.display
+					.map((r) => `<span class="role-badge ${r.class}">${r.text}</span>`)
+					.join("");
+			}
+		}
+
+		// Initialize claims on page load
+		updateUserInfo();
+		</script>
+	</body>
+</html>
