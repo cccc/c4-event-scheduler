@@ -77,7 +77,7 @@ The mock-oauth2-server (`http://localhost:8080`) provides test users via a login
 A Docker image is built and pushed to `ghcr.io` on every push to `main` via GitHub Actions. The image runs database migrations on startup, then starts the Next.js server.
 
 ```bash
-docker pull ghcr.io/<owner>/c4-event-scheduler:latest
+docker pull ghcr.io/cccc/c4-event-scheduler:latest
 ```
 
 ### Running the Container
