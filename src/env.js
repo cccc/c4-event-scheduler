@@ -7,7 +7,7 @@ export const env = createEnv({
 	 * isn't built with invalid env vars.
 	 */
 	server: {
-		BETTER_AUTH_BASE_URL: z.url(),
+		BETTER_AUTH_URL: z.url(),
 		BETTER_AUTH_SECRET:
 			process.env.NODE_ENV === "production"
 				? z.string()
@@ -47,7 +47,7 @@ export const env = createEnv({
 	 * middlewares) or client-side so we need to destruct manually.
 	 */
 	runtimeEnv: {
-		BETTER_AUTH_BASE_URL: process.env.BETTER_AUTH_BASE_URL,
+		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		NEXT_PUBLIC_AUTH_EMAIL_ENABLED: process.env.NEXT_PUBLIC_AUTH_EMAIL_ENABLED,
 		NEXT_PUBLIC_AUTH_SSO_ENABLED: process.env.NEXT_PUBLIC_AUTH_SSO_ENABLED,

@@ -87,7 +87,7 @@ The container requires a PostgreSQL database and an OIDC provider. Configure via
 ```bash
 docker run -p 3000:3000 \
   -e DATABASE_URL="postgresql://user:pass@db:5432/c4_events" \
-  -e BETTER_AUTH_BASE_URL="https://events.example.com" \
+  -e BETTER_AUTH_URL="https://events.example.com" \
   -e BETTER_AUTH_SECRET="<random-secret>" \
   -e BETTER_AUTH_OIDC_CLIENT_ID="c4-events-app" \
   -e BETTER_AUTH_OIDC_CLIENT_SECRET="<client-secret>" \
@@ -121,12 +121,12 @@ docker run -p 3000:3000 \
 
 See [`.env.example`](.env.example) for the full list. Key variables:
 
-| Variable               | Description                                  |
-| ---------------------- | -------------------------------------------- |
-| `DATABASE_URL`         | PostgreSQL connection string                 |
-| `BETTER_AUTH_BASE_URL` | Public URL of the app                        |
-| `BETTER_AUTH_SECRET`   | Auth session secret                          |
-| `BETTER_AUTH_OIDC_*`   | OIDC provider configuration                  |
-| `OIDC_CLAIM_PREFIX`    | Prefix for permission claims (default: `c4`) |
-| `OIDC_ROLES_CLAIM`     | Dot-notation path to roles in OIDC token     |
-| `NEXT_PUBLIC_APP_URL`  | Public app URL for feeds and callbacks       |
+| Variable              | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `DATABASE_URL`        | PostgreSQL connection string                 |
+| `BETTER_AUTH_URL`     | Public URL of the app                        |
+| `BETTER_AUTH_SECRET`  | Auth session secret                          |
+| `BETTER_AUTH_OIDC_*`  | OIDC provider configuration                  |
+| `OIDC_CLAIM_PREFIX`   | Prefix for permission claims (default: `c4`) |
+| `OIDC_ROLES_CLAIM`    | Dot-notation path to roles in OIDC token     |
+| `NEXT_PUBLIC_APP_URL` | Public app URL for feeds and callbacks       |
