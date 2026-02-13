@@ -82,13 +82,14 @@ export async function GET(request: NextRequest) {
 		}
 	}
 
-	// Only include confirmed or tentative events
+	// Only include confirmed or tentative events that are not internal
 	conditions.push(
 		or(
 			eq(event.status, "confirmed"),
 			eq(event.status, "tentative"),
 		) as ReturnType<typeof eq>,
 	);
+	conditions.push(eq(event.isInternal, false));
 
 	const now = new Date();
 	const rangeEnd = new Date();
@@ -118,8 +119,9 @@ export async function GET(request: NextRequest) {
 					(o) => o.occurrenceDate === occDate,
 				);
 				const status = override?.status ?? evt.status;
+				const isInternal = override?.isInternal ?? evt.isInternal;
 
-				if (status === "gone" || status === "pending") continue;
+				if (status === "gone" || status === "pending" || isInternal) continue;
 
 				const isCancelled = status === "cancelled";
 
@@ -172,9 +174,10 @@ export async function GET(request: NextRequest) {
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
+					const isInternal = override?.isInternal ?? evt.isInternal;
 
-					// Skip gone and pending
-					if (status === "gone" || status === "pending") continue;
+					// Skip gone, pending, and internal
+					if (status === "gone" || status === "pending" || isInternal) continue;
 
 					if (!firstValidDate) {
 						firstValidDate = date;

@@ -14,10 +14,12 @@ const formSchema = z.object({
 	title: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.url("Must be a valid URL").or(z.literal("")),
+	location: z.string(),
 	startTime: z.string().min(1, "Start time is required"),
 	endTime: z.string(),
 	hasEndTime: z.boolean(),
 	status: z.enum(["confirmed", "tentative", "pending"]),
+	isInternal: z.boolean(),
 });
 
 type CreateSingleEventFormProps = {
@@ -48,6 +50,7 @@ export function CreateSingleEventForm({
 			title: "",
 			description: "",
 			url: "",
+			location: "",
 			startTime: selectedDate ? toLocalDateTimeString(selectedDate) : "",
 			endTime: selectedDate
 				? toLocalDateTimeString(
@@ -56,6 +59,7 @@ export function CreateSingleEventForm({
 				: "",
 			hasEndTime: true,
 			status: "confirmed",
+			isInternal: false,
 		} as z.infer<typeof formSchema>,
 		validators: {
 			onSubmit: formSchema,
@@ -73,9 +77,11 @@ export function CreateSingleEventForm({
 				title: value.title,
 				description: value.description || undefined,
 				url: value.url || undefined,
+				location: value.location || undefined,
 				startTime,
 				endTime,
 				status: value.status,
+				isInternal: value.isInternal,
 			});
 		},
 	});
@@ -137,6 +143,15 @@ export function CreateSingleEventForm({
 					)}
 				</form.AppField>
 
+				<form.AppField name="location">
+					{(field) => (
+						<field.TextField
+							label="Location"
+							placeholder="Leave empty to use space name"
+						/>
+					)}
+				</form.AppField>
+
 				<form.AppField name="startTime">
 					{(field) => (
 						<>
@@ -170,6 +185,15 @@ export function CreateSingleEventForm({
 								{ value: "tentative", label: "Tentative" },
 								{ value: "pending", label: "Pending (Draft)" },
 							]}
+						/>
+					)}
+				</form.AppField>
+
+				<form.AppField name="isInternal">
+					{(field) => (
+						<field.CheckboxField
+							id="isInternal"
+							label="Internal (only visible to logged-in users)"
 						/>
 					)}
 				</form.AppField>

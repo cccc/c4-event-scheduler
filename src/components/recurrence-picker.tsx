@@ -17,8 +17,6 @@ type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 type MonthlyType = "dayOfMonth" | "dayOfWeek";
 type EndType = "never" | "date" | "count";
 type WeekDay = "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU";
-type EventStatus = "pending" | "tentative" | "confirmed";
-
 interface RecurrencePickerProps {
 	startDate: Date | null;
 	onChange: (config: RecurrenceConfig) => void;
@@ -36,7 +34,6 @@ export interface RecurrenceConfig {
 	endType: EndType;
 	endDate: Date | null;
 	endCount: number;
-	defaultStatus: EventStatus;
 }
 
 const WEEK_DAYS: { value: WeekDay; label: string; short: string }[] = [
@@ -83,7 +80,6 @@ function getDefaultConfig(startDate: Date | null): RecurrenceConfig {
 		endType: "never",
 		endDate: null,
 		endCount: 10,
-		defaultStatus: "pending",
 	};
 }
 
@@ -136,10 +132,7 @@ export function buildRRuleFromConfig(config: RecurrenceConfig): string {
  * Parse an RRULE string back into a RecurrenceConfig.
  * Used when editing an existing series to populate the recurrence picker.
  */
-export function parseRRuleToConfig(
-	rruleString: string,
-	eventStatus?: EventStatus,
-): RecurrenceConfig {
+export function parseRRuleToConfig(rruleString: string): RecurrenceConfig {
 	const rule = RRule.fromString(rruleString);
 	const options = rule.options;
 
@@ -242,7 +235,6 @@ export function parseRRuleToConfig(
 		endType,
 		endDate,
 		endCount,
-		defaultStatus: eventStatus ?? "pending",
 	};
 }
 
@@ -528,27 +520,6 @@ export function RecurrencePicker({
 						<span className="text-muted-foreground text-sm">occurrences</span>
 					</label>
 				</div>
-			</div>
-
-			{/* Default status for new occurrences */}
-			<div>
-				<Label>Default status for occurrences</Label>
-				<Select
-					onValueChange={(v) => updateConfig("defaultStatus", v as EventStatus)}
-					value={config.defaultStatus}
-				>
-					<SelectTrigger>
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="pending">Pending (Draft)</SelectItem>
-						<SelectItem value="tentative">Tentative</SelectItem>
-						<SelectItem value="confirmed">Confirmed</SelectItem>
-					</SelectContent>
-				</Select>
-				<p className="mt-1 text-muted-foreground text-xs">
-					New occurrences will be created with this status
-				</p>
 			</div>
 		</div>
 	);

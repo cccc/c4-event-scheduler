@@ -220,6 +220,17 @@
 	font-style: italic;
 }
 
+/* Internal: solid muted style, reduced opacity, no stripes */
+.fc .fc-event.event-internal {
+	opacity: 0.65;
+	border-style: solid;
+	border-width: 2px;
+}
+
+.fc .fc-event.event-internal .fc-event-main {
+	font-style: italic;
+}
+
 /* Cancelled: strikethrough, muted, with X pattern overlay */
 .fc .fc-event.event-cancelled {
 	opacity: 0.5;
@@ -245,6 +256,11 @@
 .fc .fc-list-event.event-pending td {
 	font-style: italic;
 	opacity: 0.6;
+}
+
+.fc .fc-list-event.event-internal td {
+	font-style: italic;
+	opacity: 0.65;
 }
 
 .fc .fc-list-event.event-cancelled td {

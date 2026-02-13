@@ -22,13 +22,16 @@ const formSchema = z.object({
 	title: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.url("Must be a valid URL").or(z.literal("")),
+	location: z.string(),
 	seriesFirstDate: z.string().min(1, "First occurrence date is required"),
 	seriesLastDate: z.string(),
 	seriesHasEndDate: z.boolean(),
 	occurrenceStartTime: z.string().min(1, "Start time is required"),
 	occurrenceEndTime: z.string(),
 	seriesHasEndTime: z.boolean(),
+	status: z.enum(["confirmed", "tentative", "pending"]),
 	frequencyLabel: z.string(),
+	isInternal: z.boolean(),
 	recurrenceConfig: z.custom<RecurrenceConfig>().nullable(),
 });
 
@@ -60,6 +63,7 @@ export function CreateSeriesForm({
 			title: "",
 			description: "",
 			url: "",
+			location: "",
 			seriesFirstDate: selectedDate ? toLocalDateString(selectedDate) : "",
 			seriesLastDate: "",
 			seriesHasEndDate: false,
@@ -70,7 +74,9 @@ export function CreateSeriesForm({
 				? toLocalTimeString(new Date(selectedDate.getTime() + 60 * 60 * 1000))
 				: "21:00",
 			seriesHasEndTime: true,
+			status: "pending",
 			frequencyLabel: "",
+			isInternal: false,
 			recurrenceConfig: null,
 		} as z.infer<typeof formSchema>,
 		validators: {
@@ -100,20 +106,20 @@ export function CreateSeriesForm({
 				recurrenceEndDate = value.recurrenceConfig.endDate;
 			}
 
-			const status = value.recurrenceConfig?.defaultStatus ?? "pending";
-
 			createEvent.mutate({
 				spaceId: space.id,
 				eventTypeId: value.eventTypeId,
 				title: value.title,
 				description: value.description || undefined,
 				url: value.url || undefined,
+				location: value.location || undefined,
 				startTime,
 				endTime,
 				rrule,
 				recurrenceEndDate,
 				frequencyLabel: value.frequencyLabel || undefined,
-				status,
+				status: value.status,
+				isInternal: value.isInternal,
 			});
 		},
 	});
@@ -172,6 +178,15 @@ export function CreateSeriesForm({
 							/>
 							<field.FieldError />
 						</>
+					)}
+				</form.AppField>
+
+				<form.AppField name="location">
+					{(field) => (
+						<field.TextField
+							label="Location"
+							placeholder="Leave empty to use space name"
+						/>
 					)}
 				</form.AppField>
 
@@ -245,6 +260,28 @@ export function CreateSeriesForm({
 				{/* Recurrence Pattern */}
 				<form.AppField name="recurrenceConfig">
 					{(field) => <field.RecurrencePickerField startDate={selectedDate} />}
+				</form.AppField>
+
+				<form.AppField name="status">
+					{(field) => (
+						<field.SelectField
+							label="Status"
+							options={[
+								{ value: "confirmed", label: "Confirmed" },
+								{ value: "tentative", label: "Tentative" },
+								{ value: "pending", label: "Pending (Draft)" },
+							]}
+						/>
+					)}
+				</form.AppField>
+
+				<form.AppField name="isInternal">
+					{(field) => (
+						<field.CheckboxField
+							id="series-isInternal"
+							label="Internal (only visible to logged-in users)"
+						/>
+					)}
 				</form.AppField>
 
 				{/* Frequency Label for Widget */}

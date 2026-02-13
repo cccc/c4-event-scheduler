@@ -56,7 +56,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
 			allDay: occ.allDay,
 			backgroundColor: occ.color ?? undefined,
 			borderColor: occ.color ?? undefined,
-			classNames: [`event-${occ.status}`],
+			classNames: [
+				`event-${occ.status}`,
+				...(occ.isInternal ? ["event-internal"] : []),
+			],
 			extendedProps: {
 				status: occ.status,
 				eventId: occ.eventId,
