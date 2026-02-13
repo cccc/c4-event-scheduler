@@ -16,7 +16,6 @@ const formSchema = z.object({
 	url: z.string().url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
 	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
-	isInternal: z.boolean(),
 	startTime: z.string().min(1, "Start time is required"),
 	endTime: z.string(),
 	hasEndTime: z.boolean(),
@@ -58,7 +57,6 @@ export function EditSingleEventForm({
 			url: occurrence.url ?? "",
 			location: occurrence.location ?? "",
 			status: editableStatus,
-			isInternal: occurrence.isInternal,
 			startTime: toLocalDateTimeString(occurrence.start),
 			endTime: occurrence.end
 				? toLocalDateTimeString(occurrence.end)
@@ -88,7 +86,6 @@ export function EditSingleEventForm({
 				startTime,
 				endTime,
 				status: value.status,
-				isInternal: value.isInternal,
 			});
 		},
 	});
@@ -102,7 +99,6 @@ export function EditSingleEventForm({
 		form.setFieldValue("url", occurrence.url ?? "");
 		form.setFieldValue("location", occurrence.location ?? "");
 		form.setFieldValue("status", status);
-		form.setFieldValue("isInternal", occurrence.isInternal);
 		form.setFieldValue("startTime", toLocalDateTimeString(occurrence.start));
 		form.setFieldValue(
 			"endTime",
@@ -175,15 +171,6 @@ export function EditSingleEventForm({
 								{ value: "pending", label: "Pending (Draft)" },
 								{ value: "cancelled", label: "Cancelled" },
 							]}
-						/>
-					)}
-				</form.AppField>
-
-				<form.AppField name="isInternal">
-					{(field) => (
-						<field.CheckboxField
-							id="edit-single-isInternal"
-							label="Internal (only visible to logged-in users)"
 						/>
 					)}
 				</form.AppField>

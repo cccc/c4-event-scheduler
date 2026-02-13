@@ -29,7 +29,6 @@ const occurrenceFormSchema = z.object({
 	location: z.string(),
 	notes: z.string(),
 	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
-	isInternal: z.boolean(),
 	startTime: z.string(),
 	endTime: z.string(),
 	hasEndTime: z.boolean(),
@@ -41,7 +40,6 @@ const seriesFormSchema = z.object({
 	url: z.string().url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
 	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
-	isInternal: z.boolean(),
 	seriesFirstDate: z.string().min(1, "First date is required"),
 	occurrenceStartTime: z.string().min(1, "Start time is required"),
 	occurrenceEndTime: z.string(),
@@ -115,7 +113,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 			location: occurrence.isOverridden ? (occurrence.location ?? "") : "",
 			notes: occurrence.notes ?? "",
 			status: editableStatus,
-			isInternal: occurrence.isInternal,
 			startTime: toLocalDateTimeString(occurrence.start),
 			endTime: occurrence.end
 				? toLocalDateTimeString(occurrence.end)
@@ -140,7 +137,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 				eventId: occurrence.eventId,
 				occurrenceDate: occurrence.occurrenceDate,
 				status: value.status,
-				isInternal: value.isInternal,
 				notes: value.notes || undefined,
 				title: value.title || undefined,
 				description: value.description || undefined,
@@ -159,7 +155,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 			url: occurrence.url ?? "",
 			location: occurrence.location ?? "",
 			status: editableStatus,
-			isInternal: occurrence.isInternal,
 			seriesFirstDate: occurrence.occurrenceDate,
 			occurrenceStartTime: toLocalTimeString(occurrence.start),
 			occurrenceEndTime: occurrence.end
@@ -218,7 +213,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 					startTime,
 					endTime,
 					status: value.status,
-					isInternal: value.isInternal,
 					rrule,
 					recurrenceEndDate,
 				});
@@ -233,7 +227,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 					startTime,
 					endTime,
 					status: value.status,
-					isInternal: value.isInternal,
 					rrule,
 				});
 			}
@@ -263,7 +256,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 		);
 		occurrenceForm.setFieldValue("notes", occurrence.notes ?? "");
 		occurrenceForm.setFieldValue("status", status);
-		occurrenceForm.setFieldValue("isInternal", occurrence.isInternal);
 		occurrenceForm.setFieldValue(
 			"startTime",
 			toLocalDateTimeString(occurrence.start),
@@ -283,7 +275,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 		seriesForm.setFieldValue("url", occurrence.url ?? "");
 		seriesForm.setFieldValue("location", occurrence.location ?? "");
 		seriesForm.setFieldValue("status", status);
-		seriesForm.setFieldValue("isInternal", occurrence.isInternal);
 		seriesForm.setFieldValue("seriesFirstDate", occurrence.occurrenceDate);
 		seriesForm.setFieldValue(
 			"occurrenceStartTime",
@@ -449,15 +440,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 										{ value: "pending", label: "Pending (Draft)" },
 										{ value: "cancelled", label: "Cancelled" },
 									]}
-								/>
-							)}
-						</occurrenceForm.AppField>
-
-						<occurrenceForm.AppField name="isInternal">
-							{(field) => (
-								<field.CheckboxField
-									id="occ-isInternal"
-									label="Internal (only visible to logged-in users)"
 								/>
 							)}
 						</occurrenceForm.AppField>
@@ -672,15 +654,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 										{ value: "pending", label: "Pending (Draft)" },
 										{ value: "cancelled", label: "Cancelled" },
 									]}
-								/>
-							)}
-						</seriesForm.AppField>
-
-						<seriesForm.AppField name="isInternal">
-							{(field) => (
-								<field.CheckboxField
-									id="series-edit-isInternal"
-									label="Internal (only visible to logged-in users)"
 								/>
 							)}
 						</seriesForm.AppField>

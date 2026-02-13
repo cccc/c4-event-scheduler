@@ -3,6 +3,7 @@ import {
 	boolean,
 	date,
 	index,
+	integer,
 	pgEnum,
 	pgTableCreator,
 	text,
@@ -133,6 +134,8 @@ export const eventType = createTable(
 		name: varchar("name", { length: 255 }).notNull(),
 		description: text("description"),
 		color: varchar("color", { length: 20 }),
+		isInternal: boolean("is_internal").notNull().default(false),
+		defaultDurationMinutes: integer("default_duration_minutes"),
 		// If null, event type is global (available in all spaces)
 		// If set, event type is specific to this space only
 		spaceId: uuid("space_id").references(() => space.id, {
@@ -194,7 +197,6 @@ export const event = createTable(
 
 		// Status
 		status: eventStatusEnum("status").notNull().default("pending"),
-		isInternal: boolean("is_internal").notNull().default(false),
 
 		// Timestamps
 		createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -245,8 +247,6 @@ export const occurrenceOverride = createTable(
 		// Status override (null = inherit from event)
 		// Use "gone" to mark an occurrence as deleted
 		status: occurrenceStatusEnum("status"),
-		// Internal flag override (null = inherit from event)
-		isInternal: boolean("is_internal"),
 
 		// Notes/comments explaining the override (e.g., "Moved due to holiday")
 		notes: text("notes"),

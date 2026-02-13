@@ -161,9 +161,12 @@ export const eventsRouter = createTRPCRouter({
 			const occurrences: OccurrenceData[] = [];
 
 			for (const evt of events) {
+				const defaultDurationMs = evt.eventType?.defaultDurationMinutes
+					? evt.eventType.defaultDurationMinutes * 60_000
+					: 0;
 				const duration = evt.endTime
 					? evt.endTime.getTime() - evt.startTime.getTime()
-					: 0;
+					: defaultDurationMs;
 
 				if (!evt.isRecurring || !evt.rrule) {
 					// Single event - use the event's start date as occurrence date
@@ -172,7 +175,7 @@ export const eventsRouter = createTRPCRouter({
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
-					const isInternal = override?.isInternal ?? evt.isInternal;
+					const isInternal = evt.eventType?.isInternal ?? false;
 
 					// Skip "gone" occurrences unless explicitly requested
 					if (status === "gone" && !input.includeGone) continue;
@@ -193,7 +196,12 @@ export const eventsRouter = createTRPCRouter({
 						url: override?.url ?? evt.url,
 						location: override?.location ?? evt.location,
 						start,
-						end: override?.endTime ?? evt.endTime,
+						end:
+							override?.endTime ??
+							evt.endTime ??
+							(defaultDurationMs
+								? new Date(start.getTime() + defaultDurationMs)
+								: null),
 						allDay: evt.allDay,
 						isOverridden: !!override,
 						isGone: status === "gone",
@@ -244,7 +252,7 @@ export const eventsRouter = createTRPCRouter({
 							);
 
 							const status = override?.status ?? evt.status;
-							const isInternal = override?.isInternal ?? evt.isInternal;
+							const isInternal = evt.eventType?.isInternal ?? false;
 
 							// Skip "gone" occurrences unless explicitly requested
 							if (status === "gone" && !input.includeGone) continue;
@@ -256,7 +264,7 @@ export const eventsRouter = createTRPCRouter({
 							const start = override?.startTime ?? date;
 							const end =
 								override?.endTime ??
-								(evt.endTime ? new Date(date.getTime() + duration) : null);
+								(duration > 0 ? new Date(date.getTime() + duration) : null);
 
 							// Check if within requested date range
 							if (start < input.start || start > input.end) continue;
@@ -313,7 +321,6 @@ export const eventsRouter = createTRPCRouter({
 				recurrenceEndDate: z.date().optional(),
 				frequencyLabel: z.string().max(255).optional(),
 				status: eventStatusSchema.default("pending"),
-				isInternal: z.boolean().default(false),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -366,7 +373,6 @@ export const eventsRouter = createTRPCRouter({
 				recurrenceEndDate: z.date().optional().nullable(),
 				frequencyLabel: z.string().max(255).optional().nullable(),
 				status: eventStatusSchema.optional(),
-				isInternal: z.boolean().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -430,7 +436,6 @@ export const eventsRouter = createTRPCRouter({
 				eventId: z.string().uuid(),
 				occurrenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 				status: occurrenceStatusSchema.optional(),
-				isInternal: z.boolean().optional(),
 				notes: z.string().optional(),
 				title: z.string().max(255).optional(),
 				description: z.string().optional(),
@@ -601,7 +606,6 @@ export const eventsRouter = createTRPCRouter({
 				startTime: z.date().optional(), // New time-of-day (date part ignored for recurring)
 				endTime: z.date().optional(),
 				status: eventStatusSchema.optional(),
-				isInternal: z.boolean().optional(),
 				rrule: z.string().optional(), // New RRULE (if changing recurrence pattern)
 			}),
 		)
@@ -657,7 +661,6 @@ export const eventsRouter = createTRPCRouter({
 						url: updates.url ?? evt.url,
 						location: updates.location ?? evt.location,
 						status: updates.status ?? evt.status,
-						isInternal: updates.isInternal ?? evt.isInternal,
 						updatedAt: new Date(),
 					})
 					.where(eq(event.id, eventId))
@@ -733,7 +736,6 @@ export const eventsRouter = createTRPCRouter({
 					isRecurring: true,
 					recurrenceEndDate: evt.recurrenceEndDate,
 					status: updates.status ?? evt.status,
-					isInternal: updates.isInternal ?? evt.isInternal,
 				})
 				.returning();
 
@@ -760,7 +762,6 @@ export const eventsRouter = createTRPCRouter({
 						eventId: newEvent.id,
 						occurrenceDate: o.occurrenceDate,
 						status: o.status,
-						isInternal: o.isInternal,
 						notes: o.notes,
 						title: o.title,
 						description: o.description,

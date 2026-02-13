@@ -83,6 +83,8 @@ export const eventTypesRouter = createTRPCRouter({
 				name: z.string().min(1).max(255),
 				description: z.string().optional(),
 				color: z.string().max(20).optional(),
+				isInternal: z.boolean().default(false),
+				defaultDurationMinutes: z.number().int().min(1).max(1440).optional(),
 				// If set, limits event type to this space; if null/undefined, it's global
 				spaceId: z.string().uuid().optional(),
 			}),
@@ -138,6 +140,14 @@ export const eventTypesRouter = createTRPCRouter({
 				name: z.string().min(1).max(255).optional(),
 				description: z.string().optional(),
 				color: z.string().max(20).optional(),
+				isInternal: z.boolean().optional(),
+				defaultDurationMinutes: z
+					.number()
+					.int()
+					.min(1)
+					.max(1440)
+					.nullable()
+					.optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {

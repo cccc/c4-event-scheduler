@@ -136,36 +136,32 @@
 	--fc-button-text-color: var(--secondary-foreground);
 	--fc-button-hover-bg-color: var(--accent);
 	--fc-button-hover-border-color: var(--border);
-	--fc-button-active-bg-color: var(--primary);
+	--fc-button-active-bg-color: var(--accent);
 	--fc-button-active-border-color: var(--primary);
 	--fc-button-active-text-color: var(--primary-foreground);
 	--fc-event-bg-color: var(--primary);
 	--fc-event-border-color: var(--primary);
-	--fc-event-text-color: var(--primary-foreground);
+	--fc-event-text-color: var(--foreground);
 	--fc-today-bg-color: var(--accent);
 	--fc-page-bg-color: var(--card);
 	--fc-neutral-bg-color: var(--muted);
 	--fc-list-event-hover-bg-color: var(--accent);
 }
 
-.fc .fc-toolbar-title {
-	color: var(--foreground);
-}
-
-.fc .fc-col-header-cell-cushion,
-.fc .fc-daygrid-day-number,
-.fc .fc-list-day-text,
-.fc .fc-list-day-side-text {
-	color: var(--foreground);
-}
-
 .fc .fc-daygrid-day.fc-day-today {
 	background-color: var(--accent);
 }
 
-.fc .fc-list-event-title,
-.fc .fc-list-event-time {
-	color: var(--foreground);
+.fc .fc-daygrid-event-harness {
+	margin: 3px;
+
+	.fc-event {
+		padding: 3px;
+	}
+
+	.fc-daygrid-event-dot {
+		display: none;
+	}
 }
 
 .fc .fc-timegrid-slot-label {
@@ -184,86 +180,91 @@
 	border-color: var(--border);
 }
 
-/* Event status styling - accessible differentiation */
+/* Event status styling — color-mix based, theme-independent */
 
-/* Confirmed: solid style (default) */
+.fc .fc-event {
+	border-radius: 4px;
+	border-width: 2px;
+}
+
+/* Confirmed: solid border, light tinted background */
 .fc .fc-event.event-confirmed {
-	opacity: 1;
+	border-style: solid;
+	border-color: var(--event-color, var(--primary));
+	background-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 20%,
+		transparent
+	);
 }
 
-/* Tentative: dashed border, slightly reduced opacity */
+/* Tentative: dashed border, lighter background */
 .fc .fc-event.event-tentative {
-	opacity: 0.85;
 	border-style: dashed;
-	border-width: 2px;
+	border-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 70%,
+		transparent
+	);
+	background-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 12%,
+		transparent
+	);
 }
 
-.fc .fc-event.event-tentative .fc-event-main {
-	font-style: italic;
-}
-
-/* Pending/Draft: dotted border, more transparent, italic */
+/* Pending/Draft: dotted border, very light background, italic */
 .fc .fc-event.event-pending {
-	opacity: 0.6;
 	border-style: dotted;
-	border-width: 2px;
+	border-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 50%,
+		transparent
+	);
+	background-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 8%,
+		transparent
+	);
+}
+
+/* Cancelled: solid faded border, light background, strikethrough */
+.fc .fc-event.event-cancelled {
+	border-style: solid;
+	border-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 40%,
+		transparent
+	);
+	background-color: color-mix(
+		in srgb,
+		var(--event-color, var(--primary)) 8%,
+		transparent
+	);
+}
+
+/* Internal: striped overlay (additive, combines with status class) */
+.fc .fc-event.event-internal {
 	background-image: repeating-linear-gradient(
 		45deg,
 		transparent,
-		transparent 2px,
-		rgba(255, 255, 255, 0.1) 2px,
-		rgba(255, 255, 255, 0.1) 4px
+		transparent 3px,
+		color-mix(in srgb, var(--event-color, var(--primary)) 12%, transparent) 3px,
+		color-mix(in srgb, var(--event-color, var(--primary)) 12%, transparent) 6px
 	);
 }
 
-.fc .fc-event.event-pending .fc-event-main {
-	font-style: italic;
+/* List view adjustments */
+.fc .event-tentative > * {
+	opacity: 0.8;
 }
 
-/* Internal: solid muted style, reduced opacity, no stripes */
-.fc .fc-event.event-internal {
-	opacity: 0.65;
-	border-style: solid;
-	border-width: 2px;
-}
-
-.fc .fc-event.event-internal .fc-event-main {
-	font-style: italic;
-}
-
-/* Cancelled: strikethrough, muted, with X pattern overlay */
-.fc .fc-event.event-cancelled {
-	opacity: 0.5;
-	text-decoration: line-through;
-	background-image: repeating-linear-gradient(
-		-45deg,
-		transparent,
-		transparent 4px,
-		rgba(0, 0, 0, 0.1) 4px,
-		rgba(0, 0, 0, 0.1) 5px
-	);
-}
-
-.fc .fc-event.event-cancelled .fc-event-main {
-	text-decoration: line-through;
-}
-
-/* List view specific adjustments */
-.fc .fc-list-event.event-tentative td {
-	font-style: italic;
-}
-
-.fc .fc-list-event.event-pending td {
+.fc .event-pending > * {
 	font-style: italic;
 	opacity: 0.6;
 }
 
-.fc .fc-list-event.event-internal td {
-	font-style: italic;
-	opacity: 0.65;
-}
-
-.fc .fc-list-event.event-cancelled td {
+.fc .event-cancelled > * {
 	text-decoration: line-through;
 	opacity: 0.5;
 }

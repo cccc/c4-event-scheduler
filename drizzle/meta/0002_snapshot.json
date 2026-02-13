@@ -1,6 +1,6 @@
 {
-  "id": "7f15671c-e224-4a52-a6bc-95a52378cd1d",
-  "prevId": "c9f6cfd2-1e3a-4cb8-af89-e01f160f200f",
+  "id": "3eb2d70c-b0f4-4b74-9327-9a14b04eb624",
+  "prevId": "7f15671c-e224-4a52-a6bc-95a52378cd1d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -373,6 +373,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "default_duration_minutes": {
+          "name": "default_duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "space_id": {
           "name": "space_id",
