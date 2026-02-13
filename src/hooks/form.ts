@@ -1,6 +1,7 @@
 import { createFormHook, createFormHookContexts } from "@tanstack/react-form";
 
 import { CheckboxField } from "@/components/form-fields/checkbox-field";
+import { ColorSwatchField } from "@/components/form-fields/color-swatch-field";
 import { DateField } from "@/components/form-fields/date-field";
 import { DateTimeField } from "@/components/form-fields/date-time-field";
 import { FieldError } from "@/components/form-fields/field-error";
@@ -23,6 +24,7 @@ const { useAppForm } = createFormHook({
 		TextareaField,
 		SelectField,
 		CheckboxField,
+		ColorSwatchField,
 		DateTimeField,
 		DateField,
 		TimeField,

@@ -141,24 +141,35 @@ export async function GET(
 	rangeEnd.setFullYear(rangeEnd.getFullYear() + 2);
 
 	for (const evt of events) {
+		const defaultDurationMs = evt.eventType?.defaultDurationMinutes
+			? evt.eventType.defaultDurationMinutes * 60_000
+			: 0;
 		const duration = evt.endTime
 			? evt.endTime.getTime() - evt.startTime.getTime()
-			: 0;
+			: defaultDurationMs;
 
 		if (!evt.isRecurring || !evt.rrule) {
 			// Single event - include all regardless of date, filter only by status
 			const occDate = formatOccurrenceDate(evt.startTime);
 			const override = evt.overrides.find((o) => o.occurrenceDate === occDate);
 			const status = override?.status ?? evt.status;
-			const isInternal = override?.isInternal ?? evt.isInternal;
+			const isInternal = evt.eventType?.isInternal ?? false;
 
 			// Skip "gone", "pending", or internal occurrences
 			if (status === "gone" || status === "pending" || isInternal) continue;
 
-			calendar.createEvent({
+			const effectiveStart = override?.startTime ?? evt.startTime;
+			const effectiveEnd =
+				override?.endTime ??
+				evt.endTime ??
+				(defaultDurationMs
+					? new Date(effectiveStart.getTime() + defaultDurationMs)
+					: undefined);
+
+			const icalEvent = calendar.createEvent({
 				id: `${evt.id}:${occDate}`,
-				start: override?.startTime ?? evt.startTime,
-				end: override?.endTime ?? evt.endTime ?? undefined,
+				start: effectiveStart,
+				end: effectiveEnd,
 				allDay: evt.allDay,
 				summary: override?.title ?? evt.title,
 				description: override?.notes
@@ -169,6 +180,9 @@ export async function GET(
 				created: evt.createdAt,
 				status: mapStatus(status),
 			});
+			if (!evt.endTime && defaultDurationMs > 0) {
+				icalEvent.x([{ key: "X-OPEN-END", value: "TRUE" }]);
+			}
 		} else {
 			// Recurring event - expand occurrences and create individual iCal entries
 			// Include all past occurrences (from event start) and up to 2 years future
@@ -198,7 +212,7 @@ export async function GET(
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
-					const isInternal = override?.isInternal ?? evt.isInternal;
+					const isInternal = evt.eventType?.isInternal ?? false;
 
 					// Skip "gone", "pending", or internal occurrences
 					if (status === "gone" || status === "pending" || isInternal) continue;
@@ -206,9 +220,9 @@ export async function GET(
 					const start = override?.startTime ?? date;
 					const end =
 						override?.endTime ??
-						(evt.endTime ? new Date(date.getTime() + duration) : undefined);
+						(duration > 0 ? new Date(date.getTime() + duration) : undefined);
 
-					calendar.createEvent({
+					const icalEvent = calendar.createEvent({
 						id: `${evt.id}:${occDate}`,
 						start,
 						end,
@@ -222,6 +236,9 @@ export async function GET(
 						created: evt.createdAt,
 						status: mapStatus(status),
 					});
+					if (!evt.endTime && defaultDurationMs > 0) {
+						icalEvent.x([{ key: "X-OPEN-END", value: "TRUE" }]);
+					}
 				}
 			} catch (e) {
 				console.error(`Failed to parse RRULE for event ${evt.id}:`, e);

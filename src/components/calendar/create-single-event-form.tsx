@@ -19,7 +19,6 @@ const formSchema = z.object({
 	endTime: z.string(),
 	hasEndTime: z.boolean(),
 	status: z.enum(["confirmed", "tentative", "pending"]),
-	isInternal: z.boolean(),
 });
 
 type CreateSingleEventFormProps = {
@@ -59,7 +58,6 @@ export function CreateSingleEventForm({
 				: "",
 			hasEndTime: true,
 			status: "confirmed",
-			isInternal: false,
 		} as z.infer<typeof formSchema>,
 		validators: {
 			onSubmit: formSchema,
@@ -81,7 +79,6 @@ export function CreateSingleEventForm({
 				startTime,
 				endTime,
 				status: value.status,
-				isInternal: value.isInternal,
 			});
 		},
 	});
@@ -185,15 +182,6 @@ export function CreateSingleEventForm({
 								{ value: "tentative", label: "Tentative" },
 								{ value: "pending", label: "Pending (Draft)" },
 							]}
-						/>
-					)}
-				</form.AppField>
-
-				<form.AppField name="isInternal">
-					{(field) => (
-						<field.CheckboxField
-							id="isInternal"
-							label="Internal (only visible to logged-in users)"
 						/>
 					)}
 				</form.AppField>

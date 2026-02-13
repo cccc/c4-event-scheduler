@@ -1,0 +1,1 @@
+ALTER TABLE "c4_event_type" ADD COLUMN "default_duration_minutes" integer;

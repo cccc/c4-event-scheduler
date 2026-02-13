@@ -12,8 +12,15 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1770979707095,
-      "tag": "0001_grey_lethal_legion",
+      "when": 1770987559843,
+      "tag": "0001_bored_morgan_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770994358380,
+      "tag": "0002_minor_silver_samurai",
       "breakpoints": true
     }
   ]

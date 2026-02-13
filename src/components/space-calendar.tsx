@@ -4,6 +4,7 @@ import type {
 	DatesSetArg,
 	EventClickArg,
 	EventInput,
+	EventMountArg,
 } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -54,8 +55,6 @@ export function SpaceCalendar({ space }: { space: Space }) {
 			start: occ.start,
 			end: occ.end ?? undefined,
 			allDay: occ.allDay,
-			backgroundColor: occ.color ?? undefined,
-			borderColor: occ.color ?? undefined,
 			classNames: [
 				`event-${occ.status}`,
 				...(occ.isInternal ? ["event-internal"] : []),
@@ -65,11 +64,19 @@ export function SpaceCalendar({ space }: { space: Space }) {
 				eventId: occ.eventId,
 				description: occ.description,
 				url: occ.url,
+				color: occ.color,
 			},
 		}));
 	}, [occurrences]);
 
 	const isLoggedIn = !!session?.user;
+
+	const handleEventDidMount = useCallback((info: EventMountArg) => {
+		const color = info.event.extendedProps.color;
+		if (color) {
+			info.el.style.setProperty("--event-color", color);
+		}
+	}, []);
 
 	const handleDatesSet = useCallback((arg: DatesSetArg) => {
 		setDateRange({ start: arg.start, end: arg.end });
@@ -116,7 +123,14 @@ export function SpaceCalendar({ space }: { space: Space }) {
 					datesSet={handleDatesSet}
 					editable={false}
 					eventClick={handleEventClick}
+					eventDidMount={handleEventDidMount}
 					events={calendarEvents}
+					eventTimeFormat={{
+						hour: "2-digit",
+						minute: "2-digit",
+						meridiem: false,
+						hour12: false,
+					}}
 					firstDay={1}
 					headerToolbar={{
 						left: "prev,next today",

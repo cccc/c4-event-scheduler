@@ -31,7 +31,6 @@ const formSchema = z.object({
 	seriesHasEndTime: z.boolean(),
 	status: z.enum(["confirmed", "tentative", "pending"]),
 	frequencyLabel: z.string(),
-	isInternal: z.boolean(),
 	recurrenceConfig: z.custom<RecurrenceConfig>().nullable(),
 });
 
@@ -76,7 +75,6 @@ export function CreateSeriesForm({
 			seriesHasEndTime: true,
 			status: "pending",
 			frequencyLabel: "",
-			isInternal: false,
 			recurrenceConfig: null,
 		} as z.infer<typeof formSchema>,
 		validators: {
@@ -119,7 +117,6 @@ export function CreateSeriesForm({
 				recurrenceEndDate,
 				frequencyLabel: value.frequencyLabel || undefined,
 				status: value.status,
-				isInternal: value.isInternal,
 			});
 		},
 	});
@@ -271,15 +268,6 @@ export function CreateSeriesForm({
 								{ value: "tentative", label: "Tentative" },
 								{ value: "pending", label: "Pending (Draft)" },
 							]}
-						/>
-					)}
-				</form.AppField>
-
-				<form.AppField name="isInternal">
-					{(field) => (
-						<field.CheckboxField
-							id="series-isInternal"
-							label="Internal (only visible to logged-in users)"
 						/>
 					)}
 				</form.AppField>
