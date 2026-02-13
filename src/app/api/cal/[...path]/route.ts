@@ -150,9 +150,10 @@ export async function GET(
 			const occDate = formatOccurrenceDate(evt.startTime);
 			const override = evt.overrides.find((o) => o.occurrenceDate === occDate);
 			const status = override?.status ?? evt.status;
+			const isInternal = override?.isInternal ?? evt.isInternal;
 
-			// Skip "gone" or "pending" occurrences
-			if (status === "gone" || status === "pending") continue;
+			// Skip "gone", "pending", or internal occurrences
+			if (status === "gone" || status === "pending" || isInternal) continue;
 
 			calendar.createEvent({
 				id: `${evt.id}:${occDate}`,
@@ -163,7 +164,7 @@ export async function GET(
 				description: override?.notes
 					? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`
 					: (override?.description ?? evt.description ?? undefined),
-				location: evt.space.name,
+				location: override?.location ?? evt.location ?? evt.space.name,
 				url: override?.url ?? evt.url ?? undefined,
 				created: evt.createdAt,
 				status: mapStatus(status),
@@ -197,9 +198,10 @@ export async function GET(
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
+					const isInternal = override?.isInternal ?? evt.isInternal;
 
-					// Skip "gone" or "pending" occurrences
-					if (status === "gone" || status === "pending") continue;
+					// Skip "gone", "pending", or internal occurrences
+					if (status === "gone" || status === "pending" || isInternal) continue;
 
 					const start = override?.startTime ?? date;
 					const end =
@@ -215,7 +217,7 @@ export async function GET(
 						description: override?.notes
 							? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`
 							: (override?.description ?? evt.description ?? undefined),
-						location: evt.space.name,
+						location: override?.location ?? evt.location ?? evt.space.name,
 						url: override?.url ?? evt.url ?? undefined,
 						created: evt.createdAt,
 						status: mapStatus(status),

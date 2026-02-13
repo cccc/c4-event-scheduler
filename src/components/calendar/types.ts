@@ -8,11 +8,13 @@ export type Occurrence = {
 	title: string;
 	description: string | null;
 	url: string | null;
+	location: string | null;
 	start: Date;
 	end: Date | null;
 	allDay: boolean;
 	isOverridden: boolean;
 	isGone: boolean;
+	isInternal: boolean;
 	status: OccurrenceStatus;
 	notes: string | null;
 	space: { id: string; name: string };

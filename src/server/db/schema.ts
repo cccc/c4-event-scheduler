@@ -177,6 +177,7 @@ export const event = createTable(
 		title: varchar("title", { length: 255 }).notNull(),
 		description: text("description"),
 		url: varchar("url", { length: 1000 }), // Link to blog post, etc.
+		location: varchar("location", { length: 500 }), // Optional location override (defaults to space name)
 
 		// Timing
 		startTime: timestamp("start_time", { withTimezone: true }).notNull(),
@@ -193,6 +194,7 @@ export const event = createTable(
 
 		// Status
 		status: eventStatusEnum("status").notNull().default("pending"),
+		isInternal: boolean("is_internal").notNull().default(false),
 
 		// Timestamps
 		createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -243,6 +245,8 @@ export const occurrenceOverride = createTable(
 		// Status override (null = inherit from event)
 		// Use "gone" to mark an occurrence as deleted
 		status: occurrenceStatusEnum("status"),
+		// Internal flag override (null = inherit from event)
+		isInternal: boolean("is_internal"),
 
 		// Notes/comments explaining the override (e.g., "Moved due to holiday")
 		notes: text("notes"),
@@ -251,6 +255,7 @@ export const occurrenceOverride = createTable(
 		title: varchar("title", { length: 255 }),
 		description: text("description"),
 		url: varchar("url", { length: 1000 }),
+		location: varchar("location", { length: 500 }),
 		startTime: timestamp("start_time", { withTimezone: true }),
 		endTime: timestamp("end_time", { withTimezone: true }),
 

@@ -1,6 +1,13 @@
 "use client";
 
-import { CalendarDays, Clock, ExternalLink, FileText, Tag } from "lucide-react";
+import {
+	CalendarDays,
+	Clock,
+	ExternalLink,
+	FileText,
+	MapPin,
+	Tag,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +66,10 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 
 	if (!occurrence) return null;
 
+	const displayLocation = occurrence.location ?? occurrence.space.name;
+	const showSpaceSeparately =
+		occurrence.location && occurrence.location !== occurrence.space.name;
+
 	return (
 		<Dialog onOpenChange={() => store.close()} open={isOpen}>
 			<DialogContent className="sm:max-w-lg">
@@ -79,6 +90,9 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 									</div>
 								)}
 								{getStatusBadge(occurrence.status)}
+								{occurrence.isInternal && (
+									<Badge variant="outline">Internal</Badge>
+								)}
 							</div>
 						</div>
 					</div>
@@ -130,11 +144,19 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 						</div>
 					)}
 
-					{/* Space */}
+					{/* Location */}
 					<div className="flex items-start gap-3">
-						<Tag className="mt-0.5 h-5 w-5 text-muted-foreground" />
-						<div className="text-sm">{occurrence.space.name}</div>
+						<MapPin className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="text-sm">{displayLocation}</div>
 					</div>
+
+					{/* Space (shown separately if location differs) */}
+					{showSpaceSeparately && (
+						<div className="flex items-start gap-3">
+							<Tag className="mt-0.5 h-5 w-5 text-muted-foreground" />
+							<div className="text-sm">{occurrence.space.name}</div>
+						</div>
+					)}
 
 					{/* Notes (only shown if there are override notes) */}
 					{occurrence.notes && (
