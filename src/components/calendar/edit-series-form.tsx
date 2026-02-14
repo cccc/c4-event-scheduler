@@ -15,6 +15,7 @@ import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
 
 import {
+	adjustEndDate,
 	combineDateAndTime,
 	parseLocalDateTime,
 	toLocalDateTimeString,
@@ -23,23 +24,24 @@ import {
 import type { Occurrence } from "./types";
 
 const occurrenceFormSchema = z.object({
-	title: z.string(),
+	summary: z.string(),
 	description: z.string(),
 	url: z.string().url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
 	notes: z.string(),
-	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
-	startTime: z.string(),
-	endTime: z.string(),
+	status: z.enum(["confirmed", "tentative", "cancelled"]),
+	dtstart: z.string(),
+	dtend: z.string(),
 	hasEndTime: z.boolean(),
 });
 
 const seriesFormSchema = z.object({
-	title: z.string().min(1, "Title is required"),
+	summary: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.string().url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
-	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
+	status: z.enum(["confirmed", "tentative", "cancelled"]),
+	isDraft: z.boolean(),
 	seriesFirstDate: z.string().min(1, "First date is required"),
 	occurrenceStartTime: z.string().min(1, "Start time is required"),
 	occurrenceEndTime: z.string(),
@@ -100,37 +102,34 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 		},
 	});
 
-	const editableStatus =
-		occurrence.status === "gone" ? "cancelled" : occurrence.status;
-
 	const occurrenceForm = useAppForm({
 		defaultValues: {
-			title: occurrence.isOverridden ? occurrence.title : "",
+			summary: occurrence.isOverridden ? occurrence.summary : "",
 			description: occurrence.isOverridden
 				? (occurrence.description ?? "")
 				: "",
 			url: occurrence.isOverridden ? (occurrence.url ?? "") : "",
 			location: occurrence.isOverridden ? (occurrence.location ?? "") : "",
 			notes: occurrence.notes ?? "",
-			status: editableStatus,
-			startTime: toLocalDateTimeString(occurrence.start),
-			endTime: occurrence.end
-				? toLocalDateTimeString(occurrence.end)
+			status: occurrence.status,
+			dtstart: toLocalDateTimeString(occurrence.dtstart),
+			dtend: occurrence.dtend
+				? toLocalDateTimeString(occurrence.dtend)
 				: toLocalDateTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
-			hasEndTime: !!occurrence.end,
+			hasEndTime: !!occurrence.dtend,
 		} as z.infer<typeof occurrenceFormSchema>,
 		validators: {
 			onSubmit: occurrenceFormSchema,
 		},
 		onSubmit: async ({ value }) => {
-			const startTime = value.startTime
-				? parseLocalDateTime(value.startTime)
+			const dtstart = value.dtstart
+				? parseLocalDateTime(value.dtstart)
 				: undefined;
-			const endTime =
-				value.hasEndTime && value.endTime
-					? parseLocalDateTime(value.endTime)
+			const dtend =
+				value.hasEndTime && value.dtend
+					? parseLocalDateTime(value.dtend)
 					: undefined;
 
 			upsertOverride.mutate({
@@ -138,31 +137,32 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 				occurrenceDate: occurrence.occurrenceDate,
 				status: value.status,
 				notes: value.notes || undefined,
-				title: value.title || undefined,
+				summary: value.summary || undefined,
 				description: value.description || undefined,
 				url: value.url || undefined,
 				location: value.location || undefined,
-				startTime,
-				endTime,
+				dtstart,
+				dtend,
 			});
 		},
 	});
 
 	const seriesForm = useAppForm({
 		defaultValues: {
-			title: occurrence.title,
+			summary: occurrence.summary,
 			description: occurrence.description ?? "",
 			url: occurrence.url ?? "",
 			location: occurrence.location ?? "",
-			status: editableStatus,
+			status: occurrence.status,
+			isDraft: occurrence.isDraft,
 			seriesFirstDate: occurrence.occurrenceDate,
-			occurrenceStartTime: toLocalTimeString(occurrence.start),
-			occurrenceEndTime: occurrence.end
-				? toLocalTimeString(occurrence.end)
+			occurrenceStartTime: toLocalTimeString(occurrence.dtstart),
+			occurrenceEndTime: occurrence.dtend
+				? toLocalTimeString(occurrence.dtend)
 				: toLocalTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
-			hasEndTime: !!occurrence.end,
+			hasEndTime: !!occurrence.dtend,
 			seriesLastDate: "",
 			seriesHasEndDate: false,
 			recurrenceConfig: occurrence.rrule
@@ -179,12 +179,15 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 					? value.seriesFirstDate
 					: occurrence.occurrenceDate;
 
-			const startTime = value.occurrenceStartTime
+			const dtstart = value.occurrenceStartTime
 				? combineDateAndTime(dateForTime, value.occurrenceStartTime)
 				: undefined;
-			const endTime =
-				value.hasEndTime && value.occurrenceEndTime
-					? combineDateAndTime(dateForTime, value.occurrenceEndTime)
+			const dtend =
+				value.hasEndTime && value.occurrenceEndTime && dtstart
+					? adjustEndDate(
+							dtstart,
+							combineDateAndTime(dateForTime, value.occurrenceEndTime),
+						)
 					: undefined;
 
 			const rrule = value.recurrenceConfig
@@ -206,26 +209,27 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 			if (seriesEditScope === "whole") {
 				updateEvent.mutate({
 					id: occurrence.eventId,
-					title: value.title,
+					summary: value.summary,
 					description: value.description || undefined,
 					url: value.url || undefined,
 					location: value.location || null,
-					startTime,
-					endTime,
+					dtstart,
+					dtend,
 					status: value.status,
+					isDraft: value.isDraft,
 					rrule,
 					recurrenceEndDate,
 				});
 			} else {
 				editSeriesFromDate.mutate({
 					eventId: occurrence.eventId,
-					splitDate: occurrence.start,
-					title: value.title,
+					splitDate: occurrence.dtstart,
+					summary: value.summary,
 					description: value.description || undefined,
 					url: value.url || undefined,
 					location: value.location || undefined,
-					startTime,
-					endTime,
+					dtstart,
+					dtend,
 					status: value.status,
 					rrule,
 				});
@@ -235,12 +239,9 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 
 	// Re-initialize forms when occurrence changes
 	useEffect(() => {
-		const status =
-			occurrence.status === "gone" ? "cancelled" : occurrence.status;
-
 		occurrenceForm.setFieldValue(
-			"title",
-			occurrence.isOverridden ? occurrence.title : "",
+			"summary",
+			occurrence.isOverridden ? occurrence.summary : "",
 		);
 		occurrenceForm.setFieldValue(
 			"description",
@@ -255,40 +256,41 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 			occurrence.isOverridden ? (occurrence.location ?? "") : "",
 		);
 		occurrenceForm.setFieldValue("notes", occurrence.notes ?? "");
-		occurrenceForm.setFieldValue("status", status);
+		occurrenceForm.setFieldValue("status", occurrence.status);
 		occurrenceForm.setFieldValue(
-			"startTime",
-			toLocalDateTimeString(occurrence.start),
+			"dtstart",
+			toLocalDateTimeString(occurrence.dtstart),
 		);
 		occurrenceForm.setFieldValue(
-			"endTime",
-			occurrence.end
-				? toLocalDateTimeString(occurrence.end)
+			"dtend",
+			occurrence.dtend
+				? toLocalDateTimeString(occurrence.dtend)
 				: toLocalDateTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
 		);
-		occurrenceForm.setFieldValue("hasEndTime", !!occurrence.end);
+		occurrenceForm.setFieldValue("hasEndTime", !!occurrence.dtend);
 
-		seriesForm.setFieldValue("title", occurrence.title);
+		seriesForm.setFieldValue("summary", occurrence.summary);
 		seriesForm.setFieldValue("description", occurrence.description ?? "");
 		seriesForm.setFieldValue("url", occurrence.url ?? "");
 		seriesForm.setFieldValue("location", occurrence.location ?? "");
-		seriesForm.setFieldValue("status", status);
+		seriesForm.setFieldValue("status", occurrence.status);
+		seriesForm.setFieldValue("isDraft", occurrence.isDraft);
 		seriesForm.setFieldValue("seriesFirstDate", occurrence.occurrenceDate);
 		seriesForm.setFieldValue(
 			"occurrenceStartTime",
-			toLocalTimeString(occurrence.start),
+			toLocalTimeString(occurrence.dtstart),
 		);
 		seriesForm.setFieldValue(
 			"occurrenceEndTime",
-			occurrence.end
-				? toLocalTimeString(occurrence.end)
+			occurrence.dtend
+				? toLocalTimeString(occurrence.dtend)
 				: toLocalTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
 		);
-		seriesForm.setFieldValue("hasEndTime", !!occurrence.end);
+		seriesForm.setFieldValue("hasEndTime", !!occurrence.dtend);
 		seriesForm.setFieldValue("seriesHasEndDate", false);
 		seriesForm.setFieldValue("seriesLastDate", "");
 
@@ -362,9 +364,12 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 							to inherit from series.
 						</p>
 
-						<occurrenceForm.AppField name="title">
+						<occurrenceForm.AppField name="summary">
 							{(field) => (
-								<field.TextField label="Title" placeholder={occurrence.title} />
+								<field.TextField
+									label="Title"
+									placeholder={occurrence.summary}
+								/>
 							)}
 						</occurrenceForm.AppField>
 
@@ -410,7 +415,7 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 							)}
 						</occurrenceForm.AppField>
 
-						<occurrenceForm.AppField name="startTime">
+						<occurrenceForm.AppField name="dtstart">
 							{(field) => <field.DateTimeField label="Start Date & Time" />}
 						</occurrenceForm.AppField>
 
@@ -422,7 +427,7 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 										label="Has end time"
 									/>
 									{occurrenceForm.state.values.hasEndTime && (
-										<occurrenceForm.AppField name="endTime">
+										<occurrenceForm.AppField name="dtend">
 											{(endField) => <endField.DateTimeField label="End" />}
 										</occurrenceForm.AppField>
 									)}
@@ -437,7 +442,6 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 									options={[
 										{ value: "confirmed", label: "Confirmed" },
 										{ value: "tentative", label: "Tentative" },
-										{ value: "pending", label: "Pending (Draft)" },
 										{ value: "cancelled", label: "Cancelled" },
 									]}
 								/>
@@ -520,7 +524,7 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 						</div>
 
 						{/* Title */}
-						<seriesForm.AppField name="title">
+						<seriesForm.AppField name="summary">
 							{(field) => (
 								<>
 									<field.TextField label="Title" required />
@@ -638,7 +642,7 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 						{seriesForm.state.values.recurrenceConfig && (
 							<seriesForm.AppField name="recurrenceConfig">
 								{(field) => (
-									<field.RecurrencePickerField startDate={occurrence.start} />
+									<field.RecurrencePickerField startDate={occurrence.dtstart} />
 								)}
 							</seriesForm.AppField>
 						)}
@@ -651,9 +655,17 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 									options={[
 										{ value: "confirmed", label: "Confirmed" },
 										{ value: "tentative", label: "Tentative" },
-										{ value: "pending", label: "Pending (Draft)" },
 										{ value: "cancelled", label: "Cancelled" },
 									]}
+								/>
+							)}
+						</seriesForm.AppField>
+
+						<seriesForm.AppField name="isDraft">
+							{(field) => (
+								<field.CheckboxField
+									id="isDraft"
+									label="Draft (hidden from public feeds)"
 								/>
 							)}
 						</seriesForm.AppField>

@@ -11,6 +11,7 @@ import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
 
 import {
+	adjustEndDate,
 	combineDateAndTime,
 	toLocalDateString,
 	toLocalTimeString,
@@ -19,7 +20,7 @@ import type { EventType, Space } from "./types";
 
 const formSchema = z.object({
 	eventTypeId: z.string().min(1, "Event type is required"),
-	title: z.string().min(1, "Title is required"),
+	summary: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
@@ -29,7 +30,8 @@ const formSchema = z.object({
 	occurrenceStartTime: z.string().min(1, "Start time is required"),
 	occurrenceEndTime: z.string(),
 	seriesHasEndTime: z.boolean(),
-	status: z.enum(["confirmed", "tentative", "pending"]),
+	status: z.enum(["confirmed", "tentative", "cancelled"]),
+	isDraft: z.boolean(),
 	frequencyLabel: z.string(),
 	recurrenceConfig: z.custom<RecurrenceConfig>().nullable(),
 });
@@ -59,7 +61,7 @@ export function CreateSeriesForm({
 	const form = useAppForm({
 		defaultValues: {
 			eventTypeId: "",
-			title: "",
+			summary: "",
 			description: "",
 			url: "",
 			location: "",
@@ -73,7 +75,8 @@ export function CreateSeriesForm({
 				? toLocalTimeString(new Date(selectedDate.getTime() + 60 * 60 * 1000))
 				: "21:00",
 			seriesHasEndTime: true,
-			status: "pending",
+			status: "confirmed",
+			isDraft: true,
 			frequencyLabel: "",
 			recurrenceConfig: null,
 		} as z.infer<typeof formSchema>,
@@ -81,13 +84,19 @@ export function CreateSeriesForm({
 			onSubmit: formSchema,
 		},
 		onSubmit: async ({ value }) => {
-			const startTime = combineDateAndTime(
+			const dtstart = combineDateAndTime(
 				value.seriesFirstDate,
 				value.occurrenceStartTime,
 			);
-			const endTime =
+			const dtend =
 				value.seriesHasEndTime && value.occurrenceEndTime
-					? combineDateAndTime(value.seriesFirstDate, value.occurrenceEndTime)
+					? adjustEndDate(
+							dtstart,
+							combineDateAndTime(
+								value.seriesFirstDate,
+								value.occurrenceEndTime,
+							),
+						)
 					: undefined;
 
 			const rrule = value.recurrenceConfig
@@ -107,16 +116,17 @@ export function CreateSeriesForm({
 			createEvent.mutate({
 				spaceId: space.id,
 				eventTypeId: value.eventTypeId,
-				title: value.title,
+				summary: value.summary,
 				description: value.description || undefined,
 				url: value.url || undefined,
 				location: value.location || undefined,
-				startTime,
-				endTime,
+				dtstart,
+				dtend,
 				rrule,
 				recurrenceEndDate,
 				frequencyLabel: value.frequencyLabel || undefined,
 				status: value.status,
+				isDraft: value.isDraft,
 			});
 		},
 	});
@@ -152,7 +162,7 @@ export function CreateSeriesForm({
 					)}
 				</form.AppField>
 
-				<form.AppField name="title">
+				<form.AppField name="summary">
 					{(field) => (
 						<>
 							<field.TextField label="Title" required />
@@ -266,8 +276,17 @@ export function CreateSeriesForm({
 							options={[
 								{ value: "confirmed", label: "Confirmed" },
 								{ value: "tentative", label: "Tentative" },
-								{ value: "pending", label: "Pending (Draft)" },
+								{ value: "cancelled", label: "Cancelled" },
 							]}
+						/>
+					)}
+				</form.AppField>
+
+				<form.AppField name="isDraft">
+					{(field) => (
+						<field.CheckboxField
+							id="isDraft"
+							label="Draft (hidden from public feeds)"
 						/>
 					)}
 				</form.AppField>

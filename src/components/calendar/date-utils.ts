@@ -34,3 +34,12 @@ export function parseLocalDateTime(value: string): Date {
 export function combineDateAndTime(dateStr: string, timeStr: string): Date {
 	return new Date(`${dateStr}T${timeStr}`);
 }
+
+// If dtend is before or equal to dtstart (e.g., start 23:00, end 01:00),
+// assume the end time is on the next day and add 24 hours.
+export function adjustEndDate(dtstart: Date, dtend: Date): Date {
+	if (dtend.getTime() <= dtstart.getTime()) {
+		return new Date(dtend.getTime() + 24 * 60 * 60 * 1000);
+	}
+	return dtend;
+}

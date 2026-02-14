@@ -11,13 +11,14 @@ import { parseLocalDateTime, toLocalDateTimeString } from "./date-utils";
 import type { Occurrence } from "./types";
 
 const formSchema = z.object({
-	title: z.string().min(1, "Title is required"),
+	summary: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.string().url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
-	status: z.enum(["confirmed", "tentative", "pending", "cancelled"]),
-	startTime: z.string().min(1, "Start time is required"),
-	endTime: z.string(),
+	status: z.enum(["confirmed", "tentative", "cancelled"]),
+	isDraft: z.boolean(),
+	dtstart: z.string().min(1, "Start time is required"),
+	dtend: z.string(),
 	hasEndTime: z.boolean(),
 });
 
@@ -47,68 +48,66 @@ export function EditSingleEventForm({
 		},
 	});
 
-	const editableStatus =
-		occurrence.status === "gone" ? "cancelled" : occurrence.status;
-
 	const form = useAppForm({
 		defaultValues: {
-			title: occurrence.title,
+			summary: occurrence.summary,
 			description: occurrence.description ?? "",
 			url: occurrence.url ?? "",
 			location: occurrence.location ?? "",
-			status: editableStatus,
-			startTime: toLocalDateTimeString(occurrence.start),
-			endTime: occurrence.end
-				? toLocalDateTimeString(occurrence.end)
+			status: occurrence.status,
+			isDraft: occurrence.isDraft,
+			dtstart: toLocalDateTimeString(occurrence.dtstart),
+			dtend: occurrence.dtend
+				? toLocalDateTimeString(occurrence.dtend)
 				: toLocalDateTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
-			hasEndTime: !!occurrence.end,
+			hasEndTime: !!occurrence.dtend,
 		} as z.infer<typeof formSchema>,
 		validators: {
 			onSubmit: formSchema,
 		},
 		onSubmit: async ({ value }) => {
-			const startTime = value.startTime
-				? parseLocalDateTime(value.startTime)
+			const dtstart = value.dtstart
+				? parseLocalDateTime(value.dtstart)
 				: undefined;
-			const endTime =
-				value.hasEndTime && value.endTime
-					? parseLocalDateTime(value.endTime)
+			const dtend =
+				value.hasEndTime && value.dtend
+					? parseLocalDateTime(value.dtend)
 					: undefined;
 
 			updateEvent.mutate({
 				id: occurrence.eventId,
-				title: value.title,
+				summary: value.summary,
 				description: value.description || undefined,
 				url: value.url || undefined,
 				location: value.location || null,
-				startTime,
-				endTime,
+				dtstart,
+				dtend,
 				status: value.status,
+				isDraft: value.isDraft,
 			});
 		},
 	});
 
 	// Re-initialize form when occurrence changes (e.g. navigating between events)
 	useEffect(() => {
-		const status =
-			occurrence.status === "gone" ? "cancelled" : occurrence.status;
-		form.setFieldValue("title", occurrence.title);
+		form.setFieldValue("summary", occurrence.summary);
 		form.setFieldValue("description", occurrence.description ?? "");
 		form.setFieldValue("url", occurrence.url ?? "");
 		form.setFieldValue("location", occurrence.location ?? "");
-		form.setFieldValue("status", status);
-		form.setFieldValue("startTime", toLocalDateTimeString(occurrence.start));
+		form.setFieldValue("status", occurrence.status);
+		form.setFieldValue("isDraft", occurrence.isDraft);
+		form.setFieldValue("dtstart", toLocalDateTimeString(occurrence.dtstart));
 		form.setFieldValue(
-			"endTime",
-			occurrence.end
-				? toLocalDateTimeString(occurrence.end)
+			"dtend",
+			occurrence.dtend
+				? toLocalDateTimeString(occurrence.dtend)
 				: toLocalDateTimeString(
-						new Date(occurrence.start.getTime() + 60 * 60 * 1000),
+						new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
 					),
 		);
-		form.setFieldValue("hasEndTime", !!occurrence.end);
+		form.setFieldValue("hasEndTime", !!occurrence.dtend);
 	}, [occurrence, form.setFieldValue]);
 
 	const handleCancel = () => {
@@ -126,7 +125,7 @@ export function EditSingleEventForm({
 	return (
 		<form.AppForm>
 			<form.Form className="space-y-4">
-				<form.AppField name="title">
+				<form.AppField name="summary">
 					{(field) => (
 						<>
 							<field.TextField label="Title" required />
@@ -168,14 +167,22 @@ export function EditSingleEventForm({
 							options={[
 								{ value: "confirmed", label: "Confirmed" },
 								{ value: "tentative", label: "Tentative" },
-								{ value: "pending", label: "Pending (Draft)" },
 								{ value: "cancelled", label: "Cancelled" },
 							]}
 						/>
 					)}
 				</form.AppField>
 
-				<form.AppField name="startTime">
+				<form.AppField name="isDraft">
+					{(field) => (
+						<field.CheckboxField
+							id="isDraft"
+							label="Draft (hidden from public feeds)"
+						/>
+					)}
+				</form.AppField>
+
+				<form.AppField name="dtstart">
 					{(field) => (
 						<>
 							<field.DateTimeField label="Start Date & Time" required />
@@ -192,7 +199,7 @@ export function EditSingleEventForm({
 								label="Has end time"
 							/>
 							{form.state.values.hasEndTime && (
-								<form.AppField name="endTime">
+								<form.AppField name="dtend">
 									{(endField) => (
 										<endField.DateTimeField label="End Date & Time" />
 									)}

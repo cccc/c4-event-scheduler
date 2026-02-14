@@ -51,12 +51,13 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
 		return occurrences.map((occ) => ({
 			id: occ.id,
-			title: occ.title,
-			start: occ.start,
-			end: occ.end ?? undefined,
+			title: occ.summary,
+			start: occ.dtstart,
+			end: occ.dtend ?? undefined,
 			allDay: occ.allDay,
 			classNames: [
 				`event-${occ.status}`,
+				...(occ.isDraft ? ["event-draft"] : []),
 				...(occ.isInternal ? ["event-internal"] : []),
 			],
 			extendedProps: {

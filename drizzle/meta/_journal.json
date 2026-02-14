@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770767486485,
-      "tag": "0000_certain_swarm",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770987559843,
-      "tag": "0001_bored_morgan_stark",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770994358380,
-      "tag": "0002_minor_silver_samurai",
+      "when": 1771086816740,
+      "tag": "0000_public_rocket_racer",
       "breakpoints": true
     }
   ]

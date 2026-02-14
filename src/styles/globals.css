@@ -213,8 +213,8 @@
 	);
 }
 
-/* Pending/Draft: dotted border, very light background, italic */
-.fc .fc-event.event-pending {
+/* Draft: dotted border, very light background, italic */
+.fc .fc-event.event-draft {
 	border-style: dotted;
 	border-color: color-mix(
 		in srgb,
@@ -259,7 +259,7 @@
 	opacity: 0.8;
 }
 
-.fc .event-pending > * {
+.fc .event-draft > * {
 	font-style: italic;
 	opacity: 0.6;
 }
