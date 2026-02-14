@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { RRule } from "rrule";
 import { z } from "zod";
 
@@ -32,20 +32,8 @@ async function requireEventPermission(
 	}
 }
 
-// Status values aligned with Model.md
-const eventStatusSchema = z.enum([
-	"pending",
-	"tentative",
-	"confirmed",
-	"cancelled",
-]);
-const occurrenceStatusSchema = z.enum([
-	"pending",
-	"tentative",
-	"confirmed",
-	"cancelled",
-	"gone", // Marks occurrence as deleted
-]);
+// iCal STATUS values (shared by events and occurrence overrides)
+const icalStatusSchema = z.enum(["tentative", "confirmed", "cancelled"]);
 
 // Helper to format a Date as YYYY-MM-DD for occurrence identification
 function formatOccurrenceDate(d: Date): string {
@@ -61,7 +49,7 @@ export const eventsRouter = createTRPCRouter({
 			z.object({
 				spaceId: z.string().uuid().optional(),
 				eventTypeId: z.string().uuid().optional(),
-				status: eventStatusSchema.optional(),
+				status: icalStatusSchema.optional(),
 			}),
 		)
 		.query(async ({ ctx, input }) => {
@@ -84,7 +72,7 @@ export const eventsRouter = createTRPCRouter({
 					eventType: true,
 					overrides: true,
 				},
-				orderBy: (events, { asc }) => [asc(events.startTime)],
+				orderBy: (events, { asc }) => [asc(events.dtstart)],
 			});
 		}),
 
@@ -103,13 +91,13 @@ export const eventsRouter = createTRPCRouter({
 		}),
 
 	// Get expanded occurrences for a date range
-	// Occurrences are virtual objects with stable IDs: {eventId}:{index}
+	// Occurrences are virtual objects with stable IDs: {eventId}:{YYYY-MM-DD}
 	getOccurrences: publicProcedure
 		.input(
 			z.object({
 				spaceId: z.string().uuid().optional(),
 				eventTypeId: z.string().uuid().optional(),
-				includeGone: z.boolean().optional().default(false), // Include "gone" occurrences
+				includeExdates: z.boolean().optional().default(false),
 				start: z.date(),
 				end: z.date(),
 			}),
@@ -125,8 +113,30 @@ export const eventsRouter = createTRPCRouter({
 				conditions.push(eq(event.eventTypeId, input.eventTypeId));
 			}
 
+			// Pre-filter at the DB level: only fetch events whose active range
+			// intersects the visible window (like an iCal client would)
+			conditions.push(
+				or(
+					// Single events: dtstart must be within the range
+					and(
+						isNull(event.rrule),
+						gte(event.dtstart, input.start),
+						lte(event.dtstart, input.end),
+					),
+					// Recurring events: series must overlap the range
+					and(
+						isNotNull(event.rrule),
+						lte(event.dtstart, input.end),
+						or(
+							isNull(event.recurrenceEndDate),
+							gte(event.recurrenceEndDate, input.start),
+						),
+					),
+				) as ReturnType<typeof eq>,
+			);
+
 			const events = await ctx.db.query.event.findMany({
-				where: conditions.length > 0 ? and(...conditions) : undefined,
+				where: and(...conditions),
 				with: {
 					space: true,
 					eventType: true,
@@ -139,17 +149,17 @@ export const eventsRouter = createTRPCRouter({
 				id: string; // Stable ID: {eventId}:{YYYY-MM-DD}
 				eventId: string;
 				occurrenceDate: string; // YYYY-MM-DD
-				title: string;
+				summary: string;
 				description: string | null;
 				url: string | null;
 				location: string | null;
-				start: Date;
-				end: Date | null;
+				dtstart: Date;
+				dtend: Date | null;
 				allDay: boolean;
 				isOverridden: boolean;
-				isGone: boolean;
+				isDraft: boolean;
 				isInternal: boolean;
-				status: "pending" | "tentative" | "confirmed" | "cancelled" | "gone";
+				status: "tentative" | "confirmed" | "cancelled";
 				notes: string | null;
 				space: (typeof events)[0]["space"];
 				eventType: (typeof events)[0]["eventType"];
@@ -161,50 +171,55 @@ export const eventsRouter = createTRPCRouter({
 			const occurrences: OccurrenceData[] = [];
 
 			for (const evt of events) {
+				// Hide draft events from anonymous users
+				if (evt.isDraft && !isLoggedIn) continue;
+
+				const isInternal = evt.eventType?.isInternal ?? false;
 				const defaultDurationMs = evt.eventType?.defaultDurationMinutes
 					? evt.eventType.defaultDurationMinutes * 60_000
 					: 0;
-				const duration = evt.endTime
-					? evt.endTime.getTime() - evt.startTime.getTime()
+				const duration = evt.dtend
+					? evt.dtend.getTime() - evt.dtstart.getTime()
 					: defaultDurationMs;
 
-				if (!evt.isRecurring || !evt.rrule) {
+				// Parse exdates into a Set for fast lookup
+				const exdatesSet = new Set(
+					evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
+				);
+
+				if (!evt.rrule) {
 					// Single event - use the event's start date as occurrence date
-					const occDate = formatOccurrenceDate(evt.startTime);
+					const occDate = formatOccurrenceDate(evt.dtstart);
 					const override = evt.overrides.find(
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
-					const isInternal = evt.eventType?.isInternal ?? false;
 
-					// Skip "gone" occurrences unless explicitly requested
-					if (status === "gone" && !input.includeGone) continue;
-
-					// Hide pending/internal events from anonymous users
-					if ((status === "pending" || isInternal) && !isLoggedIn) continue;
+					// Hide internal events from anonymous users
+					if (isInternal && !isLoggedIn) continue;
 
 					// Check if within date range
-					const start = override?.startTime ?? evt.startTime;
+					const start = override?.dtstart ?? evt.dtstart;
 					if (start < input.start || start > input.end) continue;
 
 					occurrences.push({
 						id: `${evt.id}:${occDate}`,
 						eventId: evt.id,
 						occurrenceDate: occDate,
-						title: override?.title ?? evt.title,
+						summary: override?.summary ?? evt.summary,
 						description: override?.description ?? evt.description,
 						url: override?.url ?? evt.url,
 						location: override?.location ?? evt.location,
-						start,
-						end:
-							override?.endTime ??
-							evt.endTime ??
+						dtstart: start,
+						dtend:
+							override?.dtend ??
+							evt.dtend ??
 							(defaultDurationMs
 								? new Date(start.getTime() + defaultDurationMs)
 								: null),
 						allDay: evt.allDay,
 						isOverridden: !!override,
-						isGone: status === "gone",
+						isDraft: evt.isDraft,
 						isInternal,
 						status,
 						notes: override?.notes ?? null,
@@ -217,11 +232,11 @@ export const eventsRouter = createTRPCRouter({
 				} else {
 					// Recurring event - expand using RRULE
 					try {
-						// Parse the RRULE and set dtstart from the event's startTime
+						// Parse the RRULE and set dtstart from the event's dtstart
 						const baseRule = RRule.fromString(evt.rrule);
 						const rule = new RRule({
 							...baseRule.origOptions,
-							dtstart: evt.startTime,
+							dtstart: evt.dtstart,
 						});
 
 						// Get all dates, applying recurrence end date if set
@@ -237,7 +252,7 @@ export const eventsRouter = createTRPCRouter({
 						// Use a slightly earlier start to ensure first occurrence is included
 						// RRule.between can sometimes exclude the exact dtstart
 						const queryStart = new Date(
-							Math.min(evt.startTime.getTime(), input.start.getTime()) - 1000,
+							Math.min(evt.dtstart.getTime(), input.start.getTime()) - 1000,
 						);
 
 						const allDates = rule.between(queryStart, endDate, true);
@@ -246,24 +261,23 @@ export const eventsRouter = createTRPCRouter({
 						for (const date of allDates) {
 							const occDate = formatOccurrenceDate(date);
 
+							// Skip exdates unless explicitly requested
+							if (exdatesSet.has(occDate) && !input.includeExdates) continue;
+
 							// Get override for this date
 							const override = evt.overrides.find(
 								(o) => o.occurrenceDate === occDate,
 							);
 
 							const status = override?.status ?? evt.status;
-							const isInternal = evt.eventType?.isInternal ?? false;
 
-							// Skip "gone" occurrences unless explicitly requested
-							if (status === "gone" && !input.includeGone) continue;
-
-							// Hide pending/internal events from anonymous users
-							if ((status === "pending" || isInternal) && !isLoggedIn) continue;
+							// Hide internal events from anonymous users
+							if (isInternal && !isLoggedIn) continue;
 
 							// Calculate actual start/end times
-							const start = override?.startTime ?? date;
+							const start = override?.dtstart ?? date;
 							const end =
-								override?.endTime ??
+								override?.dtend ??
 								(duration > 0 ? new Date(date.getTime() + duration) : null);
 
 							// Check if within requested date range
@@ -273,15 +287,15 @@ export const eventsRouter = createTRPCRouter({
 								id: `${evt.id}:${occDate}`,
 								eventId: evt.id,
 								occurrenceDate: occDate,
-								title: override?.title ?? evt.title,
+								summary: override?.summary ?? evt.summary,
 								description: override?.description ?? evt.description,
 								url: override?.url ?? evt.url,
 								location: override?.location ?? evt.location,
-								start,
-								end,
+								dtstart: start,
+								dtend: end,
 								allDay: evt.allDay,
 								isOverridden: !!override,
-								isGone: status === "gone",
+								isDraft: evt.isDraft,
 								isInternal,
 								status,
 								notes: override?.notes ?? null,
@@ -299,7 +313,7 @@ export const eventsRouter = createTRPCRouter({
 			}
 
 			// Sort by start time
-			occurrences.sort((a, b) => a.start.getTime() - b.start.getTime());
+			occurrences.sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
 
 			return occurrences;
 		}),
@@ -309,18 +323,19 @@ export const eventsRouter = createTRPCRouter({
 			z.object({
 				spaceId: z.string().uuid(),
 				eventTypeId: z.string().uuid(),
-				title: z.string().min(1).max(255),
+				summary: z.string().min(1).max(255),
 				description: z.string().optional(),
 				url: z.string().url().max(1000).optional(),
 				location: z.string().max(500).optional(),
-				startTime: z.date(),
-				endTime: z.date().optional(),
+				dtstart: z.date(),
+				dtend: z.date().optional(),
 				timezone: z.string().default("UTC"),
 				allDay: z.boolean().default(false),
 				rrule: z.string().optional(),
 				recurrenceEndDate: z.date().optional(),
 				frequencyLabel: z.string().max(255).optional(),
-				status: eventStatusSchema.default("pending"),
+				status: icalStatusSchema.default("confirmed"),
+				isDraft: z.boolean().default(true),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -350,7 +365,6 @@ export const eventsRouter = createTRPCRouter({
 				.values({
 					...input,
 					createdById: ctx.session.user.id,
-					isRecurring: !!input.rrule,
 				})
 				.returning();
 			return result;
@@ -361,18 +375,19 @@ export const eventsRouter = createTRPCRouter({
 			z.object({
 				id: z.string().uuid(),
 				eventTypeId: z.string().uuid().optional(),
-				title: z.string().min(1).max(255).optional(),
+				summary: z.string().min(1).max(255).optional(),
 				description: z.string().optional(),
 				url: z.string().url().max(1000).optional(),
 				location: z.string().max(500).optional().nullable(),
-				startTime: z.date().optional(),
-				endTime: z.date().optional(),
+				dtstart: z.date().optional(),
+				dtend: z.date().optional(),
 				timezone: z.string().optional(),
 				allDay: z.boolean().optional(),
 				rrule: z.string().optional().nullable(),
 				recurrenceEndDate: z.date().optional().nullable(),
 				frequencyLabel: z.string().max(255).optional().nullable(),
-				status: eventStatusSchema.optional(),
+				status: icalStatusSchema.optional(),
+				isDraft: z.boolean().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -396,7 +411,7 @@ export const eventsRouter = createTRPCRouter({
 				.set({
 					...updates,
 					rrule: rrule ?? undefined,
-					isRecurring: rrule !== undefined ? !!rrule : undefined,
+					sequence: existingEvent.sequence + 1,
 					updatedAt: new Date(),
 				})
 				.where(eq(event.id, id))
@@ -435,14 +450,14 @@ export const eventsRouter = createTRPCRouter({
 			z.object({
 				eventId: z.string().uuid(),
 				occurrenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-				status: occurrenceStatusSchema.optional(),
+				status: icalStatusSchema.optional(),
 				notes: z.string().optional(),
-				title: z.string().max(255).optional(),
+				summary: z.string().max(255).optional(),
 				description: z.string().optional(),
 				url: z.string().url().max(1000).optional(),
 				location: z.string().max(500).optional(),
-				startTime: z.date().optional(),
-				endTime: z.date().optional(),
+				dtstart: z.date().optional(),
+				dtend: z.date().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -462,6 +477,12 @@ export const eventsRouter = createTRPCRouter({
 				parentEvent.space.slug,
 				parentEvent.eventType.slug,
 			);
+
+			// Bump parent event's sequence for iCal client update detection
+			await ctx.db
+				.update(event)
+				.set({ sequence: parentEvent.sequence + 1, updatedAt: new Date() })
+				.where(eq(event.id, eventId));
 
 			// Check if override exists
 			const existing = await ctx.db.query.occurrenceOverride.findFirst({
@@ -496,7 +517,7 @@ export const eventsRouter = createTRPCRouter({
 			return result;
 		}),
 
-	// Mark an occurrence as "gone" (deleted)
+	// Delete an occurrence (adds to exdates for recurring, deletes event for single)
 	deleteOccurrence: protectedProcedure
 		.input(
 			z.object({
@@ -523,32 +544,38 @@ export const eventsRouter = createTRPCRouter({
 				evt.eventType.slug,
 			);
 
-			if (!evt.isRecurring) {
+			if (!evt.rrule) {
 				// Delete the entire event
 				await ctx.db.delete(event).where(eq(event.id, eventId));
 				return { success: true, deleted: "event" };
 			}
 
-			// For recurring events, mark this occurrence as "gone"
-			const existing = await ctx.db.query.occurrenceOverride.findFirst({
-				where: and(
-					eq(occurrenceOverride.eventId, eventId),
-					eq(occurrenceOverride.occurrenceDate, occurrenceDate),
-				),
-			});
-
-			if (existing) {
-				await ctx.db
-					.update(occurrenceOverride)
-					.set({ status: "gone", updatedAt: new Date() })
-					.where(eq(occurrenceOverride.id, existing.id));
-			} else {
-				await ctx.db.insert(occurrenceOverride).values({
-					eventId,
-					occurrenceDate,
-					status: "gone",
-				});
+			// For recurring events, add date to exdates and remove any override
+			const existingExdates = evt.exdates
+				? evt.exdates.split(",").map((d) => d.trim())
+				: [];
+			if (!existingExdates.includes(occurrenceDate)) {
+				existingExdates.push(occurrenceDate);
 			}
+
+			await ctx.db
+				.update(event)
+				.set({
+					exdates: existingExdates.join(","),
+					sequence: evt.sequence + 1,
+					updatedAt: new Date(),
+				})
+				.where(eq(event.id, eventId));
+
+			// Delete any existing override for this date
+			await ctx.db
+				.delete(occurrenceOverride)
+				.where(
+					and(
+						eq(occurrenceOverride.eventId, eventId),
+						eq(occurrenceOverride.occurrenceDate, occurrenceDate),
+					),
+				);
 
 			return { success: true, deleted: "occurrence" };
 		}),
@@ -599,13 +626,13 @@ export const eventsRouter = createTRPCRouter({
 				eventId: z.string().uuid(),
 				splitDate: z.date(), // Date from which to split
 				// New values for future occurrences (null = keep same)
-				title: z.string().min(1).max(255).optional(),
+				summary: z.string().min(1).max(255).optional(),
 				description: z.string().optional(),
 				url: z.string().url().max(1000).optional(),
 				location: z.string().max(500).optional(),
-				startTime: z.date().optional(), // New time-of-day (date part ignored for recurring)
-				endTime: z.date().optional(),
-				status: eventStatusSchema.optional(),
+				dtstart: z.date().optional(), // New time-of-day (date part ignored for recurring)
+				dtend: z.date().optional(),
+				status: icalStatusSchema.optional(),
 				rrule: z.string().optional(), // New RRULE (if changing recurrence pattern)
 			}),
 		)
@@ -627,21 +654,21 @@ export const eventsRouter = createTRPCRouter({
 				evt.eventType.slug,
 			);
 
-			if (!evt.isRecurring || !evt.rrule) {
+			if (!evt.rrule) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: "Cannot split a non-recurring event",
 				});
 			}
 
-			// Parse the RRULE to find occurrences (set dtstart from event's startTime)
+			// Parse the RRULE to find occurrences (set dtstart from event's dtstart)
 			const baseRule = RRule.fromString(evt.rrule);
 			const rule = new RRule({
 				...baseRule.origOptions,
-				dtstart: evt.startTime,
+				dtstart: evt.dtstart,
 			});
 			const farFuture = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000);
-			const allDates = rule.between(evt.startTime, farFuture, true);
+			const allDates = rule.between(evt.dtstart, farFuture, true);
 
 			// Find the split point index
 			const splitIndex = allDates.findIndex((d) => d >= splitDate);
@@ -656,11 +683,12 @@ export const eventsRouter = createTRPCRouter({
 				const [result] = await ctx.db
 					.update(event)
 					.set({
-						title: updates.title ?? evt.title,
+						summary: updates.summary ?? evt.summary,
 						description: updates.description ?? evt.description,
 						url: updates.url ?? evt.url,
 						location: updates.location ?? evt.location,
 						status: updates.status ?? evt.status,
+						sequence: evt.sequence + 1,
 						updatedAt: new Date(),
 					})
 					.where(eq(event.id, eventId))
@@ -681,12 +709,28 @@ export const eventsRouter = createTRPCRouter({
 				});
 			}
 
+			// Split exdates between old and new series
+			const splitDateStr = formatOccurrenceDate(splitDate);
+			const oldExdates: string[] = [];
+			const newExdates: string[] = [];
+			if (evt.exdates) {
+				for (const d of evt.exdates.split(",").map((s) => s.trim())) {
+					if (d < splitDateStr) {
+						oldExdates.push(d);
+					} else {
+						newExdates.push(d);
+					}
+				}
+			}
+
 			await ctx.db
 				.update(event)
 				.set({
 					recurrenceEndDate: new Date(
 						lastOldOccurrence.getTime() + 24 * 60 * 60 * 1000,
 					),
+					exdates: oldExdates.length > 0 ? oldExdates.join(",") : null,
+					sequence: evt.sequence + 1,
 					updatedAt: new Date(),
 				})
 				.where(eq(event.id, eventId));
@@ -694,28 +738,28 @@ export const eventsRouter = createTRPCRouter({
 			// 2. Create new series starting from split date
 
 			// Adjust start time if provided (keep date from first occurrence, use time from input)
-			let newStartTime = firstNewOccurrence;
-			if (updates.startTime) {
-				newStartTime = new Date(firstNewOccurrence);
-				newStartTime.setHours(
-					updates.startTime.getHours(),
-					updates.startTime.getMinutes(),
-					updates.startTime.getSeconds(),
+			let newDtstart = firstNewOccurrence;
+			if (updates.dtstart) {
+				newDtstart = new Date(firstNewOccurrence);
+				newDtstart.setHours(
+					updates.dtstart.getHours(),
+					updates.dtstart.getMinutes(),
+					updates.dtstart.getSeconds(),
 				);
 			}
 
 			// Calculate new end time
-			let newEndTime: Date | null = null;
-			if (updates.endTime) {
-				newEndTime = new Date(firstNewOccurrence);
-				newEndTime.setHours(
-					updates.endTime.getHours(),
-					updates.endTime.getMinutes(),
-					updates.endTime.getSeconds(),
+			let newDtend: Date | null = null;
+			if (updates.dtend) {
+				newDtend = new Date(firstNewOccurrence);
+				newDtend.setHours(
+					updates.dtend.getHours(),
+					updates.dtend.getMinutes(),
+					updates.dtend.getSeconds(),
 				);
-			} else if (evt.endTime) {
-				const duration = evt.endTime.getTime() - evt.startTime.getTime();
-				newEndTime = new Date(newStartTime.getTime() + duration);
+			} else if (evt.dtend) {
+				const duration = evt.dtend.getTime() - evt.dtstart.getTime();
+				newDtend = new Date(newDtstart.getTime() + duration);
 			}
 
 			const [newEvent] = await ctx.db
@@ -724,23 +768,23 @@ export const eventsRouter = createTRPCRouter({
 					spaceId: evt.spaceId,
 					eventTypeId: evt.eventTypeId,
 					createdById: ctx.session.user.id,
-					title: updates.title ?? evt.title,
+					summary: updates.summary ?? evt.summary,
 					description: updates.description ?? evt.description,
 					url: updates.url ?? evt.url,
 					location: updates.location ?? evt.location,
-					startTime: newStartTime,
-					endTime: newEndTime,
+					dtstart: newDtstart,
+					dtend: newDtend,
 					timezone: evt.timezone,
 					allDay: evt.allDay,
 					rrule: updates.rrule ?? evt.rrule,
-					isRecurring: true,
 					recurrenceEndDate: evt.recurrenceEndDate,
+					exdates: newExdates.length > 0 ? newExdates.join(",") : null,
 					status: updates.status ?? evt.status,
+					isDraft: evt.isDraft,
 				})
 				.returning();
 
 			// 3. Migrate overrides from old series to new series for dates >= splitDate
-			const splitDateStr = formatOccurrenceDate(splitDate);
 			const overridesToMigrate = evt.overrides.filter(
 				(o) => o.occurrenceDate >= splitDateStr,
 			);
@@ -763,12 +807,12 @@ export const eventsRouter = createTRPCRouter({
 						occurrenceDate: o.occurrenceDate,
 						status: o.status,
 						notes: o.notes,
-						title: o.title,
+						summary: o.summary,
 						description: o.description,
 						url: o.url,
 						location: o.location,
-						startTime: o.startTime,
-						endTime: o.endTime,
+						dtstart: o.dtstart,
+						dtend: o.dtend,
 					})),
 				);
 			}

@@ -1,21 +1,20 @@
-export type EventStatus = "pending" | "tentative" | "confirmed" | "cancelled";
-export type OccurrenceStatus = EventStatus | "gone";
+export type EventStatus = "tentative" | "confirmed" | "cancelled";
 
 export type Occurrence = {
 	id: string; // Stable ID: {eventId}:{YYYY-MM-DD}
 	eventId: string;
 	occurrenceDate: string; // YYYY-MM-DD
-	title: string;
+	summary: string;
 	description: string | null;
 	url: string | null;
 	location: string | null;
-	start: Date;
-	end: Date | null;
+	dtstart: Date;
+	dtend: Date | null;
 	allDay: boolean;
 	isOverridden: boolean;
-	isGone: boolean;
+	isDraft: boolean;
 	isInternal: boolean;
-	status: OccurrenceStatus;
+	status: EventStatus;
 	notes: string | null;
 	space: { id: string; name: string };
 	eventType: { id: string; name: string; color: string | null } | null;

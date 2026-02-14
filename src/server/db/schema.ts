@@ -22,26 +22,14 @@ export const createTable = pgTableCreator((name) => `c4_${name}`);
 // Enums
 // ============================================================================
 
-// Unified status for events and occurrences
-// pending = internal draft (not shown in public feeds)
+// iCal STATUS values (RFC 5545) — used by both events and occurrence overrides
 // tentative = shown but not confirmed
 // confirmed = definitely happening
 // cancelled = was planned but no longer happening (shown with strikethrough)
-// gone = removed/deleted (not shown at all, only for occurrence overrides)
-export const eventStatusEnum = pgEnum("c4_event_status", [
-	"pending",
+export const icalStatusEnum = pgEnum("c4_ical_status", [
 	"tentative",
 	"confirmed",
 	"cancelled",
-]);
-
-// For occurrence overrides, we also support "gone" to mark as deleted
-export const occurrenceStatusEnum = pgEnum("c4_occurrence_status", [
-	"pending",
-	"tentative",
-	"confirmed",
-	"cancelled",
-	"gone", // Marks occurrence as deleted (not shown anywhere)
 ]);
 
 // ============================================================================
@@ -176,27 +164,29 @@ export const event = createTable(
 			onDelete: "set null",
 		}),
 
-		// Event details
-		title: varchar("title", { length: 255 }).notNull(),
+		// iCal VEVENT properties
+		summary: varchar("summary", { length: 255 }).notNull(),
 		description: text("description"),
-		url: varchar("url", { length: 1000 }), // Link to blog post, etc.
-		location: varchar("location", { length: 500 }), // Optional location override (defaults to space name)
+		url: varchar("url", { length: 1000 }),
+		location: varchar("location", { length: 500 }),
 
-		// Timing
-		startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-		endTime: timestamp("end_time", { withTimezone: true }), // Optional for open-ended events
+		// Timing (iCal DTSTART/DTEND)
+		dtstart: timestamp("dtstart", { withTimezone: true }).notNull(),
+		dtend: timestamp("dtend", { withTimezone: true }),
 		timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
 		allDay: boolean("all_day").notNull().default(false),
 
 		// Recurrence (RFC 5545 RRULE)
 		rrule: text("rrule"), // e.g., "FREQ=WEEKLY;BYDAY=TU"
-		isRecurring: boolean("is_recurring").notNull().default(false),
 		recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }),
+		exdates: text("exdates"), // Comma-separated YYYY-MM-DD dates excluded from recurrence
 		// Human-readable frequency label for recurring events (e.g., "Jeden Donnerstag (~19 Uhr)")
 		frequencyLabel: varchar("frequency_label", { length: 255 }),
 
-		// Status
-		status: eventStatusEnum("status").notNull().default("pending"),
+		// Status (iCal STATUS)
+		status: icalStatusEnum("status").notNull().default("confirmed"),
+		isDraft: boolean("is_draft").notNull().default(true),
+		sequence: integer("sequence").notNull().default(0),
 
 		// Timestamps
 		createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -204,7 +194,7 @@ export const event = createTable(
 	},
 	(table) => [
 		index("event_space_idx").on(table.spaceId),
-		index("event_start_idx").on(table.startTime),
+		index("event_start_idx").on(table.dtstart),
 		index("event_status_idx").on(table.status),
 	],
 );
@@ -245,19 +235,18 @@ export const occurrenceOverride = createTable(
 		occurrenceDate: date("occurrence_date", { mode: "string" }).notNull(),
 
 		// Status override (null = inherit from event)
-		// Use "gone" to mark an occurrence as deleted
-		status: occurrenceStatusEnum("status"),
+		status: icalStatusEnum("status"),
 
 		// Notes/comments explaining the override (e.g., "Moved due to holiday")
 		notes: text("notes"),
 
 		// Override fields (null = inherit from event)
-		title: varchar("title", { length: 255 }),
+		summary: varchar("summary", { length: 255 }),
 		description: text("description"),
 		url: varchar("url", { length: 1000 }),
 		location: varchar("location", { length: 500 }),
-		startTime: timestamp("start_time", { withTimezone: true }),
-		endTime: timestamp("end_time", { withTimezone: true }),
+		dtstart: timestamp("dtstart", { withTimezone: true }),
+		dtend: timestamp("dtend", { withTimezone: true }),
 
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),

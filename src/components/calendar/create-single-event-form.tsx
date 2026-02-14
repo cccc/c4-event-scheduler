@@ -11,14 +11,15 @@ import type { EventType, Space } from "./types";
 
 const formSchema = z.object({
 	eventTypeId: z.string().min(1, "Event type is required"),
-	title: z.string().min(1, "Title is required"),
+	summary: z.string().min(1, "Title is required"),
 	description: z.string(),
 	url: z.url("Must be a valid URL").or(z.literal("")),
 	location: z.string(),
-	startTime: z.string().min(1, "Start time is required"),
-	endTime: z.string(),
+	dtstart: z.string().min(1, "Start time is required"),
+	dtend: z.string(),
 	hasEndTime: z.boolean(),
-	status: z.enum(["confirmed", "tentative", "pending"]),
+	status: z.enum(["confirmed", "tentative", "cancelled"]),
+	isDraft: z.boolean(),
 });
 
 type CreateSingleEventFormProps = {
@@ -46,39 +47,41 @@ export function CreateSingleEventForm({
 	const form = useAppForm({
 		defaultValues: {
 			eventTypeId: "",
-			title: "",
+			summary: "",
 			description: "",
 			url: "",
 			location: "",
-			startTime: selectedDate ? toLocalDateTimeString(selectedDate) : "",
-			endTime: selectedDate
+			dtstart: selectedDate ? toLocalDateTimeString(selectedDate) : "",
+			dtend: selectedDate
 				? toLocalDateTimeString(
 						new Date(selectedDate.getTime() + 60 * 60 * 1000),
 					)
 				: "",
 			hasEndTime: true,
 			status: "confirmed",
+			isDraft: false,
 		} as z.infer<typeof formSchema>,
 		validators: {
 			onSubmit: formSchema,
 		},
 		onSubmit: async ({ value }) => {
-			const startTime = parseLocalDateTime(value.startTime);
-			const endTime =
-				value.hasEndTime && value.endTime
-					? parseLocalDateTime(value.endTime)
+			const dtstart = parseLocalDateTime(value.dtstart);
+			const dtend =
+				value.hasEndTime && value.dtend
+					? parseLocalDateTime(value.dtend)
 					: undefined;
 
 			return createEvent.mutate({
 				spaceId: space.id,
 				eventTypeId: value.eventTypeId,
-				title: value.title,
+				summary: value.summary,
 				description: value.description || undefined,
 				url: value.url || undefined,
 				location: value.location || undefined,
-				startTime,
-				endTime,
+				dtstart,
+				dtend,
 				status: value.status,
+				isDraft: value.isDraft,
 			});
 		},
 	});
@@ -114,7 +117,7 @@ export function CreateSingleEventForm({
 					)}
 				</form.AppField>
 
-				<form.AppField name="title">
+				<form.AppField name="summary">
 					{(field) => (
 						<>
 							<field.TextField label="Title" required />
@@ -149,7 +152,7 @@ export function CreateSingleEventForm({
 					)}
 				</form.AppField>
 
-				<form.AppField name="startTime">
+				<form.AppField name="dtstart">
 					{(field) => (
 						<>
 							<field.DateTimeField label="Start Date & Time" required />
@@ -163,7 +166,7 @@ export function CreateSingleEventForm({
 						<div className="space-y-2">
 							<field.CheckboxField id="hasEndTime" label="Has end time" />
 							{form.state.values.hasEndTime && (
-								<form.AppField name="endTime">
+								<form.AppField name="dtend">
 									{(endField) => (
 										<endField.DateTimeField label="End Date & Time" />
 									)}
@@ -180,8 +183,17 @@ export function CreateSingleEventForm({
 							options={[
 								{ value: "confirmed", label: "Confirmed" },
 								{ value: "tentative", label: "Tentative" },
-								{ value: "pending", label: "Pending (Draft)" },
+								{ value: "cancelled", label: "Cancelled" },
 							]}
+						/>
+					)}
+				</form.AppField>
+
+				<form.AppField name="isDraft">
+					{(field) => (
+						<field.CheckboxField
+							id="isDraft"
+							label="Draft (hidden from public feeds)"
 						/>
 					)}
 				</form.AppField>

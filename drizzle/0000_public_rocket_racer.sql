@@ -1,5 +1,4 @@
-CREATE TYPE "public"."c4_event_status" AS ENUM('pending', 'tentative', 'confirmed', 'cancelled');--> statement-breakpoint
-CREATE TYPE "public"."c4_occurrence_status" AS ENUM('pending', 'tentative', 'confirmed', 'cancelled', 'gone');--> statement-breakpoint
+CREATE TYPE "public"."c4_ical_status" AS ENUM('tentative', 'confirmed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."c4_permission_source" AS ENUM('oidc', 'manual');--> statement-breakpoint
 CREATE TABLE "c4_account" (
 	"id" text PRIMARY KEY NOT NULL,
@@ -22,18 +21,21 @@ CREATE TABLE "c4_event" (
 	"space_id" uuid NOT NULL,
 	"event_type_id" uuid NOT NULL,
 	"created_by_id" text,
-	"title" varchar(255) NOT NULL,
+	"summary" varchar(255) NOT NULL,
 	"description" text,
 	"url" varchar(1000),
-	"start_time" timestamp with time zone NOT NULL,
-	"end_time" timestamp with time zone,
+	"location" varchar(500),
+	"dtstart" timestamp with time zone NOT NULL,
+	"dtend" timestamp with time zone,
 	"timezone" varchar(100) DEFAULT 'UTC' NOT NULL,
 	"all_day" boolean DEFAULT false NOT NULL,
 	"rrule" text,
-	"is_recurring" boolean DEFAULT false NOT NULL,
 	"recurrence_end_date" timestamp with time zone,
+	"exdates" text,
 	"frequency_label" varchar(255),
-	"status" "c4_event_status" DEFAULT 'pending' NOT NULL,
+	"status" "c4_ical_status" DEFAULT 'confirmed' NOT NULL,
+	"is_draft" boolean DEFAULT true NOT NULL,
+	"sequence" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -44,6 +46,8 @@ CREATE TABLE "c4_event_type" (
 	"name" varchar(255) NOT NULL,
 	"description" text,
 	"color" varchar(20),
+	"is_internal" boolean DEFAULT false NOT NULL,
+	"default_duration_minutes" integer,
 	"space_id" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
@@ -54,13 +58,14 @@ CREATE TABLE "c4_occurrence_override" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"event_id" uuid NOT NULL,
 	"occurrence_date" date NOT NULL,
-	"status" "c4_occurrence_status",
+	"status" "c4_ical_status",
 	"notes" text,
-	"title" varchar(255),
+	"summary" varchar(255),
 	"description" text,
 	"url" varchar(1000),
-	"start_time" timestamp with time zone,
-	"end_time" timestamp with time zone,
+	"location" varchar(500),
+	"dtstart" timestamp with time zone,
+	"dtend" timestamp with time zone,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -127,7 +132,7 @@ ALTER TABLE "c4_occurrence_override" ADD CONSTRAINT "c4_occurrence_override_even
 ALTER TABLE "c4_session" ADD CONSTRAINT "c4_session_user_id_c4_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."c4_user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "c4_user_permission" ADD CONSTRAINT "c4_user_permission_user_id_c4_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."c4_user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "event_space_idx" ON "c4_event" USING btree ("space_id");--> statement-breakpoint
-CREATE INDEX "event_start_idx" ON "c4_event" USING btree ("start_time");--> statement-breakpoint
+CREATE INDEX "event_start_idx" ON "c4_event" USING btree ("dtstart");--> statement-breakpoint
 CREATE INDEX "event_status_idx" ON "c4_event" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "event_type_slug_idx" ON "c4_event_type" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "event_type_space_idx" ON "c4_event_type" USING btree ("space_id");--> statement-breakpoint

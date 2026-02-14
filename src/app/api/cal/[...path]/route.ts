@@ -7,13 +7,100 @@ import { env } from "@/env";
 import { db } from "@/server/db";
 import { event, eventType, space } from "@/server/db/schema";
 
-// Helper to format a Date as YYYY-MM-DD for occurrence identification
-function formatOccurrenceDate(d: Date): string {
-	const year = d.getFullYear();
-	const month = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function formatICalDateUTC(date: Date): string {
+	return date
+		.toISOString()
+		.replace(/[-:]/g, "")
+		.replace(/\.\d{3}/, "");
 }
+
+function formatICalDateOnly(date: Date): string {
+	return date.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+/**
+ * Reconstruct the original start datetime for an occurrence from its date string
+ * and the event's start time (preserving the time-of-day from the master event).
+ */
+function buildRecurrenceIdDate(
+	eventStartTime: Date,
+	occurrenceDate: string,
+): Date {
+	const parts = occurrenceDate.split("-").map(Number);
+	const d = new Date(eventStartTime);
+	d.setUTCFullYear(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
+	return d;
+}
+
+/**
+ * ICalRRuleStub implementation that includes EXDATE lines in toString() output.
+ * ical-generator calls toString() and strips DTSTART: lines, preserving all others.
+ * This lets us emit both RRULE and EXDATE in a single repeating property.
+ */
+class RRuleWithExdate {
+	private rule: RRule;
+	private exdates: Date[];
+	private allDay: boolean;
+
+	constructor(
+		rruleStr: string,
+		dtstart: Date,
+		recurrenceEndDate: Date | null,
+		exdates: Date[],
+		allDay: boolean,
+	) {
+		const base = RRule.fromString(rruleStr);
+		const opts = { ...base.origOptions, dtstart };
+		if (
+			recurrenceEndDate &&
+			!base.origOptions.until &&
+			!base.origOptions.count
+		) {
+			opts.until = recurrenceEndDate;
+		}
+		this.rule = new RRule(opts);
+		this.exdates = exdates;
+		this.allDay = allDay;
+	}
+
+	between(after: Date, before: Date, inc?: boolean): Date[] {
+		return this.rule.between(after, before, inc);
+	}
+
+	toString(): string {
+		let result = this.rule.toString();
+		if (this.exdates.length > 0) {
+			const dates = this.exdates
+				.map((d) =>
+					this.allDay ? formatICalDateOnly(d) : formatICalDateUTC(d),
+				)
+				.join(",");
+			const prefix = this.allDay ? "EXDATE;VALUE=DATE" : "EXDATE";
+			result += `\n${prefix}:${dates}`;
+		}
+		return result;
+	}
+}
+
+// Helper to map status to iCal status
+function mapStatus(status: string): ICalEventStatus {
+	switch (status) {
+		case "cancelled":
+			return ICalEventStatus.CANCELLED;
+		case "tentative":
+			return ICalEventStatus.TENTATIVE;
+		default:
+			return ICalEventStatus.CONFIRMED;
+	}
+}
+
+// ============================================================================
+// Route handler
+// ============================================================================
 
 export async function GET(
 	_request: NextRequest,
@@ -44,13 +131,11 @@ export async function GET(
 		spaceSlug = slug;
 	} else if (path.length === 2) {
 		// Space + event type feed: {space}/{eventType}.ics
-		spaceSlug = path[0]!;
+		spaceSlug = path[0] ?? "";
 		eventTypeSlug = slug;
 	}
 
 	// Build query conditions
-	// For recurring events, we include all statuses and filter at occurrence level
-	// (because individual occurrences may have different statuses via overrides)
 	const conditions: ReturnType<typeof eq>[] = [];
 
 	// Track allowed space IDs for filtering
@@ -105,7 +190,6 @@ export async function GET(
 	}
 
 	// Fetch events with their overrides
-	// We don't filter on status here - we'll filter at occurrence level
 	const events = await db.query.event.findMany({
 		where: conditions.length > 0 ? and(...conditions) : undefined,
 		with: {
@@ -123,55 +207,38 @@ export async function GET(
 		url: env.NEXT_PUBLIC_APP_URL,
 	});
 
-	// Helper to map status to iCal status
-	const mapStatus = (status: string): ICalEventStatus => {
-		switch (status) {
-			case "cancelled":
-				return ICalEventStatus.CANCELLED;
-			case "tentative":
-				return ICalEventStatus.TENTATIVE;
-			default:
-				return ICalEventStatus.CONFIRMED;
-		}
-	};
-
-	// Date range for recurring events
-	// Include all past occurrences (from event start) and up to 2 years in the future
-	const rangeEnd = new Date();
-	rangeEnd.setFullYear(rangeEnd.getFullYear() + 2);
-
 	for (const evt of events) {
+		// Skip draft and internal events entirely (public feed)
+		if (evt.isDraft) continue;
+		if (evt.eventType?.isInternal) continue;
+
 		const defaultDurationMs = evt.eventType?.defaultDurationMinutes
 			? evt.eventType.defaultDurationMinutes * 60_000
 			: 0;
-		const duration = evt.endTime
-			? evt.endTime.getTime() - evt.startTime.getTime()
+		const duration = evt.dtend
+			? evt.dtend.getTime() - evt.dtstart.getTime()
 			: defaultDurationMs;
 
-		if (!evt.isRecurring || !evt.rrule) {
-			// Single event - include all regardless of date, filter only by status
-			const occDate = formatOccurrenceDate(evt.startTime);
+		if (!evt.rrule) {
+			// Single event
+			const occDate = evt.dtstart.toISOString().slice(0, 10);
 			const override = evt.overrides.find((o) => o.occurrenceDate === occDate);
 			const status = override?.status ?? evt.status;
-			const isInternal = evt.eventType?.isInternal ?? false;
 
-			// Skip "gone", "pending", or internal occurrences
-			if (status === "gone" || status === "pending" || isInternal) continue;
-
-			const effectiveStart = override?.startTime ?? evt.startTime;
+			const effectiveStart = override?.dtstart ?? evt.dtstart;
 			const effectiveEnd =
-				override?.endTime ??
-				evt.endTime ??
+				override?.dtend ??
+				evt.dtend ??
 				(defaultDurationMs
 					? new Date(effectiveStart.getTime() + defaultDurationMs)
 					: undefined);
 
 			const icalEvent = calendar.createEvent({
-				id: `${evt.id}:${occDate}`,
+				id: evt.id,
 				start: effectiveStart,
 				end: effectiveEnd,
 				allDay: evt.allDay,
-				summary: override?.title ?? evt.title,
+				summary: override?.summary ?? evt.summary,
 				description: override?.notes
 					? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`
 					: (override?.description ?? evt.description ?? undefined),
@@ -179,65 +246,85 @@ export async function GET(
 				url: override?.url ?? evt.url ?? undefined,
 				created: evt.createdAt,
 				status: mapStatus(status),
+				sequence: evt.sequence,
 			});
-			if (!evt.endTime && defaultDurationMs > 0) {
+			if (!evt.dtend && defaultDurationMs > 0) {
 				icalEvent.x([{ key: "X-OPEN-END", value: "TRUE" }]);
 			}
 		} else {
-			// Recurring event - expand occurrences and create individual iCal entries
-			// Include all past occurrences (from event start) and up to 2 years future
+			// Recurring event — emit master VEVENT with RRULE + EXDATE,
+			// plus override VEVENTs with RECURRENCE-ID
 			try {
-				// Parse the RRULE and set dtstart from the event's startTime
-				const baseRule = RRule.fromString(evt.rrule);
-				const rule = new RRule({
-					...baseRule.origOptions,
-					dtstart: evt.startTime,
+				// 1. Parse exdates from event column
+				const exdates: Date[] = evt.exdates
+					? evt.exdates
+							.split(",")
+							.map((d) => buildRecurrenceIdDate(evt.dtstart, d.trim()))
+					: [];
+
+				// 2. Create master VEVENT with RRULE + EXDATE
+				const repeating = new RRuleWithExdate(
+					evt.rrule,
+					evt.dtstart,
+					evt.recurrenceEndDate,
+					exdates,
+					evt.allDay,
+				);
+
+				const masterEnd = evt.dtend
+					? evt.dtend
+					: defaultDurationMs
+						? new Date(evt.dtstart.getTime() + defaultDurationMs)
+						: undefined;
+
+				const masterEvent = calendar.createEvent({
+					id: evt.id,
+					start: evt.dtstart,
+					end: masterEnd,
+					allDay: evt.allDay,
+					summary: evt.summary,
+					description: evt.description ?? undefined,
+					location: evt.location ?? evt.space.name,
+					url: evt.url ?? undefined,
+					created: evt.createdAt,
+					status: mapStatus(evt.status),
+					sequence: evt.sequence,
+					repeating,
 				});
+				if (!evt.dtend && defaultDurationMs > 0) {
+					masterEvent.x([{ key: "X-OPEN-END", value: "TRUE" }]);
+				}
 
-				// End date is the earlier of: recurrence end date or 2 years from now
-				const endDate = evt.recurrenceEndDate
-					? new Date(
-							Math.min(evt.recurrenceEndDate.getTime(), rangeEnd.getTime()),
-						)
-					: rangeEnd;
-
-				// Start from the event's start date (include all past occurrences)
-				const allDates = rule.between(evt.startTime, endDate, true);
-
-				for (const date of allDates) {
-					const occDate = formatOccurrenceDate(date);
-
-					// Check for override
-					const override = evt.overrides.find(
-						(o) => o.occurrenceDate === occDate,
+				// 3. Create override VEVENTs with RECURRENCE-ID
+				for (const override of evt.overrides) {
+					const recurrenceId = buildRecurrenceIdDate(
+						evt.dtstart,
+						override.occurrenceDate,
 					);
-					const status = override?.status ?? evt.status;
-					const isInternal = evt.eventType?.isInternal ?? false;
-
-					// Skip "gone", "pending", or internal occurrences
-					if (status === "gone" || status === "pending" || isInternal) continue;
-
-					const start = override?.startTime ?? date;
+					const status = override.status ?? evt.status;
+					const start = override.dtstart ?? recurrenceId;
 					const end =
-						override?.endTime ??
-						(duration > 0 ? new Date(date.getTime() + duration) : undefined);
+						override.dtend ??
+						(duration > 0 ? new Date(start.getTime() + duration) : undefined);
 
-					const icalEvent = calendar.createEvent({
-						id: `${evt.id}:${occDate}`,
+					const icalOverride = calendar.createEvent({
+						id: evt.id, // Same UID as master
+						recurrenceId,
 						start,
 						end,
 						allDay: evt.allDay,
-						summary: override?.title ?? evt.title,
-						description: override?.notes
+						summary: override.summary ?? evt.summary,
+						description: override.notes
 							? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`
-							: (override?.description ?? evt.description ?? undefined),
-						location: override?.location ?? evt.location ?? evt.space.name,
-						url: override?.url ?? evt.url ?? undefined,
+							: (override.description ?? evt.description ?? undefined),
+						location: override.location ?? evt.location ?? evt.space.name,
+						url: override.url ?? evt.url ?? undefined,
 						created: evt.createdAt,
 						status: mapStatus(status),
+						sequence: evt.sequence,
 					});
-					if (!evt.endTime && defaultDurationMs > 0) {
-						icalEvent.x([{ key: "X-OPEN-END", value: "TRUE" }]);
+					if (!evt.dtend && !override.dtend && defaultDurationMs > 0) {
+						icalOverride.x([{ key: "X-OPEN-END", value: "TRUE" }]);
 					}
 				}
 			} catch (e) {

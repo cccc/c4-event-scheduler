@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { RRule } from "rrule";
 
@@ -8,7 +8,7 @@ import { event, space } from "@/server/db/schema";
 
 type UpcomingEvent = {
 	id: string;
-	title: string;
+	summary: string;
 	description: string | null;
 	url: string | null;
 	date: string; // ISO date of next occurrence
@@ -82,7 +82,8 @@ export async function GET(request: NextRequest) {
 		}
 	}
 
-	// Only include confirmed or tentative events
+	// Only include non-draft confirmed or tentative events
+	conditions.push(eq(event.isDraft, false));
 	conditions.push(
 		or(
 			eq(event.status, "confirmed"),
@@ -94,9 +95,28 @@ export async function GET(request: NextRequest) {
 	const rangeEnd = new Date();
 	rangeEnd.setMonth(rangeEnd.getMonth() + months);
 
+	// Pre-filter at the DB level: only fetch events whose active range
+	// intersects [now, rangeEnd]
+	conditions.push(
+		or(
+			// Single events: dtstart must be within the range
+			and(
+				isNull(event.rrule),
+				gte(event.dtstart, now),
+				lte(event.dtstart, rangeEnd),
+			),
+			// Recurring events: series must overlap the range
+			and(
+				isNotNull(event.rrule),
+				lte(event.dtstart, rangeEnd),
+				or(isNull(event.recurrenceEndDate), gte(event.recurrenceEndDate, now)),
+			),
+		) as ReturnType<typeof eq>,
+	);
+
 	// Fetch events
 	const events = await db.query.event.findMany({
-		where: conditions.length > 0 ? and(...conditions) : undefined,
+		where: and(...conditions),
 		with: {
 			space: true,
 			eventType: true,
@@ -110,27 +130,32 @@ export async function GET(request: NextRequest) {
 	for (const evt of events) {
 		const calendarUrl = `${env.NEXT_PUBLIC_APP_URL}/spaces/${evt.space.slug}`;
 
-		if (!evt.isRecurring || !evt.rrule) {
+		// Parse exdates for recurring events
+		const exdatesSet = new Set(
+			evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
+		);
+
+		if (!evt.rrule) {
 			// Single event - only include if in the future and within range
-			if (evt.startTime >= now && evt.startTime <= rangeEnd) {
-				const occDate = formatOccurrenceDate(evt.startTime);
+			if (evt.dtstart >= now && evt.dtstart <= rangeEnd) {
+				const occDate = formatOccurrenceDate(evt.dtstart);
 				const override = evt.overrides.find(
 					(o) => o.occurrenceDate === occDate,
 				);
 				const status = override?.status ?? evt.status;
 				const isInternal = evt.eventType?.isInternal ?? false;
 
-				if (status === "gone" || status === "pending" || isInternal) continue;
+				if (isInternal) continue;
 
 				const isCancelled = status === "cancelled";
 
 				upcomingEvents.push({
 					id: `${evt.id}:${occDate}`,
-					title: override?.title ?? evt.title,
+					summary: override?.summary ?? evt.summary,
 					description: override?.description ?? evt.description,
 					url: override?.url ?? evt.url,
-					date: evt.startTime.toISOString(),
-					dateLabel: formatDate(override?.startTime ?? evt.startTime, locale),
+					date: evt.dtstart.toISOString(),
+					dateLabel: formatDate(override?.dtstart ?? evt.dtstart, locale),
 					isRecurring: false,
 					spaceName: evt.space.name,
 					spaceSlug: evt.space.slug,
@@ -149,7 +174,7 @@ export async function GET(request: NextRequest) {
 				const baseRule = RRule.fromString(evt.rrule);
 				const rule = new RRule({
 					...baseRule.origOptions,
-					dtstart: evt.startTime,
+					dtstart: evt.dtstart,
 				});
 
 				const endDate = evt.recurrenceEndDate
@@ -162,21 +187,22 @@ export async function GET(request: NextRequest) {
 				const nextDates = rule.between(now, endDate, true);
 				if (nextDates.length === 0) continue;
 
-				// Find first non-gone/non-pending occurrence and check if it's cancelled
+				// Find first valid occurrence (skip exdates/internal) and check if it's cancelled
 				let firstValidDate: Date | null = null;
 				let firstValidStatus: string | null = null;
 				let nextNonCancelledDate: Date | null = null;
 
 				for (const date of nextDates) {
 					const occDate = formatOccurrenceDate(date);
+					const isInternal = evt.eventType?.isInternal ?? false;
+
+					// Skip exdates and internal
+					if (exdatesSet.has(occDate) || isInternal) continue;
+
 					const override = evt.overrides.find(
 						(o) => o.occurrenceDate === occDate,
 					);
 					const status = override?.status ?? evt.status;
-					const isInternal = evt.eventType?.isInternal ?? false;
-
-					// Skip gone, pending, and internal
-					if (status === "gone" || status === "pending" || isInternal) continue;
 
 					if (!firstValidDate) {
 						firstValidDate = date;
@@ -201,7 +227,7 @@ export async function GET(request: NextRequest) {
 
 				upcomingEvents.push({
 					id: `${evt.id}:recurring`,
-					title: evt.title,
+					summary: evt.summary,
 					description: evt.description,
 					url: evt.url,
 					date: (nextNonCancelledDate ?? firstValidDate).toISOString(),
@@ -287,8 +313,8 @@ function generateHtml(
 				}
 
 				const titleCell = evt.url
-					? `<a href="${escapeHtml(evt.url)}">${escapeHtml(evt.title)}</a>`
-					: escapeHtml(evt.title);
+					? `<a href="${escapeHtml(evt.url)}">${escapeHtml(evt.summary)}</a>`
+					: escapeHtml(evt.summary);
 
 				return `<tr class="${classes}">
   <td>${dateCell}</td>
