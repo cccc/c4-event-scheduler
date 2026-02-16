@@ -54,10 +54,17 @@ const seriesFormSchema = z.object({
 type EditSeriesFormProps = {
 	occurrence: Occurrence;
 	onClose: () => void;
+	initialTab?: "occurrence" | "series";
 };
 
-export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
-	const [editTab, setEditTab] = useState<"occurrence" | "series">("occurrence");
+export function EditSeriesForm({
+	occurrence,
+	onClose,
+	initialTab,
+}: EditSeriesFormProps) {
+	const [editTab, setEditTab] = useState<"occurrence" | "series">(
+		initialTab ?? "occurrence",
+	);
 	const [seriesEditScope, setSeriesEditScope] = useState<"whole" | "fromHere">(
 		"fromHere",
 	);
@@ -303,9 +310,14 @@ export function EditSeriesForm({ occurrence, onClose }: EditSeriesFormProps) {
 			seriesForm.setFieldValue("recurrenceConfig", null);
 		}
 
-		setEditTab("occurrence");
+		setEditTab(initialTab ?? "occurrence");
 		setSeriesEditScope("fromHere");
-	}, [occurrence, occurrenceForm.setFieldValue, seriesForm.setFieldValue]);
+	}, [
+		occurrence,
+		initialTab,
+		occurrenceForm.setFieldValue,
+		seriesForm.setFieldValue,
+	]);
 
 	const handleCancelOccurrence = () => {
 		if (editTab === "occurrence") {

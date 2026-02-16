@@ -52,7 +52,11 @@ export function EditEventDialog() {
 				</div>
 
 				{occurrence.isRecurring ? (
-					<EditSeriesForm occurrence={occurrence} onClose={handleClose} />
+					<EditSeriesForm
+						initialTab={store.editTab ?? undefined}
+						occurrence={occurrence}
+						onClose={handleClose}
+					/>
 				) : (
 					<EditSingleEventForm occurrence={occurrence} onClose={handleClose} />
 				)}
