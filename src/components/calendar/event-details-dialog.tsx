@@ -463,6 +463,11 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 							<Button onClick={() => store.close()} variant="outline">
 								Close
 							</Button>
+							{canEdit && (
+								<Button onClick={() => store.openEdit(undefined, "series")}>
+									Edit Series
+								</Button>
+							)}
 						</div>
 					</TabsContent>
 				</Tabs>
