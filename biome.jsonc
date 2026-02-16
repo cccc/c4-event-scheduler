@@ -1,6 +1,9 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"root": true,
+	"files": {
+		"includes": ["src/**/*.{js,jsx,ts,tsx}"]
+	},
 	"vcs": {
 		"enabled": true,
 		"useIgnoreFile": true,
