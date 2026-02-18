@@ -163,6 +163,9 @@ export const event = createTable(
 		createdById: text("created_by_id").references(() => user.id, {
 			onDelete: "set null",
 		}),
+		updatedById: text("updated_by_id").references(() => user.id, {
+			onDelete: "set null",
+		}),
 
 		// iCal VEVENT properties
 		summary: varchar("summary", { length: 255 }).notNull(),
@@ -211,6 +214,12 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 	createdBy: one(user, {
 		fields: [event.createdById],
 		references: [user.id],
+		relationName: "eventCreatedBy",
+	}),
+	updatedBy: one(user, {
+		fields: [event.updatedById],
+		references: [user.id],
+		relationName: "eventUpdatedBy",
 	}),
 	overrides: many(occurrenceOverride),
 }));
