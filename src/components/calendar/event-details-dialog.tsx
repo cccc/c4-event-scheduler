@@ -49,6 +49,16 @@ function formatTime(date: Date): string {
 	});
 }
 
+function formatDateTime(date: Date): string {
+	return date.toLocaleString("de-DE", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
 function formatExdate(dateStr: string): string {
 	// dateStr is YYYY-MM-DD
 	const [year, month, day] = dateStr.split("-").map(Number);
@@ -122,6 +132,13 @@ function getStatusBadge(status: EventStatus, isDraft: boolean) {
 function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
 	const store = useCalendarDialogStore();
 	const occurrence = store.occurrence;
+
+	// Fetch full event data for single events to show creator info
+	const { data: eventData } = api.events.getById.useQuery(
+		{ id: occurrence?.eventId ?? "" },
+		{ enabled: !!occurrence && !occurrence.isRecurring },
+	);
+
 	if (!occurrence) return null;
 
 	const displayLocation = occurrence.location ?? occurrence.space.name;
@@ -198,6 +215,32 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
 						</div>
 						<div className="mt-1 text-amber-700 text-sm dark:text-amber-300">
 							{occurrence.notes}
+						</div>
+					</div>
+				)}
+
+				{/* Created/Updated by (single events only — recurring shows this in Series Info tab) */}
+				{!occurrence.isRecurring && eventData?.createdBy && (
+					<div className="flex items-start gap-3">
+						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="text-sm">
+							Created by {eventData.createdBy.name}
+							<span className="text-muted-foreground">
+								{" · "}
+								{formatDateTime(eventData.createdAt)}
+							</span>
+						</div>
+					</div>
+				)}
+				{!occurrence.isRecurring && eventData?.updatedBy && (
+					<div className="flex items-start gap-3">
+						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="text-sm">
+							Last edited by {eventData.updatedBy.name}
+							<span className="text-muted-foreground">
+								{" · "}
+								{formatDateTime(eventData.updatedAt)}
+							</span>
 						</div>
 					</div>
 				)}
@@ -351,7 +394,27 @@ function SeriesInfoContent({ eventId }: { eventId: string }) {
 			{seriesEvent.createdBy && (
 				<div className="flex items-start gap-3">
 					<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
-					<div className="text-sm">Created by {seriesEvent.createdBy.name}</div>
+					<div className="text-sm">
+						Created by {seriesEvent.createdBy.name}
+						<span className="text-muted-foreground">
+							{" · "}
+							{formatDateTime(seriesEvent.createdAt)}
+						</span>
+					</div>
+				</div>
+			)}
+
+			{/* Last edited by */}
+			{seriesEvent.updatedBy && (
+				<div className="flex items-start gap-3">
+					<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+					<div className="text-sm">
+						Last edited by {seriesEvent.updatedBy.name}
+						<span className="text-muted-foreground">
+							{" · "}
+							{formatDateTime(seriesEvent.updatedAt)}
+						</span>
+					</div>
 				</div>
 			)}
 		</div>

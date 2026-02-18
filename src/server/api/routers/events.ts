@@ -79,15 +79,25 @@ export const eventsRouter = createTRPCRouter({
 	getById: publicProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.query(async ({ ctx, input }) => {
-			return ctx.db.query.event.findFirst({
+			const result = await ctx.db.query.event.findFirst({
 				where: eq(event.id, input.id),
 				with: {
 					space: true,
 					eventType: true,
 					createdBy: true,
+					updatedBy: true,
 					overrides: true,
 				},
 			});
+
+			if (result && !ctx.session?.user) {
+				result.createdBy = null;
+				result.updatedBy = null;
+				result.createdById = null;
+				result.updatedById = null;
+			}
+
+			return result;
 		}),
 
 	// Get expanded occurrences for a date range
@@ -413,6 +423,7 @@ export const eventsRouter = createTRPCRouter({
 					rrule: rrule ?? undefined,
 					sequence: existingEvent.sequence + 1,
 					updatedAt: new Date(),
+					updatedById: ctx.session.user.id,
 				})
 				.where(eq(event.id, id))
 				.returning();
@@ -481,7 +492,11 @@ export const eventsRouter = createTRPCRouter({
 			// Bump parent event's sequence for iCal client update detection
 			await ctx.db
 				.update(event)
-				.set({ sequence: parentEvent.sequence + 1, updatedAt: new Date() })
+				.set({
+					sequence: parentEvent.sequence + 1,
+					updatedAt: new Date(),
+					updatedById: ctx.session.user.id,
+				})
 				.where(eq(event.id, eventId));
 
 			// Check if override exists
@@ -564,6 +579,7 @@ export const eventsRouter = createTRPCRouter({
 					exdates: existingExdates.join(","),
 					sequence: evt.sequence + 1,
 					updatedAt: new Date(),
+					updatedById: ctx.session.user.id,
 				})
 				.where(eq(event.id, eventId));
 
@@ -690,6 +706,7 @@ export const eventsRouter = createTRPCRouter({
 						status: updates.status ?? evt.status,
 						sequence: evt.sequence + 1,
 						updatedAt: new Date(),
+						updatedById: ctx.session.user.id,
 					})
 					.where(eq(event.id, eventId))
 					.returning();
@@ -732,6 +749,7 @@ export const eventsRouter = createTRPCRouter({
 					exdates: oldExdates.length > 0 ? oldExdates.join(",") : null,
 					sequence: evt.sequence + 1,
 					updatedAt: new Date(),
+					updatedById: ctx.session.user.id,
 				})
 				.where(eq(event.id, eventId));
 
@@ -768,6 +786,7 @@ export const eventsRouter = createTRPCRouter({
 					spaceId: evt.spaceId,
 					eventTypeId: evt.eventTypeId,
 					createdById: ctx.session.user.id,
+					updatedById: ctx.session.user.id,
 					summary: updates.summary ?? evt.summary,
 					description: updates.description ?? evt.description,
 					url: updates.url ?? evt.url,
