@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -39,19 +39,41 @@ export function Header({ user, isAdmin }: HeaderProps) {
 					C4 Events
 				</Link>
 				<nav className="flex items-center gap-4">
-					<Link href="/spaces">
-						<Button variant="ghost">Spaces</Button>
-					</Link>
-					<Link href="/event-types">
-						<Button variant="ghost">Event Types</Button>
-					</Link>
-					<Link href="/feeds">
-						<Button variant="ghost">Feeds</Button>
-					</Link>
+					<Button asChild variant="ghost">
+						<Link href="/spaces">Spaces</Link>
+					</Button>
+					<Button asChild variant="ghost">
+						<Link href="/event-types">Event Types</Link>
+					</Button>
+					<Button asChild variant="ghost">
+						<Link href="/feeds">Feeds</Link>
+					</Button>
+
+					<Button asChild variant="ghost">
+						<Link href="/api/v1/docs">API Docs</Link>
+					</Button>
+
 					{isAdmin && (
-						<Link href="/admin/roles">
-							<Button variant="ghost">Admin</Button>
-						</Link>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost">
+									Admin
+									<ChevronDown className="ml-1 h-3 w-3" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem asChild>
+									<Link className="cursor-pointer" href="/admin/roles">
+										Roles
+									</Link>
+								</DropdownMenuItem>
+								<DropdownMenuItem asChild>
+									<Link className="cursor-pointer" href="/admin/api-keys">
+										API Keys
+									</Link>
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					)}
 					{user ? (
 						<DropdownMenu>

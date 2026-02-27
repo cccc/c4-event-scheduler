@@ -166,6 +166,14 @@ export const event = createTable(
 		updatedById: text("updated_by_id").references(() => user.id, {
 			onDelete: "set null",
 		}),
+		createdByApiKeyId: uuid("created_by_api_key_id").references(
+			() => apiKey.id,
+			{ onDelete: "set null" },
+		),
+		updatedByApiKeyId: uuid("updated_by_api_key_id").references(
+			() => apiKey.id,
+			{ onDelete: "set null" },
+		),
 
 		// iCal VEVENT properties
 		summary: varchar("summary", { length: 255 }).notNull(),
@@ -220,6 +228,16 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 		fields: [event.updatedById],
 		references: [user.id],
 		relationName: "eventUpdatedBy",
+	}),
+	createdByApiKey: one(apiKey, {
+		fields: [event.createdByApiKeyId],
+		references: [apiKey.id],
+		relationName: "eventCreatedByApiKey",
+	}),
+	updatedByApiKey: one(apiKey, {
+		fields: [event.updatedByApiKeyId],
+		references: [apiKey.id],
+		relationName: "eventUpdatedByApiKey",
 	}),
 	overrides: many(occurrenceOverride),
 }));
@@ -322,3 +340,43 @@ export const userPermissionRelations = relations(userPermission, ({ one }) => ({
 		references: [user.id],
 	}),
 }));
+
+// ============================================================================
+// API Keys - Machine-to-machine authentication
+// ============================================================================
+
+export const apiKey = createTable("api_key", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	name: text("name").notNull(),
+	// SHA-256 hex of full key (no salt needed; key is random)
+	keyHash: text("key_hash").notNull(),
+	isAdmin: boolean("is_admin").notNull().default(false),
+	isActive: boolean("is_active").notNull().default(true),
+	createdAt: timestamp("created_at", { withTimezone: true })
+		.notNull()
+		.defaultNow(),
+	lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+});
+
+export const apiKeyRelations = relations(apiKey, ({ many }) => ({
+	permissions: many(apiKeyPermission),
+}));
+
+export const apiKeyPermission = createTable("api_key_permission", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	apiKeyId: uuid("api_key_id")
+		.notNull()
+		.references(() => apiKey.id, { onDelete: "cascade" }),
+	spaceSlug: varchar("space_slug", { length: 100 }),
+	eventTypeSlug: varchar("event_type_slug", { length: 100 }),
+});
+
+export const apiKeyPermissionRelations = relations(
+	apiKeyPermission,
+	({ one }) => ({
+		apiKey: one(apiKey, {
+			fields: [apiKeyPermission.apiKeyId],
+			references: [apiKey.id],
+		}),
+	}),
+);
