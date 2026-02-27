@@ -79,6 +79,8 @@ export const eventsRouter = createTRPCRouter({
 					eventType: true,
 					createdBy: true,
 					updatedBy: true,
+					createdByApiKey: true,
+					updatedByApiKey: true,
 					overrides: true,
 				},
 			});
@@ -88,6 +90,10 @@ export const eventsRouter = createTRPCRouter({
 				result.updatedBy = null;
 				result.createdById = null;
 				result.updatedById = null;
+				result.createdByApiKey = null;
+				result.updatedByApiKey = null;
+				result.createdByApiKeyId = null;
+				result.updatedByApiKeyId = null;
 			}
 
 			return result;
@@ -411,6 +417,7 @@ export const eventsRouter = createTRPCRouter({
 					sequence: existingEvent.sequence + 1,
 					updatedAt: new Date(),
 					updatedById: ctx.session.user.id,
+					updatedByApiKeyId: null,
 				})
 				.where(eq(event.id, id))
 				.returning();
@@ -483,6 +490,7 @@ export const eventsRouter = createTRPCRouter({
 					sequence: parentEvent.sequence + 1,
 					updatedAt: new Date(),
 					updatedById: ctx.session.user.id,
+					updatedByApiKeyId: null,
 				})
 				.where(eq(event.id, eventId));
 
@@ -567,6 +575,7 @@ export const eventsRouter = createTRPCRouter({
 					sequence: evt.sequence + 1,
 					updatedAt: new Date(),
 					updatedById: ctx.session.user.id,
+					updatedByApiKeyId: null,
 				})
 				.where(eq(event.id, eventId));
 
@@ -695,6 +704,7 @@ export const eventsRouter = createTRPCRouter({
 						sequence: evt.sequence + 1,
 						updatedAt: new Date(),
 						updatedById: ctx.session.user.id,
+						updatedByApiKeyId: null,
 					})
 					.where(eq(event.id, eventId))
 					.returning();
@@ -738,6 +748,7 @@ export const eventsRouter = createTRPCRouter({
 					sequence: evt.sequence + 1,
 					updatedAt: new Date(),
 					updatedById: ctx.session.user.id,
+					updatedByApiKeyId: null,
 				})
 				.where(eq(event.id, eventId));
 

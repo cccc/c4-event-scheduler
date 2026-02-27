@@ -227,30 +227,47 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
 				)}
 
 				{/* Created/Updated by (single events only — recurring shows this in Series Info tab) */}
-				{!occurrence.isRecurring && eventData?.createdBy && (
-					<div className="flex items-start gap-3">
-						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
-						<div className="text-sm">
-							Created by {eventData.createdBy.name}
-							<span className="text-muted-foreground">
-								{" · "}
-								{formatDateTime(eventData.createdAt)}
-							</span>
-						</div>
-					</div>
-				)}
-				{!occurrence.isRecurring && eventData?.updatedBy && (
-					<div className="flex items-start gap-3">
-						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
-						<div className="text-sm">
-							Last edited by {eventData.updatedBy.name}
-							<span className="text-muted-foreground">
-								{" · "}
-								{formatDateTime(eventData.updatedAt)}
-							</span>
-						</div>
-					</div>
-				)}
+				{!occurrence.isRecurring &&
+					(() => {
+						const createdByLabel =
+							eventData?.createdBy?.name ??
+							(eventData?.createdByApiKey
+								? `API: ${eventData.createdByApiKey.name}`
+								: null);
+						const updatedByLabel =
+							eventData?.updatedBy?.name ??
+							(eventData?.updatedByApiKey
+								? `API: ${eventData.updatedByApiKey.name}`
+								: null);
+						return (
+							<>
+								{createdByLabel && eventData && (
+									<div className="flex items-start gap-3">
+										<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+										<div className="text-sm">
+											Created by {createdByLabel}
+											<span className="text-muted-foreground">
+												{" · "}
+												{formatDateTime(eventData.createdAt)}
+											</span>
+										</div>
+									</div>
+								)}
+								{updatedByLabel && eventData && (
+									<div className="flex items-start gap-3">
+										<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+										<div className="text-sm">
+											Last edited by {updatedByLabel}
+											<span className="text-muted-foreground">
+												{" · "}
+												{formatDateTime(eventData.updatedAt)}
+											</span>
+										</div>
+									</div>
+								)}
+							</>
+						);
+					})()}
 			</div>
 
 			{/* Actions */}
@@ -398,32 +415,46 @@ function SeriesInfoContent({ eventId }: { eventId: string }) {
 			)}
 
 			{/* Created by */}
-			{seriesEvent.createdBy && (
-				<div className="flex items-start gap-3">
-					<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
-					<div className="text-sm">
-						Created by {seriesEvent.createdBy.name}
-						<span className="text-muted-foreground">
-							{" · "}
-							{formatDateTime(seriesEvent.createdAt)}
-						</span>
+			{(() => {
+				const label =
+					seriesEvent.createdBy?.name ??
+					(seriesEvent.createdByApiKey
+						? `API: ${seriesEvent.createdByApiKey.name}`
+						: null);
+				return label ? (
+					<div className="flex items-start gap-3">
+						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="text-sm">
+							Created by {label}
+							<span className="text-muted-foreground">
+								{" · "}
+								{formatDateTime(seriesEvent.createdAt)}
+							</span>
+						</div>
 					</div>
-				</div>
-			)}
+				) : null;
+			})()}
 
 			{/* Last edited by */}
-			{seriesEvent.updatedBy && (
-				<div className="flex items-start gap-3">
-					<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
-					<div className="text-sm">
-						Last edited by {seriesEvent.updatedBy.name}
-						<span className="text-muted-foreground">
-							{" · "}
-							{formatDateTime(seriesEvent.updatedAt)}
-						</span>
+			{(() => {
+				const label =
+					seriesEvent.updatedBy?.name ??
+					(seriesEvent.updatedByApiKey
+						? `API: ${seriesEvent.updatedByApiKey.name}`
+						: null);
+				return label ? (
+					<div className="flex items-start gap-3">
+						<User className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="text-sm">
+							Last edited by {label}
+							<span className="text-muted-foreground">
+								{" · "}
+								{formatDateTime(seriesEvent.updatedAt)}
+							</span>
+						</div>
 					</div>
-				</div>
-			)}
+				) : null;
+			})()}
 		</div>
 	);
 }

@@ -1,3 +1,4 @@
+import { apiKeysRouter } from "@/server/api/routers/api-keys";
 import { eventTypesRouter } from "@/server/api/routers/event-types";
 import { eventsRouter } from "@/server/api/routers/events";
 import { rolesRouter } from "@/server/api/routers/roles";
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
 	eventTypes: eventTypesRouter,
 	events: eventsRouter,
 	roles: rolesRouter,
+	apiKeys: apiKeysRouter,
 });
 
 // export type definition of API
