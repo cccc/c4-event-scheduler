@@ -39,7 +39,8 @@ export const env = createEnv({
 			.default("true")
 			.transform((v) => v === "true"),
 		NEXT_PUBLIC_AUTH_SSO_NAME: z.string().default("Single Sign-On"),
-		NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+		NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
+		NEXT_PUBLIC_APP_TIMEZONE: z.string().default("UTC"),
 	},
 
 	/**
@@ -53,6 +54,7 @@ export const env = createEnv({
 		NEXT_PUBLIC_AUTH_SSO_ENABLED: process.env.NEXT_PUBLIC_AUTH_SSO_ENABLED,
 		NEXT_PUBLIC_AUTH_SSO_NAME: process.env.NEXT_PUBLIC_AUTH_SSO_NAME,
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+		NEXT_PUBLIC_APP_TIMEZONE: process.env.NEXT_PUBLIC_APP_TIMEZONE,
 		BETTER_AUTH_OIDC_CLIENT_ID: process.env.BETTER_AUTH_OIDC_CLIENT_ID,
 		BETTER_AUTH_OIDC_CLIENT_SECRET: process.env.BETTER_AUTH_OIDC_CLIENT_SECRET,
 		BETTER_AUTH_OIDC_ISSUER: process.env.BETTER_AUTH_OIDC_ISSUER,

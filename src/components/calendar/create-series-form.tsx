@@ -13,6 +13,7 @@ import { api } from "@/trpc/react";
 import {
 	adjustEndDate,
 	combineDateAndTime,
+	parseDateAsEndOfDayInTz,
 	toLocalDateString,
 	toLocalTimeString,
 } from "./date-utils";
@@ -105,7 +106,7 @@ export function CreateSeriesForm({
 
 			let recurrenceEndDate: Date | undefined;
 			if (value.seriesHasEndDate && value.seriesLastDate) {
-				recurrenceEndDate = new Date(value.seriesLastDate);
+				recurrenceEndDate = parseDateAsEndOfDayInTz(value.seriesLastDate);
 			} else if (
 				value.recurrenceConfig?.endType === "date" &&
 				value.recurrenceConfig.endDate

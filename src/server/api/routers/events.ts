@@ -1,8 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
-import { RRule } from "rrule";
 import { z } from "zod";
 
+import { env } from "@/env";
+import { expandRruleInTimezone, formatOccurrenceDate } from "@/lib/rrule-utils";
 import {
 	createTRPCRouter,
 	protectedProcedure,
@@ -35,20 +36,12 @@ async function requireEventPermission(
 // iCal STATUS values (shared by events and occurrence overrides)
 const icalStatusSchema = z.enum(["tentative", "confirmed", "cancelled"]);
 
-// Helper to format a Date as YYYY-MM-DD for occurrence identification
-function formatOccurrenceDate(d: Date): string {
-	const year = d.getFullYear();
-	const month = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
 export const eventsRouter = createTRPCRouter({
 	list: publicProcedure
 		.input(
 			z.object({
-				spaceId: z.string().uuid().optional(),
-				eventTypeId: z.string().uuid().optional(),
+				spaceId: z.uuid().optional(),
+				eventTypeId: z.uuid().optional(),
 				status: icalStatusSchema.optional(),
 			}),
 		)
@@ -77,7 +70,7 @@ export const eventsRouter = createTRPCRouter({
 		}),
 
 	getById: publicProcedure
-		.input(z.object({ id: z.string().uuid() }))
+		.input(z.object({ id: z.uuid() }))
 		.query(async ({ ctx, input }) => {
 			const result = await ctx.db.query.event.findFirst({
 				where: eq(event.id, input.id),
@@ -105,8 +98,8 @@ export const eventsRouter = createTRPCRouter({
 	getOccurrences: publicProcedure
 		.input(
 			z.object({
-				spaceId: z.string().uuid().optional(),
-				eventTypeId: z.string().uuid().optional(),
+				spaceId: z.uuid().optional(),
+				eventTypeId: z.uuid().optional(),
 				includeExdates: z.boolean().optional().default(false),
 				start: z.date(),
 				end: z.date(),
@@ -114,6 +107,7 @@ export const eventsRouter = createTRPCRouter({
 		)
 		.query(async ({ ctx, input }) => {
 			const isLoggedIn = !!ctx.session?.user;
+			const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 			const conditions = [];
 
 			if (input.spaceId) {
@@ -199,7 +193,7 @@ export const eventsRouter = createTRPCRouter({
 
 				if (!evt.rrule) {
 					// Single event - use the event's start date as occurrence date
-					const occDate = formatOccurrenceDate(evt.dtstart);
+					const occDate = formatOccurrenceDate(evt.dtstart, tz);
 					const override = evt.overrides.find(
 						(o) => o.occurrenceDate === occDate,
 					);
@@ -240,16 +234,8 @@ export const eventsRouter = createTRPCRouter({
 						rrule: null,
 					});
 				} else {
-					// Recurring event - expand using RRULE
+					// Recurring event - expand using RRULE with DST-aware timezone handling
 					try {
-						// Parse the RRULE and set dtstart from the event's dtstart
-						const baseRule = RRule.fromString(evt.rrule);
-						const rule = new RRule({
-							...baseRule.origOptions,
-							dtstart: evt.dtstart,
-						});
-
-						// Get all dates, applying recurrence end date if set
 						const endDate = evt.recurrenceEndDate
 							? new Date(
 									Math.min(
@@ -259,17 +245,17 @@ export const eventsRouter = createTRPCRouter({
 								)
 							: input.end;
 
-						// Use a slightly earlier start to ensure first occurrence is included
-						// RRule.between can sometimes exclude the exact dtstart
-						const queryStart = new Date(
-							Math.min(evt.dtstart.getTime(), input.start.getTime()) - 1000,
+						const allDates = expandRruleInTimezone(
+							evt.rrule,
+							evt.dtstart,
+							input.start,
+							endDate,
+							tz,
 						);
-
-						const allDates = rule.between(queryStart, endDate, true);
 
 						// Filter to requested range and create occurrences with date-based ID
 						for (const date of allDates) {
-							const occDate = formatOccurrenceDate(date);
+							const occDate = formatOccurrenceDate(date, tz);
 
 							// Skip exdates unless explicitly requested
 							if (exdatesSet.has(occDate) && !input.includeExdates) continue;
@@ -331,11 +317,11 @@ export const eventsRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(
 			z.object({
-				spaceId: z.string().uuid(),
-				eventTypeId: z.string().uuid(),
+				spaceId: z.uuid(),
+				eventTypeId: z.uuid(),
 				summary: z.string().min(1).max(255),
 				description: z.string().optional(),
-				url: z.string().url().max(1000).optional(),
+				url: z.url().max(1000).optional(),
 				location: z.string().max(500).optional(),
 				dtstart: z.date(),
 				dtend: z.date().optional(),
@@ -348,7 +334,7 @@ export const eventsRouter = createTRPCRouter({
 				isDraft: z.boolean().default(true),
 			}),
 		)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ ctx, input: { timezone: _timezone, ...input } }) => {
 			// Get slugs for permission check
 			const spaceRecord = await ctx.db.query.space.findFirst({
 				where: eq(space.id, input.spaceId),
@@ -374,6 +360,7 @@ export const eventsRouter = createTRPCRouter({
 				.insert(event)
 				.values({
 					...input,
+					timezone: env.NEXT_PUBLIC_APP_TIMEZONE,
 					createdById: ctx.session.user.id,
 				})
 				.returning();
@@ -383,11 +370,11 @@ export const eventsRouter = createTRPCRouter({
 	update: protectedProcedure
 		.input(
 			z.object({
-				id: z.string().uuid(),
-				eventTypeId: z.string().uuid().optional(),
+				id: z.uuid(),
+				eventTypeId: z.uuid().optional(),
 				summary: z.string().min(1).max(255).optional(),
 				description: z.string().optional(),
-				url: z.string().url().max(1000).optional(),
+				url: z.url().max(1000).optional(),
 				location: z.string().max(500).optional().nullable(),
 				dtstart: z.date().optional(),
 				dtend: z.date().optional(),
@@ -431,7 +418,7 @@ export const eventsRouter = createTRPCRouter({
 		}),
 
 	delete: protectedProcedure
-		.input(z.object({ id: z.string().uuid() }))
+		.input(z.object({ id: z.uuid() }))
 		.mutation(async ({ ctx, input }) => {
 			const existingEvent = await ctx.db.query.event.findFirst({
 				where: eq(event.id, input.id),
@@ -459,13 +446,13 @@ export const eventsRouter = createTRPCRouter({
 	upsertOverride: protectedProcedure
 		.input(
 			z.object({
-				eventId: z.string().uuid(),
+				eventId: z.uuid(),
 				occurrenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 				status: icalStatusSchema.optional(),
 				notes: z.string().optional(),
 				summary: z.string().max(255).optional(),
 				description: z.string().optional(),
-				url: z.string().url().max(1000).optional(),
+				url: z.url().max(1000).optional(),
 				location: z.string().max(500).optional(),
 				dtstart: z.date().optional(),
 				dtend: z.date().optional(),
@@ -536,7 +523,7 @@ export const eventsRouter = createTRPCRouter({
 	deleteOccurrence: protectedProcedure
 		.input(
 			z.object({
-				eventId: z.string().uuid(),
+				eventId: z.uuid(),
 				occurrenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 			}),
 		)
@@ -600,7 +587,7 @@ export const eventsRouter = createTRPCRouter({
 	removeOverride: protectedProcedure
 		.input(
 			z.object({
-				eventId: z.string().uuid(),
+				eventId: z.uuid(),
 				occurrenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 			}),
 		)
@@ -639,12 +626,12 @@ export const eventsRouter = createTRPCRouter({
 	editSeriesFromDate: protectedProcedure
 		.input(
 			z.object({
-				eventId: z.string().uuid(),
+				eventId: z.uuid(),
 				splitDate: z.date(), // Date from which to split
 				// New values for future occurrences (null = keep same)
 				summary: z.string().min(1).max(255).optional(),
 				description: z.string().optional(),
-				url: z.string().url().max(1000).optional(),
+				url: z.url().max(1000).optional(),
 				location: z.string().max(500).optional(),
 				dtstart: z.date().optional(), // New time-of-day (date part ignored for recurring)
 				dtend: z.date().optional(),
@@ -654,6 +641,7 @@ export const eventsRouter = createTRPCRouter({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const { eventId, splitDate, ...updates } = input;
+			const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
 			const evt = await ctx.db.query.event.findFirst({
 				where: eq(event.id, eventId),
@@ -677,14 +665,14 @@ export const eventsRouter = createTRPCRouter({
 				});
 			}
 
-			// Parse the RRULE to find occurrences (set dtstart from event's dtstart)
-			const baseRule = RRule.fromString(evt.rrule);
-			const rule = new RRule({
-				...baseRule.origOptions,
-				dtstart: evt.dtstart,
-			});
 			const farFuture = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000);
-			const allDates = rule.between(evt.dtstart, farFuture, true);
+			const allDates = expandRruleInTimezone(
+				evt.rrule,
+				evt.dtstart,
+				evt.dtstart,
+				farFuture,
+				tz,
+			);
 
 			// Find the split point index
 			const splitIndex = allDates.findIndex((d) => d >= splitDate);
@@ -727,7 +715,7 @@ export const eventsRouter = createTRPCRouter({
 			}
 
 			// Split exdates between old and new series
-			const splitDateStr = formatOccurrenceDate(splitDate);
+			const splitDateStr = formatOccurrenceDate(splitDate, tz);
 			const oldExdates: string[] = [];
 			const newExdates: string[] = [];
 			if (evt.exdates) {

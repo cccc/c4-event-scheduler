@@ -23,6 +23,9 @@ importers:
       '@fullcalendar/list':
         specifier: 6.1.20
         version: 6.1.20(@fullcalendar/core@6.1.20)
+      '@fullcalendar/luxon3':
+        specifier: 6.1.20
+        version: 6.1.20(@fullcalendar/core@6.1.20)(luxon@3.7.2)
       '@fullcalendar/react':
         specifier: 6.1.20
         version: 6.1.20(@fullcalendar/core@6.1.20)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -115,13 +118,16 @@ importers:
         version: 0.45.1(gel@2.2.0)(kysely@0.28.11)(postgres@3.4.8)
       ical-generator:
         specifier: 10.0.0
-        version: 10.0.0(@types/node@20.19.30)(rrule@2.8.1)
+        version: 10.0.0(@types/luxon@3.7.1)(@types/node@20.19.30)(luxon@3.7.2)(rrule@2.8.1)
       jwt-decode:
         specifier: 4.0.0
         version: 4.0.0
       lucide-react:
         specifier: 0.563.0
         version: 0.563.0(react@19.2.4)
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
       next:
         specifier: ^15.2.3
         version: 15.5.11(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -177,6 +183,9 @@ importers:
       '@types/dottie':
         specifier: ^2.0.7
         version: 2.0.7
+      '@types/luxon':
+        specifier: ^3.7.1
+        version: 3.7.1
       '@types/node':
         specifier: ^20.14.10
         version: 20.19.30
@@ -654,6 +663,12 @@ packages:
     resolution: {integrity: sha512-7Hzkbb7uuSqrXwTyD0Ld/7SwWNxPD6SlU548vtkIpH55rZ4qquwtwYdMPgorHos5OynHA4OUrZNcH51CjrCf2g==}
     peerDependencies:
       '@fullcalendar/core': ~6.1.20
+
+  '@fullcalendar/luxon3@6.1.20':
+    resolution: {integrity: sha512-lHebDK1lLQ25ilDO68KoLSVZaS9/mSjDGjWedPrpbgJNwSSIME7NCD3kRoskWOqayk4j0mFylEGO8TNrW3gzOQ==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.20
+      luxon: ^3.0.0
 
   '@fullcalendar/react@6.1.20':
     resolution: {integrity: sha512-1w0pZtceaUdfAnxMSCGHCQalhi+mR1jOe76sXzyAXpcPz/Lf0zHSdcGK/U2XpZlnQgQtBZW+d+QBnnzVQKCxAA==}
@@ -2002,6 +2017,9 @@ packages:
   '@types/dottie@2.0.7':
     resolution: {integrity: sha512-OHBdZVYmvA90RvyvPFueALVI9B9CMyKLP0sCEWcx8teoUgJ7X/t3fAC/14tbzRC1ORtbfA4FS0MJi6zvOK5fGw==}
 
+  '@types/luxon@3.7.1':
+    resolution: {integrity: sha512-H3iskjFIAn5SlJU7OuxUmTEpebK6TKB8rxZShDslBMZJ5u9S//KM1sbdAisiSrqwLQncVjnpi2OK2J51h+4lsg==}
+
   '@types/node@20.19.30':
     resolution: {integrity: sha512-WJtwWJu7UdlvzEAUm484QNg5eAoq5QR08KDNx7g45Usrs2NtOPiX8ugDqmKdXkyL03rBqU5dYNYVQetEpBHq2g==}
 
@@ -2424,6 +2442,10 @@ packages:
     resolution: {integrity: sha512-8dXPB2GI4dI8jV4MgUDGBeLdGk8ekfqVZ0BdLcrRzocGgG75ltNEmWS+gE7uokKF/0oSUuczNDT+g9hFJ23FkA==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -3028,6 +3050,11 @@ snapshots:
   '@fullcalendar/list@6.1.20(@fullcalendar/core@6.1.20)':
     dependencies:
       '@fullcalendar/core': 6.1.20
+
+  '@fullcalendar/luxon3@6.1.20(@fullcalendar/core@6.1.20)(luxon@3.7.2)':
+    dependencies:
+      '@fullcalendar/core': 6.1.20
+      luxon: 3.7.2
 
   '@fullcalendar/react@6.1.20(@fullcalendar/core@6.1.20)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
@@ -4252,6 +4279,8 @@ snapshots:
 
   '@types/dottie@2.0.7': {}
 
+  '@types/luxon@3.7.1': {}
+
   '@types/node@20.19.30':
     dependencies:
       undici-types: 6.21.0
@@ -4442,9 +4471,11 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  ical-generator@10.0.0(@types/node@20.19.30)(rrule@2.8.1):
+  ical-generator@10.0.0(@types/luxon@3.7.1)(@types/node@20.19.30)(luxon@3.7.2)(rrule@2.8.1):
     optionalDependencies:
+      '@types/luxon': 3.7.1
       '@types/node': 20.19.30
+      luxon: 3.7.2
       rrule: 2.8.1
 
   icu-minify@4.8.2:
@@ -4529,6 +4560,8 @@ snapshots:
   lucide-react@0.563.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  luxon@3.7.2: {}
 
   magic-string@0.30.21:
     dependencies:
