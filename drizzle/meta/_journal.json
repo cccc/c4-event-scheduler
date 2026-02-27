@@ -15,6 +15,13 @@
       "when": 1771432758536,
       "tag": "0001_quiet_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772232790086,
+      "tag": "0002_busy_crystal",
+      "breakpoints": true
     }
   ]
 }
