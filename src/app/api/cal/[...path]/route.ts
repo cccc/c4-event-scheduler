@@ -1,9 +1,11 @@
+import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 import { and, eq, inArray } from "drizzle-orm";
 import ical, { ICalCalendarMethod, ICalEventStatus } from "ical-generator";
 import type { NextRequest } from "next/server";
 import { RRule } from "rrule";
 
 import { env } from "@/env";
+import { formatOccurrenceDate } from "@/lib/rrule-utils";
 import { db } from "@/server/db";
 import { event, eventType, space } from "@/server/db/schema";
 
@@ -11,29 +13,40 @@ import { event, eventType, space } from "@/server/db/schema";
 // Helpers
 // ============================================================================
 
-function formatICalDateUTC(date: Date): string {
-	return date
-		.toISOString()
-		.replace(/[-:]/g, "")
-		.replace(/\.\d{3}/, "");
-}
-
 function formatICalDateOnly(date: Date): string {
 	return date.toISOString().slice(0, 10).replace(/-/g, "");
 }
 
+function formatICalDateLocal(date: Date, tz: string): string {
+	return formatInTimeZone(date, tz, "yyyyMMdd'T'HHmmss");
+}
+
 /**
- * Reconstruct the original start datetime for an occurrence from its date string
- * and the event's start time (preserving the time-of-day from the master event).
+ * Reconstruct the UTC datetime for an occurrence from its date string and the
+ * event's start time, correctly handling DST. Used to build EXDATE and
+ * RECURRENCE-ID values.
  */
 function buildRecurrenceIdDate(
 	eventStartTime: Date,
 	occurrenceDate: string,
+	tz: string,
 ): Date {
-	const parts = occurrenceDate.split("-").map(Number);
-	const d = new Date(eventStartTime);
-	d.setUTCFullYear(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
-	return d;
+	// Get the event's wall-clock start time in the app timezone
+	const zonedStart = toZonedTime(eventStartTime, tz);
+	const [year, month, day] = occurrenceDate.split("-").map(Number);
+	// Combine the occurrence date with the wall-clock time, as fake-UTC
+	const fakeUtc = new Date(
+		Date.UTC(
+			year ?? 0,
+			(month ?? 1) - 1,
+			day ?? 1,
+			zonedStart.getUTCHours(),
+			zonedStart.getUTCMinutes(),
+			zonedStart.getUTCSeconds(),
+		),
+	);
+	// Convert fake-UTC (= local time in tz) to real UTC
+	return fromZonedTime(fakeUtc, tz);
 }
 
 /**
@@ -45,6 +58,7 @@ class RRuleWithExdate {
 	private rule: RRule;
 	private exdates: Date[];
 	private allDay: boolean;
+	private tz: string;
 
 	constructor(
 		rruleStr: string,
@@ -52,6 +66,7 @@ class RRuleWithExdate {
 		recurrenceEndDate: Date | null,
 		exdates: Date[],
 		allDay: boolean,
+		tz: string,
 	) {
 		const base = RRule.fromString(rruleStr);
 		const opts = { ...base.origOptions, dtstart };
@@ -65,6 +80,7 @@ class RRuleWithExdate {
 		this.rule = new RRule(opts);
 		this.exdates = exdates;
 		this.allDay = allDay;
+		this.tz = tz;
 	}
 
 	between(after: Date, before: Date, inc?: boolean): Date[] {
@@ -74,12 +90,17 @@ class RRuleWithExdate {
 	toString(): string {
 		let result = this.rule.toString();
 		if (this.exdates.length > 0) {
-			const dates = this.exdates
-				.map((d) =>
-					this.allDay ? formatICalDateOnly(d) : formatICalDateUTC(d),
-				)
-				.join(",");
-			const prefix = this.allDay ? "EXDATE;VALUE=DATE" : "EXDATE";
+			let dates: string;
+			let prefix: string;
+			if (this.allDay) {
+				dates = this.exdates.map((d) => formatICalDateOnly(d)).join(",");
+				prefix = "EXDATE;VALUE=DATE";
+			} else {
+				dates = this.exdates
+					.map((d) => formatICalDateLocal(d, this.tz))
+					.join(",");
+				prefix = `EXDATE;TZID=${this.tz}`;
+			}
 			result += `\n${prefix}:${dates}`;
 		}
 		return result;
@@ -107,6 +128,7 @@ export async function GET(
 	{ params }: { params: Promise<{ path: string[] }> },
 ) {
 	const { path } = await params;
+	const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
 	// Parse the path: all.ics, {space}.ics, or {space}/{eventType}.ics
 	if (!path || path.length === 0) {
@@ -219,9 +241,14 @@ export async function GET(
 			? evt.dtend.getTime() - evt.dtstart.getTime()
 			: defaultDurationMs;
 
+		// Convert a UTC date to the wall-clock representation for TZID-based output.
+		// All-day events keep the raw UTC date (ical-generator emits VALUE=DATE).
+		const zoned = (d: Date) => (evt.allDay ? d : toZonedTime(d, tz));
+		const timezone = evt.allDay ? undefined : tz;
+
 		if (!evt.rrule) {
 			// Single event
-			const occDate = evt.dtstart.toISOString().slice(0, 10);
+			const occDate = formatOccurrenceDate(evt.dtstart, tz);
 			const override = evt.overrides.find((o) => o.occurrenceDate === occDate);
 			const status = override?.status ?? evt.status;
 
@@ -235,9 +262,10 @@ export async function GET(
 
 			const icalEvent = calendar.createEvent({
 				id: evt.id,
-				start: effectiveStart,
-				end: effectiveEnd,
+				start: zoned(effectiveStart),
+				end: effectiveEnd ? zoned(effectiveEnd) : undefined,
 				allDay: evt.allDay,
+				timezone,
 				summary: override?.summary ?? evt.summary,
 				description: override?.notes
 					? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`
@@ -259,7 +287,7 @@ export async function GET(
 				const exdates: Date[] = evt.exdates
 					? evt.exdates
 							.split(",")
-							.map((d) => buildRecurrenceIdDate(evt.dtstart, d.trim()))
+							.map((d) => buildRecurrenceIdDate(evt.dtstart, d.trim(), tz))
 					: [];
 
 				// 2. Create master VEVENT with RRULE + EXDATE
@@ -269,6 +297,7 @@ export async function GET(
 					evt.recurrenceEndDate,
 					exdates,
 					evt.allDay,
+					tz,
 				);
 
 				const masterEnd = evt.dtend
@@ -279,9 +308,10 @@ export async function GET(
 
 				const masterEvent = calendar.createEvent({
 					id: evt.id,
-					start: evt.dtstart,
-					end: masterEnd,
+					start: zoned(evt.dtstart),
+					end: masterEnd ? zoned(masterEnd) : undefined,
 					allDay: evt.allDay,
+					timezone,
 					summary: evt.summary,
 					description: evt.description ?? undefined,
 					location: evt.location ?? evt.space.name,
@@ -300,6 +330,7 @@ export async function GET(
 					const recurrenceId = buildRecurrenceIdDate(
 						evt.dtstart,
 						override.occurrenceDate,
+						tz,
 					);
 					const status = override.status ?? evt.status;
 					const start = override.dtstart ?? recurrenceId;
@@ -309,10 +340,11 @@ export async function GET(
 
 					const icalOverride = calendar.createEvent({
 						id: evt.id, // Same UID as master
-						recurrenceId,
-						start,
-						end,
+						recurrenceId: zoned(recurrenceId),
+						start: zoned(start),
+						end: end ? zoned(end) : undefined,
 						allDay: evt.allDay,
+						timezone,
 						summary: override.summary ?? evt.summary,
 						description: override.notes
 							? `${override.notes}\n\n${override.description ?? evt.description ?? ""}`

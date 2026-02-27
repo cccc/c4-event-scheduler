@@ -17,6 +17,7 @@ import { api } from "@/trpc/react";
 import {
 	adjustEndDate,
 	combineDateAndTime,
+	parseDateAsEndOfDayInTz,
 	parseLocalDateTime,
 	toLocalDateTimeString,
 	toLocalTimeString,
@@ -204,7 +205,7 @@ export function EditSeriesForm({
 			let recurrenceEndDate: Date | undefined;
 			if (value.recurrenceConfig) {
 				if (value.seriesHasEndDate && value.seriesLastDate) {
-					recurrenceEndDate = new Date(value.seriesLastDate);
+					recurrenceEndDate = parseDateAsEndOfDayInTz(value.seriesLastDate);
 				} else if (
 					value.recurrenceConfig.endType === "date" &&
 					value.recurrenceConfig.endDate

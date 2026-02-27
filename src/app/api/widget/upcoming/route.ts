@@ -1,8 +1,8 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import type { NextRequest } from "next/server";
-import { RRule } from "rrule";
 
 import { env } from "@/env";
+import { expandRruleInTimezone, formatOccurrenceDate } from "@/lib/rrule-utils";
 import { db } from "@/server/db";
 import { event, space } from "@/server/db/schema";
 
@@ -26,9 +26,10 @@ type UpcomingEvent = {
 	nextAfterCancelledLabel: string | null; // Human-readable date of next after cancelled
 };
 
-// Format date in German locale
+// Format date in German locale, always in the app timezone
 function formatDate(date: Date, locale = "de-DE"): string {
-	return date.toLocaleDateString(locale, {
+	return date.toLocaleString(locale, {
+		timeZone: env.NEXT_PUBLIC_APP_TIMEZONE,
 		weekday: "long",
 		day: "numeric",
 		month: "long",
@@ -36,14 +37,6 @@ function formatDate(date: Date, locale = "de-DE"): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
-}
-
-// Format date as YYYY-MM-DD
-function formatOccurrenceDate(d: Date): string {
-	const year = d.getFullYear();
-	const month = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -56,6 +49,7 @@ export async function GET(request: NextRequest) {
 	);
 	const format = searchParams.get("format") || "json";
 	const locale = searchParams.get("locale") || "de-DE";
+	const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
 	// Build query conditions
 	const conditions: ReturnType<typeof eq>[] = [];
@@ -138,7 +132,7 @@ export async function GET(request: NextRequest) {
 		if (!evt.rrule) {
 			// Single event - only include if in the future and within range
 			if (evt.dtstart >= now && evt.dtstart <= rangeEnd) {
-				const occDate = formatOccurrenceDate(evt.dtstart);
+				const occDate = formatOccurrenceDate(evt.dtstart, tz);
 				const override = evt.overrides.find(
 					(o) => o.occurrenceDate === occDate,
 				);
@@ -171,20 +165,20 @@ export async function GET(request: NextRequest) {
 		} else {
 			// Recurring event - check for cancelled occurrences and find next available
 			try {
-				const baseRule = RRule.fromString(evt.rrule);
-				const rule = new RRule({
-					...baseRule.origOptions,
-					dtstart: evt.dtstart,
-				});
-
 				const endDate = evt.recurrenceEndDate
 					? new Date(
 							Math.min(evt.recurrenceEndDate.getTime(), rangeEnd.getTime()),
 						)
 					: rangeEnd;
 
-				// Get upcoming occurrences
-				const nextDates = rule.between(now, endDate, true);
+				// Get upcoming occurrences with DST-aware expansion
+				const nextDates = expandRruleInTimezone(
+					evt.rrule,
+					evt.dtstart,
+					now,
+					endDate,
+					tz,
+				);
 				if (nextDates.length === 0) continue;
 
 				// Find first valid occurrence (skip exdates/internal) and check if it's cancelled
@@ -193,7 +187,7 @@ export async function GET(request: NextRequest) {
 				let nextNonCancelledDate: Date | null = null;
 
 				for (const date of nextDates) {
-					const occDate = formatOccurrenceDate(date);
+					const occDate = formatOccurrenceDate(date, tz);
 					const isInternal = evt.eventType?.isInternal ?? false;
 
 					// Skip exdates and internal

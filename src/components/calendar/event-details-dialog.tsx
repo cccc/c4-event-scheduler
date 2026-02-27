@@ -24,10 +24,13 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { env } from "@/env";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { api } from "@/trpc/react";
 
 import type { EventStatus } from "./types";
+
+const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
 type EventDetailsDialogProps = {
 	canEdit: boolean;
@@ -39,6 +42,7 @@ function formatDate(date: Date): string {
 		day: "numeric",
 		month: "long",
 		year: "numeric",
+		timeZone: tz,
 	});
 }
 
@@ -46,6 +50,7 @@ function formatTime(date: Date): string {
 	return date.toLocaleTimeString("de-DE", {
 		hour: "2-digit",
 		minute: "2-digit",
+		timeZone: tz,
 	});
 }
 
@@ -56,19 +61,21 @@ function formatDateTime(date: Date): string {
 		year: "numeric",
 		hour: "2-digit",
 		minute: "2-digit",
+		timeZone: tz,
 	});
 }
 
 function formatExdate(dateStr: string): string {
-	// dateStr is YYYY-MM-DD
+	// dateStr is YYYY-MM-DD — a date-only value, display as UTC to match the stored date
 	const [year, month, day] = dateStr.split("-").map(Number);
 	if (!year || !month || !day) return dateStr;
-	const date = new Date(year, month - 1, day);
+	const date = new Date(Date.UTC(year, month - 1, day));
 	return date.toLocaleDateString("de-DE", {
 		weekday: "short",
 		day: "numeric",
 		month: "long",
 		year: "numeric",
+		timeZone: "UTC",
 	});
 }
 

@@ -9,6 +9,7 @@ import type {
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
+import luxon3Plugin from "@fullcalendar/luxon3";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import type { Space } from "@/components/calendar/types";
 import { Button } from "@/components/ui/button";
+import { env } from "@/env";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { authClient } from "@/server/better-auth/client";
 import { api } from "@/trpc/react";
@@ -142,6 +144,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
 					initialView="dayGridMonth"
 					nowIndicator
 					plugins={[
+						luxon3Plugin,
 						dayGridPlugin,
 						timeGridPlugin,
 						listPlugin,
@@ -149,6 +152,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
 					]}
 					ref={calendarRef}
 					selectable={isLoggedIn}
+					timeZone={env.NEXT_PUBLIC_APP_TIMEZONE}
 				/>
 			</div>
 
