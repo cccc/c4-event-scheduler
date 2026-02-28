@@ -9,7 +9,6 @@ import {
 	type RecurrenceConfig,
 } from "@/components/recurrence-picker";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
@@ -19,6 +18,7 @@ import {
 	combineDateAndTime,
 	parseDateAsEndOfDayInTz,
 	parseLocalDateTime,
+	toLocalDateString,
 	toLocalDateTimeString,
 	toLocalTimeString,
 } from "./date-utils";
@@ -55,7 +55,7 @@ const seriesFormSchema = z.object({
 type EditSeriesFormProps = {
 	occurrence: Occurrence;
 	onClose: () => void;
-	initialTab?: "occurrence" | "series";
+	initialTab?: "occurrence" | "fromHere" | "whole";
 };
 
 export function EditSeriesForm({
@@ -63,12 +63,14 @@ export function EditSeriesForm({
 	onClose,
 	initialTab,
 }: EditSeriesFormProps) {
-	const [editTab, setEditTab] = useState<"occurrence" | "series">(
+	const [editTab, setEditTab] = useState<"occurrence" | "fromHere" | "whole">(
 		initialTab ?? "occurrence",
 	);
-	const [seriesEditScope, setSeriesEditScope] = useState<"whole" | "fromHere">(
-		"fromHere",
-	);
+
+	// Fetch the actual event data so "Whole Series" mode can use the real series start date
+	const { data: eventData } = api.events.getById.useQuery({
+		id: occurrence.eventId,
+	});
 
 	const utils = api.useUtils();
 
@@ -181,9 +183,8 @@ export function EditSeriesForm({
 			onSubmit: seriesFormSchema,
 		},
 		onSubmit: async ({ value }) => {
-			// Use seriesFirstDate when editing whole series, otherwise use current occurrence date
 			const dateForTime =
-				seriesEditScope === "whole" && value.seriesFirstDate
+				editTab === "whole" && value.seriesFirstDate
 					? value.seriesFirstDate
 					: occurrence.occurrenceDate;
 
@@ -214,7 +215,7 @@ export function EditSeriesForm({
 				}
 			}
 
-			if (seriesEditScope === "whole") {
+			if (editTab === "whole") {
 				updateEvent.mutate({
 					id: occurrence.eventId,
 					summary: value.summary,
@@ -312,13 +313,38 @@ export function EditSeriesForm({
 		}
 
 		setEditTab(initialTab ?? "occurrence");
-		setSeriesEditScope("fromHere");
 	}, [
 		occurrence,
 		initialTab,
 		occurrenceForm.setFieldValue,
 		seriesForm.setFieldValue,
 	]);
+
+	// When switching to "Whole Series" mode, reset seriesFirstDate to the actual series
+	// start date (not the clicked occurrence's date). When switching to "From Here",
+	// reset to the occurrence date.
+	useEffect(() => {
+		if (editTab === "whole" && eventData) {
+			seriesForm.setFieldValue(
+				"seriesFirstDate",
+				toLocalDateString(eventData.dtstart),
+			);
+			if (eventData.recurrenceEndDate) {
+				seriesForm.setFieldValue(
+					"seriesLastDate",
+					toLocalDateString(eventData.recurrenceEndDate),
+				);
+				seriesForm.setFieldValue("seriesHasEndDate", true);
+			} else {
+				seriesForm.setFieldValue("seriesLastDate", "");
+				seriesForm.setFieldValue("seriesHasEndDate", false);
+			}
+		} else if (editTab === "fromHere") {
+			seriesForm.setFieldValue("seriesFirstDate", occurrence.occurrenceDate);
+			seriesForm.setFieldValue("seriesLastDate", "");
+			seriesForm.setFieldValue("seriesHasEndDate", false);
+		}
+	}, [editTab, eventData, occurrence.occurrenceDate, seriesForm.setFieldValue]);
 
 	const handleCancelOccurrence = () => {
 		if (editTab === "occurrence") {
@@ -360,12 +386,15 @@ export function EditSeriesForm({
 
 	return (
 		<Tabs
-			onValueChange={(v) => setEditTab(v as "occurrence" | "series")}
+			onValueChange={(v) =>
+				setEditTab(v as "occurrence" | "fromHere" | "whole")
+			}
 			value={editTab}
 		>
-			<TabsList className="grid w-full grid-cols-2">
+			<TabsList className="grid w-full grid-cols-3">
 				<TabsTrigger value="occurrence">This Occurrence</TabsTrigger>
-				<TabsTrigger value="series">Series</TabsTrigger>
+				<TabsTrigger value="fromHere">From Here</TabsTrigger>
+				<TabsTrigger value="whole">Whole Series</TabsTrigger>
 			</TabsList>
 
 			{/* Occurrence Tab */}
@@ -499,232 +528,211 @@ export function EditSeriesForm({
 				</occurrenceForm.AppForm>
 			</TabsContent>
 
-			{/* Series Tab */}
-			<TabsContent className="space-y-4 pt-4" value="series">
-				<seriesForm.AppForm>
-					<seriesForm.Form className="space-y-4">
-						{/* Scope selection */}
-						<div className="space-y-3 rounded-md border p-4">
-							<Label>Apply changes to</Label>
-							<div className="space-y-2">
-								<label className="flex items-center gap-2">
-									<input
-										checked={seriesEditScope === "fromHere"}
-										className="h-4 w-4"
-										name="seriesScope"
-										onChange={() => setSeriesEditScope("fromHere")}
-										type="radio"
-									/>
-									<span>This occurrence and onwards</span>
-								</label>
-								<label className="flex items-center gap-2">
-									<input
-										checked={seriesEditScope === "whole"}
-										className="h-4 w-4"
-										name="seriesScope"
-										onChange={() => setSeriesEditScope("whole")}
-										type="radio"
-									/>
-									<span>Whole series (all occurrences)</span>
-								</label>
-							</div>
-							{seriesEditScope === "fromHere" && (
-								<p className="text-muted-foreground text-xs">
-									This will split the series. Past occurrences will remain
-									unchanged.
-								</p>
-							)}
-						</div>
-
-						{/* Title */}
-						<seriesForm.AppField name="summary">
-							{(field) => (
-								<>
-									<field.TextField label="Title" required />
-									<field.FieldError />
-								</>
-							)}
-						</seriesForm.AppField>
-
-						{/* Description */}
-						<seriesForm.AppField name="description">
-							{(field) => <field.TextareaField label="Description" rows={2} />}
-						</seriesForm.AppField>
-
-						{/* URL */}
-						<seriesForm.AppField name="url">
-							{(field) => (
-								<>
-									<field.TextField
-										label="URL"
-										placeholder="https://..."
-										type="url"
-									/>
-									<field.FieldError />
-								</>
-							)}
-						</seriesForm.AppField>
-
-						{/* Location */}
-						<seriesForm.AppField name="location">
-							{(field) => (
-								<field.TextField
-									label="Location"
-									placeholder="Leave empty to use space name"
-								/>
-							)}
-						</seriesForm.AppField>
-
-						{/* Series Date Range */}
-						<div className="space-y-4 rounded-md border p-4">
-							<h4 className="font-medium text-sm">Series Date Range</h4>
-							<div className="grid grid-cols-2 gap-4">
-								<seriesForm.AppField name="seriesFirstDate">
-									{(field) => (
-										<>
-											<field.DateField
-												description={
-													seriesEditScope === "fromHere"
-														? "New series starts from this date"
-														: "Change to adjust when series starts"
-												}
-												disabled={seriesEditScope === "fromHere"}
-												label="First Occurrence"
-											/>
-											<field.FieldError />
-										</>
-									)}
-								</seriesForm.AppField>
-								<seriesForm.AppField name="seriesHasEndDate">
-									{(field) => (
-										<div>
-											<field.CheckboxField
-												id="edit-seriesHasEndDate"
-												label="Has end date"
-											/>
-											{seriesForm.state.values.seriesHasEndDate && (
-												<seriesForm.AppField name="seriesLastDate">
-													{(lastField) => (
-														<lastField.DateField label="Last Occurrence" />
-													)}
-												</seriesForm.AppField>
-											)}
-										</div>
-									)}
-								</seriesForm.AppField>
-							</div>
-						</div>
-
-						{/* Occurrence Times */}
-						<div className="space-y-4 rounded-md border p-4">
-							<h4 className="font-medium text-sm">Occurrence Times</h4>
-							<p className="text-muted-foreground text-xs">
-								Each occurrence will use these times
+			{/* Series form — rendered once, shown for both "From Here" and "Whole Series" tabs */}
+			{(editTab === "fromHere" || editTab === "whole") && (
+				<div className="space-y-4 pt-4">
+					<seriesForm.AppForm>
+						<seriesForm.Form className="space-y-4">
+							<p className="text-muted-foreground text-sm">
+								{editTab === "fromHere"
+									? "Changes apply from this occurrence onwards. The series will be split — past occurrences remain unchanged."
+									: "Changes apply to the entire series, including all past and future occurrences."}
 							</p>
-							<div className="grid grid-cols-2 gap-4">
-								<seriesForm.AppField name="occurrenceStartTime">
-									{(field) => (
-										<>
-											<field.TimeField label="Start Time" required />
-											<field.FieldError />
-										</>
-									)}
-								</seriesForm.AppField>
 
-								<seriesForm.AppField name="hasEndTime">
-									{(field) => (
-										<div>
-											<field.CheckboxField
-												id="edit-seriesHasEndTime"
-												label="Has end time"
-											/>
-											{seriesForm.state.values.hasEndTime && (
-												<seriesForm.AppField name="occurrenceEndTime">
-													{(endField) => (
-														<endField.TimeField label="End Time" />
-													)}
-												</seriesForm.AppField>
-											)}
-										</div>
-									)}
-								</seriesForm.AppField>
-							</div>
-						</div>
-
-						{/* Recurrence Pattern */}
-						{seriesForm.state.values.recurrenceConfig && (
-							<seriesForm.AppField name="recurrenceConfig">
+							{/* Title */}
+							<seriesForm.AppField name="summary">
 								{(field) => (
-									<field.RecurrencePickerField startDate={occurrence.dtstart} />
+									<>
+										<field.TextField label="Title" required />
+										<field.FieldError />
+									</>
 								)}
 							</seriesForm.AppField>
-						)}
 
-						{/* Status */}
-						<seriesForm.AppField name="status">
-							{(field) => (
-								<field.SelectField
-									label="Status"
-									options={[
-										{ value: "confirmed", label: "Confirmed" },
-										{ value: "tentative", label: "Tentative" },
-										{ value: "cancelled", label: "Cancelled" },
-									]}
-								/>
-							)}
-						</seriesForm.AppField>
-
-						<seriesForm.AppField name="isDraft">
-							{(field) => (
-								<field.CheckboxField
-									id="isDraft"
-									label="Draft (hidden from public feeds)"
-								/>
-							)}
-						</seriesForm.AppField>
-
-						{/* Actions */}
-						<div className="flex justify-between gap-2 border-t pt-4">
-							<div className="flex gap-2">
-								{occurrence.status !== "cancelled" && (
-									<Button
-										disabled={seriesIsPending}
-										onClick={handleCancelOccurrence}
-										type="button"
-										variant="outline"
-									>
-										Cancel Series
-									</Button>
+							{/* Description */}
+							<seriesForm.AppField name="description">
+								{(field) => (
+									<field.TextareaField label="Description" rows={2} />
 								)}
-								<Button
-									disabled={seriesIsDeletePending}
-									onClick={handleDeleteOccurrence}
-									type="button"
-									variant="destructive"
-								>
-									Delete Series
-								</Button>
+							</seriesForm.AppField>
+
+							{/* URL */}
+							<seriesForm.AppField name="url">
+								{(field) => (
+									<>
+										<field.TextField
+											label="URL"
+											placeholder="https://..."
+											type="url"
+										/>
+										<field.FieldError />
+									</>
+								)}
+							</seriesForm.AppField>
+
+							{/* Location */}
+							<seriesForm.AppField name="location">
+								{(field) => (
+									<field.TextField
+										label="Location"
+										placeholder="Leave empty to use space name"
+									/>
+								)}
+							</seriesForm.AppField>
+
+							{/* Series Date Range */}
+							<div className="space-y-4 rounded-md border p-4">
+								<h4 className="font-medium text-sm">Series Date Range</h4>
+								<div className="grid grid-cols-2 gap-4">
+									<seriesForm.AppField name="seriesFirstDate">
+										{(field) => (
+											<>
+												<field.DateField
+													description={
+														editTab === "fromHere"
+															? "New series starts from this date"
+															: "Change to adjust when series starts"
+													}
+													disabled={editTab === "fromHere"}
+													label="First Occurrence"
+												/>
+												<field.FieldError />
+											</>
+										)}
+									</seriesForm.AppField>
+									<seriesForm.AppField name="seriesHasEndDate">
+										{(field) => (
+											<div>
+												<field.CheckboxField
+													id="edit-seriesHasEndDate"
+													label="Has end date"
+												/>
+												{seriesForm.state.values.seriesHasEndDate && (
+													<seriesForm.AppField name="seriesLastDate">
+														{(lastField) => (
+															<lastField.DateField label="Last Occurrence" />
+														)}
+													</seriesForm.AppField>
+												)}
+											</div>
+										)}
+									</seriesForm.AppField>
+								</div>
 							</div>
-							<div className="flex gap-2">
-								<Button onClick={onClose} type="button" variant="outline">
-									Close
-								</Button>
-								<seriesForm.SubmitButton
-									disabled={seriesIsPending || undefined}
-								>
-									{({ isSubmitting }) =>
-										isSubmitting || seriesIsPending
-											? "Saving..."
-											: seriesEditScope === "whole"
-												? "Update Series"
-												: "Split & Update"
-									}
-								</seriesForm.SubmitButton>
+
+							{/* Occurrence Times */}
+							<div className="space-y-4 rounded-md border p-4">
+								<h4 className="font-medium text-sm">Occurrence Times</h4>
+								<p className="text-muted-foreground text-xs">
+									Each occurrence will use these times
+								</p>
+								<div className="grid grid-cols-2 gap-4">
+									<seriesForm.AppField name="occurrenceStartTime">
+										{(field) => (
+											<>
+												<field.TimeField label="Start Time" required />
+												<field.FieldError />
+											</>
+										)}
+									</seriesForm.AppField>
+
+									<seriesForm.AppField name="hasEndTime">
+										{(field) => (
+											<div>
+												<field.CheckboxField
+													id="edit-seriesHasEndTime"
+													label="Has end time"
+												/>
+												{seriesForm.state.values.hasEndTime && (
+													<seriesForm.AppField name="occurrenceEndTime">
+														{(endField) => (
+															<endField.TimeField label="End Time" />
+														)}
+													</seriesForm.AppField>
+												)}
+											</div>
+										)}
+									</seriesForm.AppField>
+								</div>
 							</div>
-						</div>
-					</seriesForm.Form>
-				</seriesForm.AppForm>
-			</TabsContent>
+
+							{/* Recurrence Pattern */}
+							{seriesForm.state.values.recurrenceConfig && (
+								<seriesForm.AppField name="recurrenceConfig">
+									{(field) => (
+										<field.RecurrencePickerField
+											startDate={occurrence.dtstart}
+										/>
+									)}
+								</seriesForm.AppField>
+							)}
+
+							{/* Status */}
+							<seriesForm.AppField name="status">
+								{(field) => (
+									<field.SelectField
+										label="Status"
+										options={[
+											{ value: "confirmed", label: "Confirmed" },
+											{ value: "tentative", label: "Tentative" },
+											{ value: "cancelled", label: "Cancelled" },
+										]}
+									/>
+								)}
+							</seriesForm.AppField>
+
+							<seriesForm.AppField name="isDraft">
+								{(field) => (
+									<field.CheckboxField
+										id="isDraft"
+										label="Draft (hidden from public feeds)"
+									/>
+								)}
+							</seriesForm.AppField>
+
+							{/* Actions */}
+							<div className="flex justify-between gap-2 border-t pt-4">
+								<div className="flex gap-2">
+									{occurrence.status !== "cancelled" && (
+										<Button
+											disabled={seriesIsPending}
+											onClick={handleCancelOccurrence}
+											type="button"
+											variant="outline"
+										>
+											Cancel Series
+										</Button>
+									)}
+									<Button
+										disabled={seriesIsDeletePending}
+										onClick={handleDeleteOccurrence}
+										type="button"
+										variant="destructive"
+									>
+										Delete Series
+									</Button>
+								</div>
+								<div className="flex gap-2">
+									<Button onClick={onClose} type="button" variant="outline">
+										Close
+									</Button>
+									<seriesForm.SubmitButton
+										disabled={seriesIsPending || undefined}
+									>
+										{({ isSubmitting }) =>
+											isSubmitting || seriesIsPending
+												? "Saving..."
+												: editTab === "whole"
+													? "Update Series"
+													: "Split & Update"
+										}
+									</seriesForm.SubmitButton>
+								</div>
+							</div>
+						</seriesForm.Form>
+					</seriesForm.AppForm>
+				</div>
+			)}
 		</Tabs>
 	);
 }
