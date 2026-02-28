@@ -565,7 +565,7 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 								Close
 							</Button>
 							{canEdit && (
-								<Button onClick={() => store.openEdit(undefined, "series")}>
+								<Button onClick={() => store.openEdit(undefined, "whole")}>
 									Edit Series
 								</Button>
 							)}

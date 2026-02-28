@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { Occurrence } from "@/components/calendar/types";
 
 type ActiveDialog = "create" | "details" | "edit" | null;
-export type EditTab = "occurrence" | "series";
+export type EditTab = "occurrence" | "fromHere" | "whole";
 
 interface CalendarDialogStore {
 	activeDialog: ActiveDialog;

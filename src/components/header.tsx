@@ -45,13 +45,35 @@ export function Header({ user, isAdmin }: HeaderProps) {
 					<Button asChild variant="ghost">
 						<Link href="/event-types">Event Types</Link>
 					</Button>
-					<Button asChild variant="ghost">
-						<Link href="/feeds">Feeds</Link>
-					</Button>
-
-					<Button asChild variant="ghost">
-						<Link href="/api/v1/docs">API Docs</Link>
-					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost">
+								Integrations
+								<ChevronDown className="ml-1 h-3 w-3" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem asChild>
+								<Link className="cursor-pointer" href="/feeds">
+									iCal Feeds
+								</Link>
+							</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<Link className="cursor-pointer" href="/widget">
+									Widget API
+								</Link>
+							</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<Link
+									className="cursor-pointer"
+									href="/api/v1/docs"
+									target="_blank"
+								>
+									REST API Docs
+								</Link>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 
 					{isAdmin && (
 						<DropdownMenu>

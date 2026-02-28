@@ -58,7 +58,7 @@ export default function AdminApiKeysPage() {
 	const [selectedKey, setSelectedKey] = useState<ApiKeyRecord | null>(null);
 	const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
 	const [scopeType, setScopeType] = useState<
-		"global" | "space" | "eventType" | "scoped"
+		"admin" | "global" | "space" | "eventType" | "scoped"
 	>("global");
 	const [copied, setCopied] = useState(false);
 	const [newKeyIsAdmin, setNewKeyIsAdmin] = useState(false);
@@ -96,15 +96,19 @@ export default function AdminApiKeysPage() {
 	const addPermission = api.apiKeys.addPermission.useMutation({
 		onSuccess: () => {
 			utils.apiKeys.list.invalidate();
-			setAddPermOpen(false);
-			setSelectedKey(null);
-			setScopeType("global");
+			closeAddPermDialog();
 		},
 	});
 
 	const removePermission = api.apiKeys.removePermission.useMutation({
 		onSuccess: () => utils.apiKeys.list.invalidate(),
 	});
+
+	const closeAddPermDialog = () => {
+		setAddPermOpen(false);
+		setSelectedKey(null);
+		setScopeType("global");
+	};
 
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -118,6 +122,14 @@ export default function AdminApiKeysPage() {
 	const handleAddPermission = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (!selectedKey) return;
+
+		if (scopeType === "admin") {
+			updateKey.mutate(
+				{ id: selectedKey.id, isAdmin: true },
+				{ onSuccess: closeAddPermDialog },
+			);
+			return;
+		}
 
 		const formData = new FormData(e.currentTarget);
 		let spaceSlug: string | null = null;
@@ -170,6 +182,9 @@ export default function AdminApiKeysPage() {
 			</div>
 		);
 	}
+
+	const isPending =
+		scopeType === "admin" ? updateKey.isPending : addPermission.isPending;
 
 	return (
 		<>
@@ -256,8 +271,26 @@ export default function AdminApiKeysPage() {
 								Created {new Date(key.createdAt).toLocaleDateString()}
 							</div>
 
-							{key.permissions.length > 0 ? (
+							{key.isAdmin || key.permissions.length > 0 ? (
 								<div className="space-y-1">
+									{key.isAdmin && (
+										<div className="flex items-center justify-between rounded bg-muted px-3 py-2 text-sm">
+											<span className="text-muted-foreground">
+												Admin — unlimited access to all spaces and event types
+											</span>
+											<Button
+												onClick={() => {
+													if (confirm("Remove admin access from this key?")) {
+														updateKey.mutate({ id: key.id, isAdmin: false });
+													}
+												}}
+												size="sm"
+												variant="ghost"
+											>
+												Remove
+											</Button>
+										</div>
+									)}
 									{key.permissions.map((perm) => (
 										<div
 											className="flex items-center justify-between rounded bg-muted px-3 py-2 text-sm"
@@ -280,10 +313,7 @@ export default function AdminApiKeysPage() {
 								</div>
 							) : (
 								<p className="text-muted-foreground text-sm">
-									No specific permissions
-									{key.isAdmin
-										? " (admin — full access)"
-										: " (key cannot access anything)"}
+									No specific permissions — key cannot access anything.
 								</p>
 							)}
 						</div>
@@ -357,7 +387,7 @@ export default function AdminApiKeysPage() {
 			</Dialog>
 
 			{/* Add Permission Dialog */}
-			<Dialog onOpenChange={setAddPermOpen} open={addPermOpen}>
+			<Dialog onOpenChange={closeAddPermDialog} open={addPermOpen}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Add Permission for {selectedKey?.name}</DialogTitle>
@@ -367,7 +397,9 @@ export default function AdminApiKeysPage() {
 							<Label>Permission Scope</Label>
 							<Select
 								onValueChange={(v) =>
-									setScopeType(v as "global" | "space" | "eventType" | "scoped")
+									setScopeType(
+										v as "admin" | "global" | "space" | "eventType" | "scoped",
+									)
 								}
 								value={scopeType}
 							>
@@ -375,6 +407,9 @@ export default function AdminApiKeysPage() {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
+									<SelectItem value="admin">
+										Admin Access (full access)
+									</SelectItem>
 									<SelectItem value="global">
 										Global (all spaces & event types)
 									</SelectItem>
@@ -388,6 +423,13 @@ export default function AdminApiKeysPage() {
 								</SelectContent>
 							</Select>
 						</div>
+
+						{scopeType === "admin" && (
+							<p className="text-muted-foreground text-sm">
+								Grants this key unlimited access to all spaces and event types,
+								bypassing all permission checks.
+							</p>
+						)}
 
 						{(scopeType === "space" || scopeType === "scoped") && (
 							<div>
@@ -439,8 +481,12 @@ export default function AdminApiKeysPage() {
 							</div>
 						)}
 
-						<Button disabled={addPermission.isPending} type="submit">
-							{addPermission.isPending ? "Adding..." : "Add Permission"}
+						<Button disabled={isPending} type="submit">
+							{isPending
+								? "Saving..."
+								: scopeType === "admin"
+									? "Grant Admin Access"
+									: "Add Permission"}
 						</Button>
 					</form>
 				</DialogContent>

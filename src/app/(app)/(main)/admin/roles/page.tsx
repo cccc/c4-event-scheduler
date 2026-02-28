@@ -54,7 +54,7 @@ export default function AdminRolesPage() {
 		null,
 	);
 	const [scopeType, setScopeType] = useState<
-		"global" | "space" | "eventType" | "scoped"
+		"admin" | "global" | "space" | "eventType" | "scoped"
 	>("global");
 
 	const utils = api.useUtils();
@@ -77,9 +77,7 @@ export default function AdminRolesPage() {
 	const addPermission = api.roles.addPermission.useMutation({
 		onSuccess: () => {
 			utils.roles.listUsers.invalidate();
-			setAddPermOpen(false);
-			setSelectedUser(null);
-			setScopeType("global");
+			closeAddPermDialog();
 		},
 	});
 
@@ -96,9 +94,23 @@ export default function AdminRolesPage() {
 	});
 
 	// Handlers
+	const closeAddPermDialog = () => {
+		setAddPermOpen(false);
+		setSelectedUser(null);
+		setScopeType("global");
+	};
+
 	const handleAddPermission = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (!selectedUser) return;
+
+		if (scopeType === "admin") {
+			setAdmin.mutate(
+				{ userId: selectedUser.id, isAdmin: true },
+				{ onSuccess: closeAddPermDialog },
+			);
+			return;
+		}
 
 		const formData = new FormData(e.currentTarget);
 		let spaceSlug: string | null = null;
@@ -132,13 +144,6 @@ export default function AdminRolesPage() {
 		}
 	};
 
-	const handleToggleAdmin = (userId: string, currentIsAdmin: boolean) => {
-		const action = currentIsAdmin ? "remove admin from" : "make admin";
-		if (confirm(`Are you sure you want to ${action} this user?`)) {
-			setAdmin.mutate({ userId, isAdmin: !currentIsAdmin });
-		}
-	};
-
 	// Loading state
 	if (isAdminLoading) {
 		return <p>Loading...</p>;
@@ -155,6 +160,9 @@ export default function AdminRolesPage() {
 			</div>
 		);
 	}
+
+	const isPending =
+		scopeType === "admin" ? setAdmin.isPending : addPermission.isPending;
 
 	return (
 		<>
@@ -187,29 +195,38 @@ export default function AdminRolesPage() {
 										</span>
 									)}
 								</div>
-								<div className="flex gap-2">
-									<Button
-										onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
-										size="sm"
-										variant={u.isAdmin ? "outline" : "default"}
-									>
-										{u.isAdmin ? "Remove Admin" : "Make Admin"}
-									</Button>
-									<Button
-										onClick={() => {
-											setSelectedUser(u);
-											setAddPermOpen(true);
-										}}
-										size="sm"
-										variant="outline"
-									>
-										Add Permission
-									</Button>
-								</div>
+								<Button
+									onClick={() => {
+										setSelectedUser(u);
+										setAddPermOpen(true);
+									}}
+									size="sm"
+									variant="outline"
+								>
+									Add Permission
+								</Button>
 							</div>
 
-							{u.permissions.length > 0 ? (
+							{u.isAdmin || u.permissions.length > 0 ? (
 								<div className="space-y-1">
+									{u.isAdmin && (
+										<div className="flex items-center justify-between rounded bg-muted px-3 py-2 text-sm">
+											<span className="text-muted-foreground">
+												Admin — unlimited access to all spaces and event types
+											</span>
+											<Button
+												onClick={() => {
+													if (confirm("Remove admin access from this user?")) {
+														setAdmin.mutate({ userId: u.id, isAdmin: false });
+													}
+												}}
+												size="sm"
+												variant="ghost"
+											>
+												Remove
+											</Button>
+										</div>
+									)}
 									{u.permissions.map((perm) => (
 										<div
 											className="flex items-center justify-between rounded bg-muted px-3 py-2 text-sm"
@@ -254,7 +271,7 @@ export default function AdminRolesPage() {
 			)}
 
 			{/* Add Permission Dialog */}
-			<Dialog onOpenChange={setAddPermOpen} open={addPermOpen}>
+			<Dialog onOpenChange={closeAddPermDialog} open={addPermOpen}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Add Permission for {selectedUser?.name}</DialogTitle>
@@ -264,7 +281,9 @@ export default function AdminRolesPage() {
 							<Label>Permission Scope</Label>
 							<Select
 								onValueChange={(v) =>
-									setScopeType(v as "global" | "space" | "eventType" | "scoped")
+									setScopeType(
+										v as "admin" | "global" | "space" | "eventType" | "scoped",
+									)
 								}
 								value={scopeType}
 							>
@@ -272,6 +291,9 @@ export default function AdminRolesPage() {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
+									<SelectItem value="admin">
+										Admin Access (full access)
+									</SelectItem>
 									<SelectItem value="global">
 										Global (all spaces & event types)
 									</SelectItem>
@@ -285,6 +307,13 @@ export default function AdminRolesPage() {
 								</SelectContent>
 							</Select>
 						</div>
+
+						{scopeType === "admin" && (
+							<p className="text-muted-foreground text-sm">
+								Grants this user unlimited access to all spaces and event types,
+								bypassing all permission checks.
+							</p>
+						)}
 
 						{(scopeType === "space" || scopeType === "scoped") && (
 							<div>
@@ -336,8 +365,12 @@ export default function AdminRolesPage() {
 							</div>
 						)}
 
-						<Button disabled={addPermission.isPending} type="submit">
-							{addPermission.isPending ? "Adding..." : "Add Permission"}
+						<Button disabled={isPending} type="submit">
+							{isPending
+								? "Saving..."
+								: scopeType === "admin"
+									? "Grant Admin Access"
+									: "Add Permission"}
 						</Button>
 					</form>
 				</DialogContent>
