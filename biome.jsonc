@@ -21,7 +21,8 @@
 		}
 	},
 	"formatter": {
-		"enabled": true
+		"enabled": true,
+		"useEditorconfig": true
 	},
 	"linter": {
 		"enabled": true,

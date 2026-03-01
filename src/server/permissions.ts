@@ -1,15 +1,31 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/server/db";
-import { user, userPermission } from "@/server/db/schema";
+import { actor, permission } from "@/server/db/schema";
 
-export type PermissionScope = {
-	spaceSlug?: string;
-	eventTypeSlug?: string;
+export type Permission = {
+    spaceSlug: string | null;
+    eventTypeSlug: string | null;
 };
 
+export type Actor = {
+    kind: "user" | "apiKey";
+    id: string;
+    actorId: string | undefined; // actor row UUID — used for createdByActorId / updatedByActorId
+    isAdmin: boolean;
+    permissions: Permission[];
+};
+
+export type PermissionScope = {
+    spaceSlug?: string;
+    eventTypeSlug?: string;
+};
+
+// ─── Core check (pure, sync) ────────────────────────────────────────────────
+
 /**
- * Check if a user has permission for a given scope
+ * Check if an actor has permission for a given scope.
  *
  * Permission hierarchy:
  * - isAdmin=true → full access to everything
@@ -17,132 +33,97 @@ export type PermissionScope = {
  * - Space permission (spaceSlug set) → access to that space and all its event types
  * - EventType permission (eventTypeSlug set) → access to that event type in all spaces
  * - Scoped permission (both set) → access only to that event type in that space
- *
- * @param userId - The user ID to check
- * @param scope - The scope to check (spaceSlug and/or eventTypeSlug)
- * @returns true if user has permission, false otherwise
  */
-export async function hasPermission(
-	userId: string,
-	scope: PermissionScope = {},
-): Promise<boolean> {
-	// Check if user is admin
-	const dbUser = await db.query.user.findFirst({
-		where: eq(user.id, userId),
-	});
+export function can(
+    actorArg: Actor,
+    _action: string,
+    scope: PermissionScope = {},
+): boolean {
+    if (actorArg.isAdmin) return true;
 
-	if (dbUser?.isAdmin) {
-		return true;
-	}
+    for (const perm of actorArg.permissions) {
+        // Global permission (both null)
+        if (perm.spaceSlug === null && perm.eventTypeSlug === null) return true;
 
-	// Build permission query
-	// User has access if any of these match:
-	// 1. Global permission (both null)
-	// 2. Space matches (and event type is null or matches)
-	// 3. Event type matches globally (space null)
+        if (scope.spaceSlug) {
+            // Space-level permission (covers all event types in that space)
+            if (
+                perm.spaceSlug === scope.spaceSlug &&
+                perm.eventTypeSlug === null
+            )
+                return true;
 
-	const conditions = [
-		// Global permission
-		and(isNull(userPermission.spaceSlug), isNull(userPermission.eventTypeSlug)),
-	];
+            if (scope.eventTypeSlug) {
+                // Scoped permission (specific event type in specific space)
+                if (
+                    perm.spaceSlug === scope.spaceSlug &&
+                    perm.eventTypeSlug === scope.eventTypeSlug
+                )
+                    return true;
+            }
+        }
 
-	if (scope.spaceSlug) {
-		// Space-level permission (covers all event types in space)
-		conditions.push(
-			and(
-				eq(userPermission.spaceSlug, scope.spaceSlug),
-				isNull(userPermission.eventTypeSlug),
-			),
-		);
+        if (scope.eventTypeSlug) {
+            // Global event type permission (covers this event type in all spaces)
+            if (
+                perm.spaceSlug === null &&
+                perm.eventTypeSlug === scope.eventTypeSlug
+            )
+                return true;
+        }
+    }
 
-		if (scope.eventTypeSlug) {
-			// Scoped permission (specific event type in specific space)
-			conditions.push(
-				and(
-					eq(userPermission.spaceSlug, scope.spaceSlug),
-					eq(userPermission.eventTypeSlug, scope.eventTypeSlug),
-				),
-			);
-		}
-	}
-
-	if (scope.eventTypeSlug) {
-		// Global event type permission (covers this event type in all spaces)
-		conditions.push(
-			and(
-				isNull(userPermission.spaceSlug),
-				eq(userPermission.eventTypeSlug, scope.eventTypeSlug),
-			),
-		);
-	}
-
-	const permission = await db.query.userPermission.findFirst({
-		where: and(eq(userPermission.userId, userId), or(...conditions)),
-	});
-
-	return permission !== undefined;
+    return false;
 }
 
-/**
- * Check if user can manage spaces (create/update/delete)
- * Requires admin or global permission
- */
-export async function canManageSpaces(userId: string): Promise<boolean> {
-	const dbUser = await db.query.user.findFirst({
-		where: eq(user.id, userId),
-	});
-
-	if (dbUser?.isAdmin) {
-		return true;
-	}
-
-	// Check for global permission
-	const globalPerm = await db.query.userPermission.findFirst({
-		where: and(
-			eq(userPermission.userId, userId),
-			isNull(userPermission.spaceSlug),
-			isNull(userPermission.eventTypeSlug),
-		),
-	});
-
-	return globalPerm !== undefined;
+/** Throws TRPCError if not allowed (for use inside tRPC procedures) */
+export function assertCan(
+    actorArg: Actor,
+    action: string,
+    scope?: PermissionScope,
+): void {
+    if (!can(actorArg, action, scope)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+    }
 }
 
-/**
- * Check if user can manage event types (create/update/delete)
- * Requires admin or global permission
- */
-export async function canManageEventTypes(userId: string): Promise<boolean> {
-	return canManageSpaces(userId); // Same requirement
+// ─── Actor builders ─────────────────────────────────────────────────────────
+
+/** For use outside tRPC (e.g., scripts). tRPC uses protectedProcedure's actorRecord directly. */
+export async function actorFromUserId(userId: string): Promise<Actor> {
+    const actorRecord = await db.query.actor.findFirst({
+        where: eq(actor.userId, userId),
+        with: { permissions: true },
+    });
+    return {
+        kind: "user",
+        id: userId,
+        actorId: actorRecord?.id,
+        isAdmin: actorRecord?.isAdmin ?? false,
+        permissions: actorRecord?.permissions ?? [],
+    };
 }
 
-/**
- * Get all permissions for a user (for display in admin UI)
- */
-export async function getUserPermissions(userId: string) {
-	const dbUser = await db.query.user.findFirst({
-		where: eq(user.id, userId),
-	});
-
-	const permissions = await db.query.userPermission.findMany({
-		where: eq(userPermission.userId, userId),
-		orderBy: (p, { asc }) => [asc(p.spaceSlug), asc(p.eventTypeSlug)],
-	});
-
-	return {
-		isAdmin: dbUser?.isAdmin ?? false,
-		permissions,
-	};
+/** Sync — API key's actor+permissions are already loaded by getApiKeyFromRequest() */
+export function actorFromApiKey(key: {
+    id: string;
+    actor: { id: string; isAdmin: boolean; permissions: Permission[] } | null;
+}): Actor {
+    return {
+        kind: "apiKey",
+        id: key.id,
+        actorId: key.actor?.id,
+        isAdmin: key.actor?.isAdmin ?? false,
+        permissions: key.actor?.permissions ?? [],
+    };
 }
 
-/**
- * Check if user can manage events in a space/event-type combination
- * This is used for event CRUD operations
- */
-export async function canManageEvents(
-	userId: string,
-	spaceSlug: string,
-	eventTypeSlug: string,
-): Promise<boolean> {
-	return hasPermission(userId, { spaceSlug, eventTypeSlug });
+// ─── Admin display ──────────────────────────────────────────────────────────
+
+/** Kept for the admin roles/api-keys UI */
+export async function getActorPermissions(actorId: string) {
+    return db.query.permission.findMany({
+        where: eq(permission.actorId, actorId),
+        orderBy: (p, { asc }) => [asc(p.spaceSlug), asc(p.eventTypeSlug)],
+    });
 }

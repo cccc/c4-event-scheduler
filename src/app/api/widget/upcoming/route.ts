@@ -7,318 +7,336 @@ import { db } from "@/server/db";
 import { event, space } from "@/server/db/schema";
 
 type UpcomingEvent = {
-	id: string;
-	summary: string;
-	description: string | null;
-	url: string | null;
-	date: string; // ISO date of next occurrence
-	dateLabel: string; // Human-readable date/frequency
-	isRecurring: boolean;
-	spaceName: string;
-	spaceSlug: string;
-	eventTypeName: string;
-	calendarUrl: string;
-	// Cancellation info
-	isCancelled: boolean; // Is the immediate next occurrence cancelled?
-	cancelledDate: string | null; // Date that was cancelled
-	cancelledDateLabel: string | null; // Human-readable cancelled date
-	nextAfterCancelled: string | null; // ISO date of next non-cancelled occurrence
-	nextAfterCancelledLabel: string | null; // Human-readable date of next after cancelled
+    id: string;
+    summary: string;
+    description: string | null;
+    url: string | null;
+    date: string; // ISO date of next occurrence
+    dateLabel: string; // Human-readable date/frequency
+    isRecurring: boolean;
+    spaceName: string;
+    spaceSlug: string;
+    eventTypeName: string;
+    calendarUrl: string;
+    // Cancellation info
+    isCancelled: boolean; // Is the immediate next occurrence cancelled?
+    cancelledDate: string | null; // Date that was cancelled
+    cancelledDateLabel: string | null; // Human-readable cancelled date
+    nextAfterCancelled: string | null; // ISO date of next non-cancelled occurrence
+    nextAfterCancelledLabel: string | null; // Human-readable date of next after cancelled
 };
 
 // Format date in German locale, always in the app timezone
 function formatDate(date: Date, locale = "de-DE"): string {
-	return date.toLocaleString(locale, {
-		timeZone: env.NEXT_PUBLIC_APP_TIMEZONE,
-		weekday: "long",
-		day: "numeric",
-		month: "long",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+    return date.toLocaleString(locale, {
+        timeZone: env.NEXT_PUBLIC_APP_TIMEZONE,
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 export async function GET(request: NextRequest) {
-	const { searchParams } = new URL(request.url);
-	const spaceSlug = searchParams.get("space");
-	const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
-	const months = Math.min(
-		Math.max(Number(searchParams.get("months")) || 6, 1),
-		24,
-	);
-	const format = searchParams.get("format") || "json";
-	const locale = searchParams.get("locale") || "de-DE";
-	const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+    const { searchParams } = new URL(request.url);
+    const spaceSlug = searchParams.get("space");
+    const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
+    const months = Math.min(
+        Math.max(Number(searchParams.get("months")) || 6, 1),
+        24,
+    );
+    const format = searchParams.get("format") || "json";
+    const locale = searchParams.get("locale") || "de-DE";
+    const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
-	// Build query conditions
-	const conditions: ReturnType<typeof eq>[] = [];
-	let allowedSpaceIds: string[] | null = null;
+    // Build query conditions
+    const conditions: ReturnType<typeof eq>[] = [];
+    let allowedSpaceIds: string[] | null = null;
 
-	if (spaceSlug) {
-		const spaceRecord = await db.query.space.findFirst({
-			where: and(eq(space.slug, spaceSlug), eq(space.isPublic, true)),
-		});
+    if (spaceSlug) {
+        const spaceRecord = await db.query.space.findFirst({
+            where: and(eq(space.slug, spaceSlug), eq(space.isPublic, true)),
+        });
 
-		if (!spaceRecord) {
-			return new Response("Space not found or not public", { status: 404 });
-		}
+        if (!spaceRecord) {
+            return new Response("Space not found or not public", {
+                status: 404,
+            });
+        }
 
-		conditions.push(eq(event.spaceId, spaceRecord.id));
-	} else {
-		// Only include events from public spaces
-		const publicSpaces = await db.query.space.findMany({
-			where: eq(space.isPublic, true),
-		});
-		allowedSpaceIds = publicSpaces.map((s) => s.id);
-		if (allowedSpaceIds.length > 0) {
-			conditions.push(inArray(event.spaceId, allowedSpaceIds));
-		}
-	}
+        conditions.push(eq(event.spaceId, spaceRecord.id));
+    } else {
+        // Only include events from public spaces
+        const publicSpaces = await db.query.space.findMany({
+            where: eq(space.isPublic, true),
+        });
+        allowedSpaceIds = publicSpaces.map((s) => s.id);
+        if (allowedSpaceIds.length > 0) {
+            conditions.push(inArray(event.spaceId, allowedSpaceIds));
+        }
+    }
 
-	// Only include non-draft confirmed or tentative events
-	conditions.push(eq(event.isDraft, false));
-	conditions.push(
-		or(
-			eq(event.status, "confirmed"),
-			eq(event.status, "tentative"),
-		) as ReturnType<typeof eq>,
-	);
+    // Only include non-draft confirmed or tentative events
+    conditions.push(eq(event.isDraft, false));
+    conditions.push(
+        or(
+            eq(event.status, "confirmed"),
+            eq(event.status, "tentative"),
+        ) as ReturnType<typeof eq>,
+    );
 
-	const now = new Date();
-	const rangeEnd = new Date();
-	rangeEnd.setMonth(rangeEnd.getMonth() + months);
+    const now = new Date();
+    const rangeEnd = new Date();
+    rangeEnd.setMonth(rangeEnd.getMonth() + months);
 
-	// Pre-filter at the DB level: only fetch events whose active range
-	// intersects [now, rangeEnd]
-	conditions.push(
-		or(
-			// Single events: dtstart must be within the range
-			and(
-				isNull(event.rrule),
-				gte(event.dtstart, now),
-				lte(event.dtstart, rangeEnd),
-			),
-			// Recurring events: series must overlap the range
-			and(
-				isNotNull(event.rrule),
-				lte(event.dtstart, rangeEnd),
-				or(isNull(event.recurrenceEndDate), gte(event.recurrenceEndDate, now)),
-			),
-		) as ReturnType<typeof eq>,
-	);
+    // Pre-filter at the DB level: only fetch events whose active range
+    // intersects [now, rangeEnd]
+    conditions.push(
+        or(
+            // Single events: dtstart must be within the range
+            and(
+                isNull(event.rrule),
+                gte(event.dtstart, now),
+                lte(event.dtstart, rangeEnd),
+            ),
+            // Recurring events: series must overlap the range
+            and(
+                isNotNull(event.rrule),
+                lte(event.dtstart, rangeEnd),
+                or(
+                    isNull(event.recurrenceEndDate),
+                    gte(event.recurrenceEndDate, now),
+                ),
+            ),
+        ) as ReturnType<typeof eq>,
+    );
 
-	// Fetch events
-	const events = await db.query.event.findMany({
-		where: and(...conditions),
-		with: {
-			space: true,
-			eventType: true,
-			overrides: true,
-		},
-	});
+    // Fetch events
+    const events = await db.query.event.findMany({
+        where: and(...conditions),
+        with: {
+            space: true,
+            eventType: true,
+            overrides: true,
+        },
+    });
 
-	// Collect upcoming occurrences
-	const upcomingEvents: UpcomingEvent[] = [];
+    // Collect upcoming occurrences
+    const upcomingEvents: UpcomingEvent[] = [];
 
-	for (const evt of events) {
-		const calendarUrl = `${env.NEXT_PUBLIC_APP_URL}/spaces/${evt.space.slug}`;
+    for (const evt of events) {
+        const calendarUrl = `${env.NEXT_PUBLIC_APP_URL}/spaces/${evt.space.slug}`;
 
-		// Parse exdates for recurring events
-		const exdatesSet = new Set(
-			evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
-		);
+        // Parse exdates for recurring events
+        const exdatesSet = new Set(
+            evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
+        );
 
-		if (!evt.rrule) {
-			// Single event - only include if in the future and within range
-			if (evt.dtstart >= now && evt.dtstart <= rangeEnd) {
-				const occDate = formatOccurrenceDate(evt.dtstart, tz);
-				const override = evt.overrides.find(
-					(o) => o.occurrenceDate === occDate,
-				);
-				const status = override?.status ?? evt.status;
-				const isInternal = evt.eventType?.isInternal ?? false;
+        if (!evt.rrule) {
+            // Single event - only include if in the future and within range
+            if (evt.dtstart >= now && evt.dtstart <= rangeEnd) {
+                const occDate = formatOccurrenceDate(evt.dtstart, tz);
+                const override = evt.overrides.find(
+                    (o) => o.occurrenceDate === occDate,
+                );
+                const status = override?.status ?? evt.status;
+                const isInternal = evt.eventType?.isInternal ?? false;
 
-				if (isInternal) continue;
+                if (isInternal) continue;
 
-				const isCancelled = status === "cancelled";
+                const isCancelled = status === "cancelled";
 
-				upcomingEvents.push({
-					id: `${evt.id}:${occDate}`,
-					summary: override?.summary ?? evt.summary,
-					description: override?.description ?? evt.description,
-					url: override?.url ?? evt.url,
-					date: evt.dtstart.toISOString(),
-					dateLabel: formatDate(override?.dtstart ?? evt.dtstart, locale),
-					isRecurring: false,
-					spaceName: evt.space.name,
-					spaceSlug: evt.space.slug,
-					eventTypeName: evt.eventType.name,
-					calendarUrl,
-					isCancelled,
-					cancelledDate: null,
-					cancelledDateLabel: null,
-					nextAfterCancelled: null,
-					nextAfterCancelledLabel: null,
-				});
-			}
-		} else {
-			// Recurring event - check for cancelled occurrences and find next available
-			try {
-				const endDate = evt.recurrenceEndDate
-					? new Date(
-							Math.min(evt.recurrenceEndDate.getTime(), rangeEnd.getTime()),
-						)
-					: rangeEnd;
+                upcomingEvents.push({
+                    id: `${evt.id}:${occDate}`,
+                    summary: override?.summary ?? evt.summary,
+                    description: override?.description ?? evt.description,
+                    url: override?.url ?? evt.url,
+                    date: evt.dtstart.toISOString(),
+                    dateLabel: formatDate(
+                        override?.dtstart ?? evt.dtstart,
+                        locale,
+                    ),
+                    isRecurring: false,
+                    spaceName: evt.space.name,
+                    spaceSlug: evt.space.slug,
+                    eventTypeName: evt.eventType.name,
+                    calendarUrl,
+                    isCancelled,
+                    cancelledDate: null,
+                    cancelledDateLabel: null,
+                    nextAfterCancelled: null,
+                    nextAfterCancelledLabel: null,
+                });
+            }
+        } else {
+            // Recurring event - check for cancelled occurrences and find next available
+            try {
+                const endDate = evt.recurrenceEndDate
+                    ? new Date(
+                          Math.min(
+                              evt.recurrenceEndDate.getTime(),
+                              rangeEnd.getTime(),
+                          ),
+                      )
+                    : rangeEnd;
 
-				// Get upcoming occurrences with DST-aware expansion
-				const nextDates = expandRruleInTimezone(
-					evt.rrule,
-					evt.dtstart,
-					now,
-					endDate,
-					tz,
-				);
-				if (nextDates.length === 0) continue;
+                // Get upcoming occurrences with DST-aware expansion
+                const nextDates = expandRruleInTimezone(
+                    evt.rrule,
+                    evt.dtstart,
+                    now,
+                    endDate,
+                    tz,
+                );
+                if (nextDates.length === 0) continue;
 
-				// Find first valid occurrence (skip exdates/internal) and check if it's cancelled
-				let firstValidDate: Date | null = null;
-				let firstValidStatus: string | null = null;
-				let nextNonCancelledDate: Date | null = null;
+                // Find first valid occurrence (skip exdates/internal) and check if it's cancelled
+                let firstValidDate: Date | null = null;
+                let firstValidStatus: string | null = null;
+                let nextNonCancelledDate: Date | null = null;
 
-				for (const date of nextDates) {
-					const occDate = formatOccurrenceDate(date, tz);
-					const isInternal = evt.eventType?.isInternal ?? false;
+                for (const date of nextDates) {
+                    const occDate = formatOccurrenceDate(date, tz);
+                    const isInternal = evt.eventType?.isInternal ?? false;
 
-					// Skip exdates and internal
-					if (exdatesSet.has(occDate) || isInternal) continue;
+                    // Skip exdates and internal
+                    if (exdatesSet.has(occDate) || isInternal) continue;
 
-					const override = evt.overrides.find(
-						(o) => o.occurrenceDate === occDate,
-					);
-					const status = override?.status ?? evt.status;
+                    const override = evt.overrides.find(
+                        (o) => o.occurrenceDate === occDate,
+                    );
+                    const status = override?.status ?? evt.status;
 
-					if (!firstValidDate) {
-						firstValidDate = date;
-						firstValidStatus = status;
-						// If first valid is not cancelled, we're done
-						if (status !== "cancelled") {
-							nextNonCancelledDate = date;
-							break;
-						}
-					} else if (status !== "cancelled" && !nextNonCancelledDate) {
-						// Found next non-cancelled after a cancelled one
-						nextNonCancelledDate = date;
-						break;
-					}
-				}
+                    if (!firstValidDate) {
+                        firstValidDate = date;
+                        firstValidStatus = status;
+                        // If first valid is not cancelled, we're done
+                        if (status !== "cancelled") {
+                            nextNonCancelledDate = date;
+                            break;
+                        }
+                    } else if (
+                        status !== "cancelled" &&
+                        !nextNonCancelledDate
+                    ) {
+                        // Found next non-cancelled after a cancelled one
+                        nextNonCancelledDate = date;
+                        break;
+                    }
+                }
 
-				if (!firstValidDate) continue;
+                if (!firstValidDate) continue;
 
-				const isCancelled = firstValidStatus === "cancelled";
-				const dateLabel =
-					evt.frequencyLabel || formatDate(firstValidDate, locale);
+                const isCancelled = firstValidStatus === "cancelled";
+                const dateLabel =
+                    evt.frequencyLabel || formatDate(firstValidDate, locale);
 
-				upcomingEvents.push({
-					id: `${evt.id}:recurring`,
-					summary: evt.summary,
-					description: evt.description,
-					url: evt.url,
-					date: (nextNonCancelledDate ?? firstValidDate).toISOString(),
-					dateLabel,
-					isRecurring: true,
-					spaceName: evt.space.name,
-					spaceSlug: evt.space.slug,
-					eventTypeName: evt.eventType.name,
-					calendarUrl,
-					isCancelled,
-					cancelledDate: isCancelled ? firstValidDate.toISOString() : null,
-					cancelledDateLabel: isCancelled
-						? formatDate(firstValidDate, locale)
-						: null,
-					nextAfterCancelled:
-						isCancelled && nextNonCancelledDate
-							? nextNonCancelledDate.toISOString()
-							: null,
-					nextAfterCancelledLabel:
-						isCancelled && nextNonCancelledDate
-							? formatDate(nextNonCancelledDate, locale)
-							: null,
-				});
-			} catch (e) {
-				console.error(`Failed to parse RRULE for event ${evt.id}:`, e);
-			}
-		}
-	}
+                upcomingEvents.push({
+                    id: `${evt.id}:recurring`,
+                    summary: evt.summary,
+                    description: evt.description,
+                    url: evt.url,
+                    date: (
+                        nextNonCancelledDate ?? firstValidDate
+                    ).toISOString(),
+                    dateLabel,
+                    isRecurring: true,
+                    spaceName: evt.space.name,
+                    spaceSlug: evt.space.slug,
+                    eventTypeName: evt.eventType.name,
+                    calendarUrl,
+                    isCancelled,
+                    cancelledDate: isCancelled
+                        ? firstValidDate.toISOString()
+                        : null,
+                    cancelledDateLabel: isCancelled
+                        ? formatDate(firstValidDate, locale)
+                        : null,
+                    nextAfterCancelled:
+                        isCancelled && nextNonCancelledDate
+                            ? nextNonCancelledDate.toISOString()
+                            : null,
+                    nextAfterCancelledLabel:
+                        isCancelled && nextNonCancelledDate
+                            ? formatDate(nextNonCancelledDate, locale)
+                            : null,
+                });
+            } catch (e) {
+                console.error(`Failed to parse RRULE for event ${evt.id}:`, e);
+            }
+        }
+    }
 
-	// Sort by date and limit
-	upcomingEvents.sort(
-		(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-	);
-	const limited = upcomingEvents.slice(0, limit);
+    // Sort by date and limit
+    upcomingEvents.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+    const limited = upcomingEvents.slice(0, limit);
 
-	// Return in requested format
-	if (format === "html") {
-		const html = generateHtml(limited, spaceSlug);
-		return new Response(html, {
-			headers: {
-				"Content-Type": "text/html; charset=utf-8",
-				"Access-Control-Allow-Origin": "*",
-			},
-		});
-	}
+    // Return in requested format
+    if (format === "html") {
+        const html = generateHtml(limited, spaceSlug);
+        return new Response(html, {
+            headers: {
+                "Content-Type": "text/html; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+            },
+        });
+    }
 
-	return new Response(JSON.stringify({ events: limited }, null, 2), {
-		headers: {
-			"Content-Type": "application/json; charset=utf-8",
-			"Access-Control-Allow-Origin": "*",
-		},
-	});
+    return new Response(JSON.stringify({ events: limited }, null, 2), {
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+        },
+    });
 }
 
 function generateHtml(
-	events: UpcomingEvent[],
-	spaceSlug: string | null,
+    events: UpcomingEvent[],
+    spaceSlug: string | null,
 ): string {
-	const calendarLink = spaceSlug
-		? `${env.NEXT_PUBLIC_APP_URL}/spaces/${spaceSlug}`
-		: `${env.NEXT_PUBLIC_APP_URL}/spaces`;
+    const calendarLink = spaceSlug
+        ? `${env.NEXT_PUBLIC_APP_URL}/spaces/${spaceSlug}`
+        : `${env.NEXT_PUBLIC_APP_URL}/spaces`;
 
-	let rows: string;
-	if (events.length === 0) {
-		rows = `<tr class="event-row"><td colspan="2">Keine kommenden Veranstaltungen</td></tr>`;
-	} else {
-		rows = events
-			.map((evt) => {
-				const classes = [
-					"event-row",
-					evt.isRecurring ? "recurring" : "",
-					evt.isCancelled ? "cancelled" : "",
-				]
-					.filter(Boolean)
-					.join(" ");
+    let rows: string;
+    if (events.length === 0) {
+        rows = `<tr class="event-row"><td colspan="2">Keine kommenden Veranstaltungen</td></tr>`;
+    } else {
+        rows = events
+            .map((evt) => {
+                const classes = [
+                    "event-row",
+                    evt.isRecurring ? "recurring" : "",
+                    evt.isCancelled ? "cancelled" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ");
 
-				let dateCell = escapeHtml(evt.dateLabel);
-				if (evt.isCancelled && evt.cancelledDateLabel) {
-					dateCell = `<span class="cancelled-date"><s>${escapeHtml(evt.cancelledDateLabel)}</s></span>`;
-					if (evt.nextAfterCancelledLabel) {
-						dateCell += `<br><span class="next-date">Nächster: ${escapeHtml(evt.nextAfterCancelledLabel)}</span>`;
-					}
-				}
+                let dateCell = escapeHtml(evt.dateLabel);
+                if (evt.isCancelled && evt.cancelledDateLabel) {
+                    dateCell = `<span class="cancelled-date"><s>${escapeHtml(evt.cancelledDateLabel)}</s></span>`;
+                    if (evt.nextAfterCancelledLabel) {
+                        dateCell += `<br><span class="next-date">Nächster: ${escapeHtml(evt.nextAfterCancelledLabel)}</span>`;
+                    }
+                }
 
-				const titleCell = evt.url
-					? `<a href="${escapeHtml(evt.url)}">${escapeHtml(evt.summary)}</a>`
-					: escapeHtml(evt.summary);
+                const titleCell = evt.url
+                    ? `<a href="${escapeHtml(evt.url)}">${escapeHtml(evt.summary)}</a>`
+                    : escapeHtml(evt.summary);
 
-				return `<tr class="${classes}">
+                return `<tr class="${classes}">
   <td>${dateCell}</td>
   <td>${titleCell}${evt.isCancelled ? ' <span class="cancelled-badge">Fällt aus</span>' : ""}</td>
 </tr>`;
-			})
-			.join("\n");
-	}
+            })
+            .join("\n");
+    }
 
-	return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -365,9 +383,9 @@ ${rows}
 }
 
 function escapeHtml(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
 }

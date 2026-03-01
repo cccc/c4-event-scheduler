@@ -14,27 +14,27 @@ import { TextareaField } from "@/components/form-fields/textarea-field";
 import { TimeField } from "@/components/form-fields/time-field";
 
 const { fieldContext, formContext, useFieldContext, useFormContext } =
-	createFormHookContexts();
+    createFormHookContexts();
 
 const { useAppForm } = createFormHook({
-	fieldContext,
-	formContext,
-	fieldComponents: {
-		TextField,
-		TextareaField,
-		SelectField,
-		CheckboxField,
-		ColorSwatchField,
-		DateTimeField,
-		DateField,
-		TimeField,
-		RecurrencePickerField,
-		FieldError,
-	},
-	formComponents: {
-		Form: FormForm,
-		SubmitButton: FormSubmitButton,
-	},
+    fieldContext,
+    formContext,
+    fieldComponents: {
+        TextField,
+        TextareaField,
+        SelectField,
+        CheckboxField,
+        ColorSwatchField,
+        DateTimeField,
+        DateField,
+        TimeField,
+        RecurrencePickerField,
+        FieldError,
+    },
+    formComponents: {
+        Form: FormForm,
+        SubmitButton: FormSubmitButton,
+    },
 });
 
 export { useAppForm, useFieldContext, useFormContext };

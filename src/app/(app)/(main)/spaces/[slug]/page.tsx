@@ -4,16 +4,16 @@ import { SpaceCalendar } from "@/components/space-calendar";
 import { api } from "@/trpc/server";
 
 export default async function SpaceDetailPage({
-	params,
+    params,
 }: {
-	params: Promise<{ slug: string }>;
+    params: Promise<{ slug: string }>;
 }) {
-	const { slug } = await params;
-	const space = await api.spaces.getBySlug({ slug });
+    const { slug } = await params;
+    const space = await api.spaces.getBySlug({ slug });
 
-	if (!space) {
-		notFound();
-	}
+    if (!space) {
+        notFound();
+    }
 
-	return <SpaceCalendar space={space} />;
+    return <SpaceCalendar space={space} />;
 }

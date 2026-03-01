@@ -7,12 +7,12 @@ import { RRule } from "rrule";
  * midnight where the UTC date and local date differ.
  */
 export function formatOccurrenceDate(d: Date, tz: string): string {
-	// toZonedTime shifts the timestamp so UTC components = local time in tz
-	const zoned = toZonedTime(d, tz);
-	const year = zoned.getUTCFullYear();
-	const month = String(zoned.getUTCMonth() + 1).padStart(2, "0");
-	const day = String(zoned.getUTCDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
+    // toZonedTime shifts the timestamp so UTC components = local time in tz
+    const zoned = toZonedTime(d, tz);
+    const year = zoned.getUTCFullYear();
+    const month = String(zoned.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(zoned.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 }
 
 /**
@@ -31,27 +31,27 @@ export function formatOccurrenceDate(d: Date, tz: string): string {
  * Result: "every Tuesday at 19:00 Berlin" stays at 19:00 Berlin time year-round.
  */
 export function expandRruleInTimezone(
-	rruleStr: string,
-	dtstart: Date,
-	rangeStart: Date,
-	rangeEnd: Date,
-	tz: string,
+    rruleStr: string,
+    dtstart: Date,
+    rangeStart: Date,
+    rangeEnd: Date,
+    tz: string,
 ): Date[] {
-	const base = RRule.fromString(rruleStr);
-	const zonedStart = toZonedTime(dtstart, tz);
+    const base = RRule.fromString(rruleStr);
+    const zonedStart = toZonedTime(dtstart, tz);
 
-	const rule = new RRule({
-		...base.origOptions,
-		dtstart: zonedStart,
-	});
+    const rule = new RRule({
+        ...base.origOptions,
+        dtstart: zonedStart,
+    });
 
-	// Subtract 1 s from the lower bound so the first occurrence is never
-	// excluded by a floating-point boundary inside RRule.between.
-	const queryStart = new Date(
-		Math.min(dtstart.getTime(), rangeStart.getTime()) - 1_000,
-	);
+    // Subtract 1 s from the lower bound so the first occurrence is never
+    // excluded by a floating-point boundary inside RRule.between.
+    const queryStart = new Date(
+        Math.min(dtstart.getTime(), rangeStart.getTime()) - 1_000,
+    );
 
-	return rule
-		.between(toZonedTime(queryStart, tz), toZonedTime(rangeEnd, tz), true)
-		.map((d) => fromZonedTime(d, tz));
+    return rule
+        .between(toZonedTime(queryStart, tz), toZonedTime(rangeEnd, tz), true)
+        .map((d) => fromZonedTime(d, tz));
 }
