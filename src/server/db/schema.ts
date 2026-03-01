@@ -1,15 +1,15 @@
 import { relations } from "drizzle-orm";
 import {
-	boolean,
-	date,
-	index,
-	integer,
-	pgEnum,
-	pgTableCreator,
-	text,
-	timestamp,
-	uuid,
-	varchar,
+    boolean,
+    date,
+    index,
+    integer,
+    pgEnum,
+    pgTableCreator,
+    text,
+    timestamp,
+    uuid,
+    varchar,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -27,9 +27,9 @@ export const createTable = pgTableCreator((name) => `c4_${name}`);
 // confirmed = definitely happening
 // cancelled = was planned but no longer happening (shown with strikethrough)
 export const icalStatusEnum = pgEnum("c4_ical_status", [
-	"tentative",
-	"confirmed",
-	"cancelled",
+    "tentative",
+    "confirmed",
+    "cancelled",
 ]);
 
 // ============================================================================
@@ -37,54 +37,57 @@ export const icalStatusEnum = pgEnum("c4_ical_status", [
 // ============================================================================
 
 export const user = createTable("user", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	email: text("email").notNull().unique(),
-	emailVerified: boolean("email_verified").notNull().default(false),
-	image: text("image"),
-	isAdmin: boolean("is_admin").notNull().default(false),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const userRelations = relations(user, ({ one }) => ({
+    actor: one(actor, { fields: [user.id], references: [actor.userId] }),
+}));
+
 export const session = createTable("session", {
-	id: text("id").primaryKey(),
-	expiresAt: timestamp("expires_at").notNull(),
-	token: text("token").notNull().unique(),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	ipAddress: text("ip_address"),
-	userAgent: text("user_agent"),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
 });
 
 export const account = createTable("account", {
-	id: text("id").primaryKey(),
-	accountId: text("account_id").notNull(),
-	providerId: text("provider_id").notNull(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
-	idToken: text("id_token"),
-	accessTokenExpiresAt: timestamp("access_token_expires_at"),
-	refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-	scope: text("scope"),
-	password: text("password"),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const verification = createTable("verification", {
-	id: text("id").primaryKey(),
-	identifier: text("identifier").notNull(),
-	value: text("value").notNull(),
-	expiresAt: timestamp("expires_at").notNull(),
-	createdAt: timestamp("created_at"),
-	updatedAt: timestamp("updated_at"),
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
 });
 
 // ============================================================================
@@ -92,22 +95,22 @@ export const verification = createTable("verification", {
 // ============================================================================
 
 export const space = createTable(
-	"space",
-	{
-		id: uuid("id").primaryKey().defaultRandom(),
-		slug: varchar("slug", { length: 100 }).notNull().unique(),
-		name: varchar("name", { length: 255 }).notNull(),
-		description: text("description"),
-		isPublic: boolean("is_public").notNull().default(true),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	},
-	(table) => [index("space_slug_idx").on(table.slug)],
+    "space",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        slug: varchar("slug", { length: 100 }).notNull().unique(),
+        name: varchar("name", { length: 255 }).notNull(),
+        description: text("description"),
+        isPublic: boolean("is_public").notNull().default(true),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [index("space_slug_idx").on(table.slug)],
 );
 
 export const spaceRelations = relations(space, ({ many }) => ({
-	events: many(event),
-	eventTypes: many(eventType),
+    events: many(event),
+    eventTypes: many(eventType),
 }));
 
 // ============================================================================
@@ -115,35 +118,35 @@ export const spaceRelations = relations(space, ({ many }) => ({
 // ============================================================================
 
 export const eventType = createTable(
-	"event_type",
-	{
-		id: uuid("id").primaryKey().defaultRandom(),
-		slug: varchar("slug", { length: 100 }).notNull().unique(),
-		name: varchar("name", { length: 255 }).notNull(),
-		description: text("description"),
-		color: varchar("color", { length: 20 }),
-		isInternal: boolean("is_internal").notNull().default(false),
-		defaultDurationMinutes: integer("default_duration_minutes"),
-		// If null, event type is global (available in all spaces)
-		// If set, event type is specific to this space only
-		spaceId: uuid("space_id").references(() => space.id, {
-			onDelete: "cascade",
-		}),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	},
-	(table) => [
-		index("event_type_slug_idx").on(table.slug),
-		index("event_type_space_idx").on(table.spaceId),
-	],
+    "event_type",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        slug: varchar("slug", { length: 100 }).notNull().unique(),
+        name: varchar("name", { length: 255 }).notNull(),
+        description: text("description"),
+        color: varchar("color", { length: 20 }),
+        isInternal: boolean("is_internal").notNull().default(false),
+        defaultDurationMinutes: integer("default_duration_minutes"),
+        // If null, event type is global (available in all spaces)
+        // If set, event type is specific to this space only
+        spaceId: uuid("space_id").references(() => space.id, {
+            onDelete: "cascade",
+        }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("event_type_slug_idx").on(table.slug),
+        index("event_type_space_idx").on(table.spaceId),
+    ],
 );
 
 export const eventTypeRelations = relations(eventType, ({ one, many }) => ({
-	events: many(event),
-	space: one(space, {
-		fields: [eventType.spaceId],
-		references: [space.id],
-	}),
+    events: many(event),
+    space: one(space, {
+        fields: [eventType.spaceId],
+        references: [space.id],
+    }),
 }));
 
 // ============================================================================
@@ -151,95 +154,85 @@ export const eventTypeRelations = relations(eventType, ({ one, many }) => ({
 // ============================================================================
 
 export const event = createTable(
-	"event",
-	{
-		id: uuid("id").primaryKey().defaultRandom(),
-		spaceId: uuid("space_id")
-			.notNull()
-			.references(() => space.id, { onDelete: "cascade" }),
-		eventTypeId: uuid("event_type_id")
-			.notNull()
-			.references(() => eventType.id, { onDelete: "restrict" }),
-		createdById: text("created_by_id").references(() => user.id, {
-			onDelete: "set null",
-		}),
-		updatedById: text("updated_by_id").references(() => user.id, {
-			onDelete: "set null",
-		}),
-		createdByApiKeyId: uuid("created_by_api_key_id").references(
-			() => apiKey.id,
-			{ onDelete: "set null" },
-		),
-		updatedByApiKeyId: uuid("updated_by_api_key_id").references(
-			() => apiKey.id,
-			{ onDelete: "set null" },
-		),
+    "event",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        spaceId: uuid("space_id")
+            .notNull()
+            .references(() => space.id, { onDelete: "cascade" }),
+        eventTypeId: uuid("event_type_id")
+            .notNull()
+            .references(() => eventType.id, { onDelete: "restrict" }),
+        createdByActorId: uuid("created_by_actor_id").references(
+            () => actor.id,
+            {
+                onDelete: "set null",
+            },
+        ),
+        updatedByActorId: uuid("updated_by_actor_id").references(
+            () => actor.id,
+            {
+                onDelete: "set null",
+            },
+        ),
 
-		// iCal VEVENT properties
-		summary: varchar("summary", { length: 255 }).notNull(),
-		description: text("description"),
-		url: varchar("url", { length: 1000 }),
-		location: varchar("location", { length: 500 }),
+        // iCal VEVENT properties
+        summary: varchar("summary", { length: 255 }).notNull(),
+        description: text("description"),
+        url: varchar("url", { length: 1000 }),
+        location: varchar("location", { length: 500 }),
 
-		// Timing (iCal DTSTART/DTEND)
-		dtstart: timestamp("dtstart", { withTimezone: true }).notNull(),
-		dtend: timestamp("dtend", { withTimezone: true }),
-		timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
-		allDay: boolean("all_day").notNull().default(false),
+        // Timing (iCal DTSTART/DTEND)
+        dtstart: timestamp("dtstart", { withTimezone: true }).notNull(),
+        dtend: timestamp("dtend", { withTimezone: true }),
+        timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
+        allDay: boolean("all_day").notNull().default(false),
 
-		// Recurrence (RFC 5545 RRULE)
-		rrule: text("rrule"), // e.g., "FREQ=WEEKLY;BYDAY=TU"
-		recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }),
-		exdates: text("exdates"), // Comma-separated YYYY-MM-DD dates excluded from recurrence
-		// Human-readable frequency label for recurring events (e.g., "Jeden Donnerstag (~19 Uhr)")
-		frequencyLabel: varchar("frequency_label", { length: 255 }),
+        // Recurrence (RFC 5545 RRULE)
+        rrule: text("rrule"), // e.g., "FREQ=WEEKLY;BYDAY=TU"
+        recurrenceEndDate: timestamp("recurrence_end_date", {
+            withTimezone: true,
+        }),
+        exdates: text("exdates"), // Comma-separated YYYY-MM-DD dates excluded from recurrence
+        // Human-readable frequency label for recurring events (e.g., "Jeden Donnerstag (~19 Uhr)")
+        frequencyLabel: varchar("frequency_label", { length: 255 }),
 
-		// Status (iCal STATUS)
-		status: icalStatusEnum("status").notNull().default("confirmed"),
-		isDraft: boolean("is_draft").notNull().default(true),
-		sequence: integer("sequence").notNull().default(0),
+        // Status (iCal STATUS)
+        status: icalStatusEnum("status").notNull().default("confirmed"),
+        isDraft: boolean("is_draft").notNull().default(true),
+        sequence: integer("sequence").notNull().default(0),
 
-		// Timestamps
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	},
-	(table) => [
-		index("event_space_idx").on(table.spaceId),
-		index("event_start_idx").on(table.dtstart),
-		index("event_status_idx").on(table.status),
-	],
+        // Timestamps
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("event_space_idx").on(table.spaceId),
+        index("event_start_idx").on(table.dtstart),
+        index("event_status_idx").on(table.status),
+    ],
 );
 
 export const eventRelations = relations(event, ({ one, many }) => ({
-	space: one(space, {
-		fields: [event.spaceId],
-		references: [space.id],
-	}),
-	eventType: one(eventType, {
-		fields: [event.eventTypeId],
-		references: [eventType.id],
-	}),
-	createdBy: one(user, {
-		fields: [event.createdById],
-		references: [user.id],
-		relationName: "eventCreatedBy",
-	}),
-	updatedBy: one(user, {
-		fields: [event.updatedById],
-		references: [user.id],
-		relationName: "eventUpdatedBy",
-	}),
-	createdByApiKey: one(apiKey, {
-		fields: [event.createdByApiKeyId],
-		references: [apiKey.id],
-		relationName: "eventCreatedByApiKey",
-	}),
-	updatedByApiKey: one(apiKey, {
-		fields: [event.updatedByApiKeyId],
-		references: [apiKey.id],
-		relationName: "eventUpdatedByApiKey",
-	}),
-	overrides: many(occurrenceOverride),
+    space: one(space, {
+        fields: [event.spaceId],
+        references: [space.id],
+    }),
+    eventType: one(eventType, {
+        fields: [event.eventTypeId],
+        references: [eventType.id],
+    }),
+    createdByActor: one(actor, {
+        fields: [event.createdByActorId],
+        references: [actor.id],
+        relationName: "eventCreatedByActor",
+    }),
+    updatedByActor: one(actor, {
+        fields: [event.updatedByActorId],
+        references: [actor.id],
+        relationName: "eventUpdatedByActor",
+    }),
+    overrides: many(occurrenceOverride),
 }));
 
 // ============================================================================
@@ -250,51 +243,51 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 // This table stores overrides for individual occurrences.
 
 export const occurrenceOverride = createTable(
-	"occurrence_override",
-	{
-		id: uuid("id").primaryKey().defaultRandom(),
-		eventId: uuid("event_id")
-			.notNull()
-			.references(() => event.id, { onDelete: "cascade" }),
+    "occurrence_override",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        eventId: uuid("event_id")
+            .notNull()
+            .references(() => event.id, { onDelete: "cascade" }),
 
-		// Occurrence date (YYYY-MM-DD, identifies which occurrence is overridden)
-		// Date-based IDs are stable even when the series is modified
-		occurrenceDate: date("occurrence_date", { mode: "string" }).notNull(),
+        // Occurrence date (YYYY-MM-DD, identifies which occurrence is overridden)
+        // Date-based IDs are stable even when the series is modified
+        occurrenceDate: date("occurrence_date", { mode: "string" }).notNull(),
 
-		// Status override (null = inherit from event)
-		status: icalStatusEnum("status"),
+        // Status override (null = inherit from event)
+        status: icalStatusEnum("status"),
 
-		// Notes/comments explaining the override (e.g., "Moved due to holiday")
-		notes: text("notes"),
+        // Notes/comments explaining the override (e.g., "Moved due to holiday")
+        notes: text("notes"),
 
-		// Override fields (null = inherit from event)
-		summary: varchar("summary", { length: 255 }),
-		description: text("description"),
-		url: varchar("url", { length: 1000 }),
-		location: varchar("location", { length: 500 }),
-		dtstart: timestamp("dtstart", { withTimezone: true }),
-		dtend: timestamp("dtend", { withTimezone: true }),
+        // Override fields (null = inherit from event)
+        summary: varchar("summary", { length: 255 }),
+        description: text("description"),
+        url: varchar("url", { length: 1000 }),
+        location: varchar("location", { length: 500 }),
+        dtstart: timestamp("dtstart", { withTimezone: true }),
+        dtend: timestamp("dtend", { withTimezone: true }),
 
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	},
-	(table) => [
-		index("occurrence_override_event_idx").on(table.eventId),
-		index("occurrence_override_event_date_idx").on(
-			table.eventId,
-			table.occurrenceDate,
-		),
-	],
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("occurrence_override_event_idx").on(table.eventId),
+        index("occurrence_override_event_date_idx").on(
+            table.eventId,
+            table.occurrenceDate,
+        ),
+    ],
 );
 
 export const occurrenceOverrideRelations = relations(
-	occurrenceOverride,
-	({ one }) => ({
-		event: one(event, {
-			fields: [occurrenceOverride.eventId],
-			references: [event.id],
-		}),
-	}),
+    occurrenceOverride,
+    ({ one }) => ({
+        event: one(event, {
+            fields: [occurrenceOverride.eventId],
+            references: [event.id],
+        }),
+    }),
 );
 
 // ============================================================================
@@ -311,34 +304,62 @@ export const occurrenceOverrideRelations = relations(
 // - spaceSlug="x", eventTypeSlug="y" → access only to event type y in space x
 
 export const permissionSourceEnum = pgEnum("c4_permission_source", [
-	"oidc", // Synced from OIDC claims
-	"manual", // Manually assigned via admin UI
+    "oidc", // Synced from OIDC claims
+    "manual", // Manually assigned via admin UI
 ]);
 
-export const userPermission = createTable(
-	"user_permission",
-	{
-		id: uuid("id").primaryKey().defaultRandom(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
-		spaceSlug: varchar("space_slug", { length: 100 }),
-		eventTypeSlug: varchar("event_type_slug", { length: 100 }),
-		source: permissionSourceEnum("source").notNull().default("manual"),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-	},
-	(table) => [
-		index("user_permission_user_idx").on(table.userId),
-		index("user_permission_space_slug_idx").on(table.spaceSlug),
-		index("user_permission_event_type_slug_idx").on(table.eventTypeSlug),
-	],
+// ============================================================================
+// Actor - Unified identity for users and API keys
+// ============================================================================
+// An actor represents any principal that can hold permissions.
+// Exactly one of userId or apiKeyId is set.
+// The FK cascade ensures the actor is deleted when its owner is deleted.
+
+export const actor = createTable("actor", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind", { enum: ["user", "apiKey"] }).notNull(),
+    userId: text("user_id")
+        .unique()
+        .references(() => user.id, { onDelete: "cascade" }),
+    apiKeyId: uuid("api_key_id")
+        .unique()
+        .references(() => apiKey.id, { onDelete: "cascade" }),
+    isAdmin: boolean("is_admin").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const actorRelations = relations(actor, ({ one, many }) => ({
+    user: one(user, { fields: [actor.userId], references: [user.id] }),
+    apiKey: one(apiKey, { fields: [actor.apiKeyId], references: [apiKey.id] }),
+    permissions: many(permission),
+    createdEvents: many(event, { relationName: "eventCreatedByActor" }),
+    updatedEvents: many(event, { relationName: "eventUpdatedByActor" }),
+}));
+
+// ============================================================================
+// Permission - Unified permission table (replaces userPermission + apiKeyPermission)
+// ============================================================================
+
+export const permission = createTable(
+    "permission",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        actorId: uuid("actor_id")
+            .notNull()
+            .references(() => actor.id, { onDelete: "cascade" }),
+        spaceSlug: varchar("space_slug", { length: 100 }),
+        eventTypeSlug: varchar("event_type_slug", { length: 100 }),
+        source: permissionSourceEnum("source").notNull().default("manual"),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("permission_actor_idx").on(table.actorId),
+        index("permission_space_slug_idx").on(table.spaceSlug),
+    ],
 );
 
-export const userPermissionRelations = relations(userPermission, ({ one }) => ({
-	user: one(user, {
-		fields: [userPermission.userId],
-		references: [user.id],
-	}),
+export const permissionRelations = relations(permission, ({ one }) => ({
+    actor: one(actor, { fields: [permission.actorId], references: [actor.id] }),
 }));
 
 // ============================================================================
@@ -346,37 +367,17 @@ export const userPermissionRelations = relations(userPermission, ({ one }) => ({
 // ============================================================================
 
 export const apiKey = createTable("api_key", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	name: text("name").notNull(),
-	// SHA-256 hex of full key (no salt needed; key is random)
-	keyHash: text("key_hash").notNull(),
-	isAdmin: boolean("is_admin").notNull().default(false),
-	isActive: boolean("is_active").notNull().default(true),
-	createdAt: timestamp("created_at", { withTimezone: true })
-		.notNull()
-		.defaultNow(),
-	lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // SHA-256 hex of full key (no salt needed; key is random)
+    keyHash: text("key_hash").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 });
 
-export const apiKeyRelations = relations(apiKey, ({ many }) => ({
-	permissions: many(apiKeyPermission),
+export const apiKeyRelations = relations(apiKey, ({ one }) => ({
+    actor: one(actor, { fields: [apiKey.id], references: [actor.apiKeyId] }),
 }));
-
-export const apiKeyPermission = createTable("api_key_permission", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	apiKeyId: uuid("api_key_id")
-		.notNull()
-		.references(() => apiKey.id, { onDelete: "cascade" }),
-	spaceSlug: varchar("space_slug", { length: 100 }),
-	eventTypeSlug: varchar("event_type_slug", { length: 100 }),
-});
-
-export const apiKeyPermissionRelations = relations(
-	apiKeyPermission,
-	({ one }) => ({
-		apiKey: one(apiKey, {
-			fields: [apiKeyPermission.apiKeyId],
-			references: [apiKey.id],
-		}),
-	}),
-);

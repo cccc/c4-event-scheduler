@@ -22,6 +22,13 @@
       "when": 1772232790086,
       "tag": "0002_busy_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772386730492,
+      "tag": "0003_magical_masked_marvel",
+      "breakpoints": true
     }
   ]
 }
