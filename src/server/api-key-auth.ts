@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
 
 import { db } from "@/server/db";
 import { apiKey } from "@/server/db/schema";
@@ -34,11 +35,13 @@ export async function getApiKeyFromRequest(request: NextRequest) {
 
     if (!key) return null;
 
-    // Fire-and-forget: update lastUsedAt without blocking the response
-    void db
-        .update(apiKey)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(apiKey.id, key.id));
+    // Update lastUsedAt after the response is sent (guaranteed by after())
+    after(() =>
+        db
+            .update(apiKey)
+            .set({ lastUsedAt: new Date() })
+            .where(eq(apiKey.id, key.id)),
+    );
 
     return key;
 }
