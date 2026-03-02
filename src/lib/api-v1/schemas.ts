@@ -207,8 +207,8 @@ export const UpsertOverrideSchema = z
         description: z.string().optional(),
         url: z.string().url().max(1000).optional(),
         location: z.string().max(500).optional(),
-        dtstart: z.string().datetime().optional(),
-        dtend: z.string().datetime().optional(),
+        dtstart: z.string().datetime().nullable().optional(),
+        dtend: z.string().datetime().nullable().optional(),
     })
     .openapi("UpsertOverrideRequest");
 

@@ -59,10 +59,18 @@ export const PUT = withApiAuth(async (request, actor, params) => {
 
     const overrideData = {
         ...parsed.data,
-        dtstart: parsed.data.dtstart
-            ? new Date(parsed.data.dtstart)
-            : undefined,
-        dtend: parsed.data.dtend ? new Date(parsed.data.dtend) : undefined,
+        dtstart:
+            parsed.data.dtstart === undefined
+                ? undefined
+                : parsed.data.dtstart
+                  ? new Date(parsed.data.dtstart)
+                  : null,
+        dtend:
+            parsed.data.dtend === undefined
+                ? undefined
+                : parsed.data.dtend
+                  ? new Date(parsed.data.dtend)
+                  : null,
     };
 
     // Bump parent sequence

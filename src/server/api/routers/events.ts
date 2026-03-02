@@ -469,8 +469,8 @@ export const eventsRouter = createTRPCRouter({
                 description: z.string().optional(),
                 url: z.url().max(1000).optional(),
                 location: z.string().max(500).optional(),
-                dtstart: z.date().optional(),
-                dtend: z.date().optional(),
+                dtstart: z.date().nullable().optional(),
+                dtend: z.date().nullable().optional(),
             }),
         )
         .use(async ({ ctx, input, next }) => {
