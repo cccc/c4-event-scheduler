@@ -136,13 +136,11 @@ export function EditSeriesForm({
             onSubmit: occurrenceFormSchema,
         },
         onSubmit: async ({ value }) => {
-            const dtstart = value.dtstart
-                ? parseLocalDateTime(value.dtstart)
-                : undefined;
+            const dtstart = parseLocalDateTime(value.dtstart);
             const dtend =
                 value.hasEndTime && value.dtend
                     ? parseLocalDateTime(value.dtend)
-                    : undefined;
+                    : null;
 
             upsertOverride.mutate({
                 eventId: occurrence.eventId,
@@ -153,15 +151,16 @@ export function EditSeriesForm({
                 description: value.description || undefined,
                 url: value.url || undefined,
                 location: value.location || undefined,
-                // Only store timing if it actually differs from the computed occurrence time
+                // Send null to explicitly clear stored override time (inherit from series).
+                // Send the value only when it actually differs from the computed occurrence time.
                 dtstart:
-                    dtstart?.getTime() !== occurrence.dtstart.getTime()
+                    dtstart.getTime() !== occurrence.dtstart.getTime()
                         ? dtstart
-                        : undefined,
+                        : null,
                 dtend:
                     dtend?.getTime() !== occurrence.dtend?.getTime()
                         ? dtend
-                        : undefined,
+                        : null,
             });
         },
     });
