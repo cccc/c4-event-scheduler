@@ -183,11 +183,7 @@ export const eventsRouter = createTRPCRouter({
                     : defaultDurationMs;
 
                 // Parse exdates into a Set for fast lookup
-                const exdatesSet = new Set(
-                    evt.exdates
-                        ? evt.exdates.split(",").map((d) => d.trim())
-                        : [],
-                );
+                const exdatesSet = new Set(evt.exdates ?? []);
 
                 if (!evt.rrule) {
                     // Single event - use the event's start date as occurrence date
@@ -573,17 +569,15 @@ export const eventsRouter = createTRPCRouter({
             }
 
             // For recurring events, add date to exdates and remove any override
-            const existingExdates = ctx.evt.exdates
-                ? ctx.evt.exdates.split(",").map((d) => d.trim())
-                : [];
-            if (!existingExdates.includes(occurrenceDate)) {
-                existingExdates.push(occurrenceDate);
-            }
+            const existingExdates = ctx.evt.exdates ?? [];
+            const newExdates = existingExdates.includes(occurrenceDate)
+                ? existingExdates
+                : [...existingExdates, occurrenceDate];
 
             await ctx.db
                 .update(event)
                 .set({
-                    exdates: existingExdates.join(","),
+                    exdates: newExdates,
                     sequence: ctx.evt.sequence + 1,
                     updatedAt: new Date(),
                     updatedByActorId: ctx.actor.actorId ?? null,
@@ -601,6 +595,46 @@ export const eventsRouter = createTRPCRouter({
                 );
 
             return { success: true, deleted: "occurrence" };
+        }),
+
+    // Remove a date from exdates (re-include the occurrence)
+    removeExdate: protectedProcedure
+        .input(
+            z.object({
+                eventId: z.uuid(),
+                date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            }),
+        )
+        .use(async ({ ctx, input, next }) => {
+            const evt = await ctx.db.query.event.findFirst({
+                where: eq(event.id, input.eventId),
+                with: { space: true, eventType: true },
+            });
+            if (!evt)
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Event not found",
+                });
+            assertCan(ctx.actor, "manage:events", {
+                spaceSlug: evt.space.slug,
+                eventTypeSlug: evt.eventType.slug,
+            });
+            return next({ ctx: { evt } });
+        })
+        .mutation(async ({ ctx, input }) => {
+            const remaining = (ctx.evt.exdates ?? []).filter(
+                (d) => d !== input.date,
+            );
+            await ctx.db
+                .update(event)
+                .set({
+                    exdates: remaining.length > 0 ? remaining : null,
+                    sequence: ctx.evt.sequence + 1,
+                    updatedAt: new Date(),
+                    updatedByActorId: ctx.actor.actorId ?? null,
+                })
+                .where(eq(event.id, input.eventId));
+            return { success: true };
         }),
 
     // Remove an override (revert to inherited values)
@@ -745,17 +779,12 @@ export const eventsRouter = createTRPCRouter({
 
             // Split exdates between old and new series
             const splitDateStr = formatOccurrenceDate(splitDate, tz);
-            const oldExdates: string[] = [];
-            const newExdates: string[] = [];
-            if (evt.exdates) {
-                for (const d of evt.exdates.split(",").map((s) => s.trim())) {
-                    if (d < splitDateStr) {
-                        oldExdates.push(d);
-                    } else {
-                        newExdates.push(d);
-                    }
-                }
-            }
+            const oldExdates = (evt.exdates ?? []).filter(
+                (d) => d < splitDateStr,
+            );
+            const newExdates = (evt.exdates ?? []).filter(
+                (d) => d >= splitDateStr,
+            );
 
             await ctx.db
                 .update(event)
@@ -763,8 +792,7 @@ export const eventsRouter = createTRPCRouter({
                     recurrenceEndDate: new Date(
                         lastOldOccurrence.getTime() + 24 * 60 * 60 * 1000,
                     ),
-                    exdates:
-                        oldExdates.length > 0 ? oldExdates.join(",") : null,
+                    exdates: oldExdates.length > 0 ? oldExdates : null,
                     sequence: evt.sequence + 1,
                     updatedAt: new Date(),
                     updatedByActorId: ctx.actor.actorId ?? null,
@@ -815,8 +843,7 @@ export const eventsRouter = createTRPCRouter({
                     allDay: evt.allDay,
                     rrule: updates.rrule ?? evt.rrule,
                     recurrenceEndDate: evt.recurrenceEndDate,
-                    exdates:
-                        newExdates.length > 0 ? newExdates.join(",") : null,
+                    exdates: newExdates.length > 0 ? newExdates : null,
                     status: updates.status ?? evt.status,
                     isDraft: evt.isDraft,
                 })

@@ -193,7 +193,7 @@ export const event = createTable(
         recurrenceEndDate: timestamp("recurrence_end_date", {
             withTimezone: true,
         }),
-        exdates: text("exdates"), // Comma-separated YYYY-MM-DD dates excluded from recurrence
+        exdates: text("exdates").array(), // YYYY-MM-DD dates excluded from recurrence
         // Human-readable frequency label for recurring events (e.g., "Jeden Donnerstag (~19 Uhr)")
         frequencyLabel: varchar("frequency_label", { length: 255 }),
 

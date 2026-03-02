@@ -290,13 +290,9 @@ export async function GET(
             // plus override VEVENTs with RECURRENCE-ID
             try {
                 // 1. Parse exdates from event column
-                const exdates: Date[] = evt.exdates
-                    ? evt.exdates
-                          .split(",")
-                          .map((d) =>
-                              buildRecurrenceIdDate(evt.dtstart, d.trim(), tz),
-                          )
-                    : [];
+                const exdates: Date[] = (evt.exdates ?? []).map((d) =>
+                    buildRecurrenceIdDate(evt.dtstart, d, tz),
+                );
 
                 // 2. Create master VEVENT with RRULE + EXDATE
                 const repeating = new RRuleWithExdate(

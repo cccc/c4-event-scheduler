@@ -10,6 +10,7 @@ import {
     Repeat,
     Tag,
     User,
+    X,
 } from "lucide-react";
 import { useState } from "react";
 import { RRule } from "rrule";
@@ -290,9 +291,22 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
     );
 }
 
-function SeriesInfoContent({ eventId }: { eventId: string }) {
+function SeriesInfoContent({
+    eventId,
+    canEdit,
+}: {
+    eventId: string;
+    canEdit: boolean;
+}) {
+    const utils = api.useUtils();
     const { data: seriesEvent, isLoading } = api.events.getById.useQuery({
         id: eventId,
+    });
+    const removeExdate = api.events.removeExdate.useMutation({
+        onSuccess: () => utils.events.getById.invalidate({ id: eventId }),
+    });
+    const removeOverride = api.events.removeOverride.useMutation({
+        onSuccess: () => utils.events.getById.invalidate({ id: eventId }),
     });
 
     if (isLoading) {
@@ -330,12 +344,7 @@ function SeriesInfoContent({ eventId }: { eventId: string }) {
     }
 
     // Parse exdates
-    const exdates = seriesEvent.exdates
-        ? seriesEvent.exdates
-              .split(",")
-              .map((d) => d.trim())
-              .filter(Boolean)
-        : [];
+    const exdates = seriesEvent.exdates ?? [];
 
     // Overrides
     const overrides = seriesEvent.overrides ?? [];
@@ -401,7 +410,28 @@ function SeriesInfoContent({ eventId }: { eventId: string }) {
                         </div>
                         <ul className="space-y-0.5 text-muted-foreground text-sm">
                             {exdates.map((d) => (
-                                <li key={d}>{formatExdate(d)}</li>
+                                <li
+                                    className="flex items-center justify-between gap-2"
+                                    key={d}
+                                >
+                                    <span>{formatExdate(d)}</span>
+                                    {canEdit && (
+                                        <button
+                                            className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                                            disabled={removeExdate.isPending}
+                                            onClick={() =>
+                                                removeExdate.mutate({
+                                                    eventId,
+                                                    date: d,
+                                                })
+                                            }
+                                            title="Re-include this occurrence"
+                                            type="button"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </li>
                             ))}
                         </ul>
                     </div>
@@ -419,14 +449,33 @@ function SeriesInfoContent({ eventId }: { eventId: string }) {
                         <ul className="space-y-1 text-sm">
                             {overrides.map((o) => (
                                 <li
-                                    className="text-muted-foreground"
+                                    className="flex items-center justify-between gap-2 text-muted-foreground"
                                     key={o.id}
                                 >
-                                    <span className="font-medium text-foreground">
-                                        {formatExdate(o.occurrenceDate)}
+                                    <span>
+                                        <span className="font-medium text-foreground">
+                                            {formatExdate(o.occurrenceDate)}
+                                        </span>
+                                        {" — "}
+                                        {describeOverride(o)}
                                     </span>
-                                    {" — "}
-                                    {describeOverride(o)}
+                                    {canEdit && (
+                                        <button
+                                            className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                                            disabled={removeOverride.isPending}
+                                            onClick={() =>
+                                                removeOverride.mutate({
+                                                    eventId,
+                                                    occurrenceDate:
+                                                        o.occurrenceDate,
+                                                })
+                                            }
+                                            title="Remove override"
+                                            type="button"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -595,7 +644,10 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                     </TabsContent>
 
                     <TabsContent value="series">
-                        <SeriesInfoContent eventId={occurrence.eventId} />
+                        <SeriesInfoContent
+                            canEdit={canEdit}
+                            eventId={occurrence.eventId}
+                        />
                         <div className="flex justify-end gap-2 border-t pt-4">
                             <Button
                                 onClick={() => store.close()}

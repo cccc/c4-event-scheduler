@@ -56,9 +56,7 @@ export const GET = withOptionalApiAuth(async (_request, actor, params) => {
 
     const data = {
         ...result,
-        exdates: result.exdates
-            ? result.exdates.split(",").map((d) => d.trim())
-            : [],
+        exdates: result.exdates ?? [],
     };
 
     if (!actor) {
