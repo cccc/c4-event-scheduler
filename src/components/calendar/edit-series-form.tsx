@@ -153,8 +153,15 @@ export function EditSeriesForm({
                 description: value.description || undefined,
                 url: value.url || undefined,
                 location: value.location || undefined,
-                dtstart,
-                dtend,
+                // Only store timing if it actually differs from the computed occurrence time
+                dtstart:
+                    dtstart?.getTime() !== occurrence.dtstart.getTime()
+                        ? dtstart
+                        : undefined,
+                dtend:
+                    dtend?.getTime() !== occurrence.dtend?.getTime()
+                        ? dtend
+                        : undefined,
             });
         },
     });
@@ -378,7 +385,11 @@ export function EditSeriesForm({
 
     const handleDeleteOccurrence = () => {
         if (editTab === "occurrence") {
-            if (!confirm("Delete this occurrence? This cannot be undone."))
+            if (
+                !confirm(
+                    "Delete this occurrence? It can be re-included from the series tab.",
+                )
+            )
                 return;
             deleteOccurrence.mutate({
                 eventId: occurrence.eventId,
