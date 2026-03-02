@@ -61,9 +61,7 @@ export const GET = withOptionalApiAuth(async (request, actor, params) => {
         ? evt.dtend.getTime() - evt.dtstart.getTime()
         : defaultDurationMs;
 
-    const exdatesSet = new Set(
-        evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
-    );
+    const exdatesSet = new Set(evt.exdates ?? []);
 
     const occurrences: unknown[] = [];
 

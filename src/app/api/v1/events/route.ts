@@ -140,9 +140,7 @@ export const GET = withOptionalApiAuth(async (request, actor) => {
         if (evt.eventType?.isInternal && !isAuthenticated) return [];
         const base = {
             ...evt,
-            exdates: evt.exdates
-                ? evt.exdates.split(",").map((d) => d.trim())
-                : [],
+            exdates: evt.exdates ?? [],
         };
         if (!isAuthenticated) {
             return [

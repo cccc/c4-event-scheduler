@@ -130,9 +130,7 @@ export async function GET(request: NextRequest) {
         const calendarUrl = `${env.NEXT_PUBLIC_APP_URL}/spaces/${evt.space.slug}`;
 
         // Parse exdates for recurring events
-        const exdatesSet = new Set(
-            evt.exdates ? evt.exdates.split(",").map((d) => d.trim()) : [],
-        );
+        const exdatesSet = new Set(evt.exdates ?? []);
 
         if (!evt.rrule) {
             // Single event - only include if in the future and within range

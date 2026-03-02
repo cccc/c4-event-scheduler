@@ -137,17 +137,15 @@ export const DELETE = withApiAuth(async (_request, actor, params) => {
     }
 
     // Recurring: add to exdates
-    const existingExdates = evt.exdates
-        ? evt.exdates.split(",").map((d) => d.trim())
-        : [];
-    if (!existingExdates.includes(date)) {
-        existingExdates.push(date);
-    }
+    const existingExdates = evt.exdates ?? [];
+    const newExdates = existingExdates.includes(date)
+        ? existingExdates
+        : [...existingExdates, date];
 
     await db
         .update(event)
         .set({
-            exdates: existingExdates.join(","),
+            exdates: newExdates,
             sequence: evt.sequence + 1,
             updatedAt: new Date(),
             updatedByActorId: actor.actorId ?? null,
