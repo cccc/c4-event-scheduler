@@ -25,28 +25,21 @@ function formatICalDateLocal(date: Date, tz: string): string {
  * Reconstruct the UTC datetime for an occurrence from its date string and the
  * event's start time, correctly handling DST. Used to build EXDATE and
  * RECURRENCE-ID values.
+ *
+ * Uses the string forms of `formatInTimeZone` / `fromZonedTime` to stay
+ * system-TZ independent. A previous version went via `toZonedTime` → read
+ * `getUTCHours()` → `fromZonedTime(Date)`, which silently broke when the
+ * system TZ equaled `tz`: `toZonedTime` encodes the wall-clock via
+ * system-local `setHours`, so its `getUTCHours()` only matches the target
+ * wall-clock on a UTC system.
  */
 function buildRecurrenceIdDate(
     eventStartTime: Date,
     occurrenceDate: string,
     tz: string,
 ): Date {
-    // Get the event's wall-clock start time in the app timezone
-    const zonedStart = toZonedTime(eventStartTime, tz);
-    const [year, month, day] = occurrenceDate.split("-").map(Number);
-    // Combine the occurrence date with the wall-clock time, as fake-UTC
-    const fakeUtc = new Date(
-        Date.UTC(
-            year ?? 0,
-            (month ?? 1) - 1,
-            day ?? 1,
-            zonedStart.getUTCHours(),
-            zonedStart.getUTCMinutes(),
-            zonedStart.getUTCSeconds(),
-        ),
-    );
-    // Convert fake-UTC (= local time in tz) to real UTC
-    return fromZonedTime(fakeUtc, tz);
+    const timeOfDay = formatInTimeZone(eventStartTime, tz, "HH:mm:ss.SSS");
+    return fromZonedTime(`${occurrenceDate}T${timeOfDay}`, tz);
 }
 
 /**

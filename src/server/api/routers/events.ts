@@ -673,6 +673,17 @@ export const eventsRouter = createTRPCRouter({
                         ),
                     ),
                 );
+
+            // Bump parent sequence so iCal subscribers see the change
+            await ctx.db
+                .update(event)
+                .set({
+                    sequence: ctx.parentEvent.sequence + 1,
+                    updatedAt: new Date(),
+                    updatedByActorId: ctx.actor.actorId ?? null,
+                })
+                .where(eq(event.id, input.eventId));
+
             return { success: true };
         }),
 

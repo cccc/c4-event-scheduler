@@ -1,4 +1,4 @@
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { RRule } from "rrule";
 
 /**
@@ -7,28 +7,58 @@ import { RRule } from "rrule";
  * midnight where the UTC date and local date differ.
  */
 export function formatOccurrenceDate(d: Date, tz: string): string {
-    // toZonedTime shifts the timestamp so UTC components = local time in tz
-    const zoned = toZonedTime(d, tz);
-    const year = zoned.getUTCFullYear();
-    const month = String(zoned.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(zoned.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return formatInTimeZone(d, tz, "yyyy-MM-dd");
+}
+
+/**
+ * Pack the wall-clock components of `d` in `tz` into a Date whose UTC fields
+ * match. e.g. 2024-01-09T17:00Z in Europe/Berlin (CET +1) → 2024-01-09T18:00Z.
+ *
+ * Intentionally avoids date-fns-tz's `toZonedTime`. Internally it computes the
+ * shifted instant correctly, but then encodes the result via `setFullYear` /
+ * `setHours` — which write *system-local* fields. The Date round-trips back
+ * through `fromZonedTime` (which reads via `getHours()`, also system-local),
+ * so the pair works as advertised. But `getUTCHours()` on the intermediate
+ * Date only returns the target wall-clock when the system TZ is UTC. On a
+ * server whose system TZ equals `tz`, it returns the original real-UTC hour,
+ * and anything that inspects UTC fields between the two calls (like rrule's
+ * expansion) sees unshifted times.
+ */
+function wallClockAsUtc(d: Date, tz: string): Date {
+    return new Date(`${formatInTimeZone(d, tz, "yyyy-MM-dd'T'HH:mm:ss.SSS")}Z`);
+}
+
+/**
+ * Inverse of wallClockAsUtc: read UTC fields of `d` as wall-clock in `tz`.
+ *
+ * Built on date-fns-tz's `fromZonedTime` string branch, which parses the
+ * components as `tz` directly — unlike the Date branch, which reads via
+ * system-local getters.
+ */
+function wallClockToUtc(d: Date, tz: string): Date {
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const da = String(d.getUTCDate()).padStart(2, "0");
+    const h = String(d.getUTCHours()).padStart(2, "0");
+    const mi = String(d.getUTCMinutes()).padStart(2, "0");
+    const se = String(d.getUTCSeconds()).padStart(2, "0");
+    const ms = String(d.getUTCMilliseconds()).padStart(3, "0");
+    return fromZonedTime(`${y}-${mo}-${da}T${h}:${mi}:${se}.${ms}`, tz);
 }
 
 /**
  * Expand an RRULE into occurrences within a date range, correctly handling DST.
  *
- * The rrule library works in UTC, which causes events at "19:00 Europe/Berlin"
- * to shift by one hour at DST boundaries. This function works in the "wall
- * clock" space of the target timezone instead:
+ * rrule.js operates on Date objects via their UTC fields, so expanding a real
+ * UTC dtstart directly produces occurrences that drift at DST boundaries (e.g.
+ * 18:00 CET becomes 19:00 CEST). This function instead:
  *
- *   1. Convert dtstart to fake-UTC where UTC components = local time in tz
- *      e.g. 2024-01-09T18:00Z (CET +1) → fake 2024-01-09T19:00Z
- *   2. Expand the RRULE in that fake-UTC space
- *   3. Convert each result back to real UTC via fromZonedTime
- *      e.g. fake 2024-07-09T19:00Z (CEST +2) → real 2024-07-09T17:00Z ✓
- *
- * Result: "every Tuesday at 19:00 Berlin" stays at 19:00 Berlin time year-round.
+ *   1. Packs dtstart's wall-clock in `tz` into a Date's UTC fields
+ *      (2024-01-09T17:00Z / 18:00 CET → 2024-01-09T18:00Z fake-UTC).
+ *   2. Lets rrule expand in that wall-clock space.
+ *   3. Reads each result's UTC fields back as wall-clock in `tz` to recover
+ *      the real UTC instant (2024-04-02T18:00Z fake → 2024-04-02T16:00Z real,
+ *      i.e. 18:00 CEST).
  */
 export function expandRruleInTimezone(
     rruleStr: string,
@@ -38,11 +68,9 @@ export function expandRruleInTimezone(
     tz: string,
 ): Date[] {
     const base = RRule.fromString(rruleStr);
-    const zonedStart = toZonedTime(dtstart, tz);
-
     const rule = new RRule({
         ...base.origOptions,
-        dtstart: zonedStart,
+        dtstart: wallClockAsUtc(dtstart, tz),
     });
 
     // Subtract 1 s from the lower bound so the first occurrence is never
@@ -52,6 +80,10 @@ export function expandRruleInTimezone(
     );
 
     return rule
-        .between(toZonedTime(queryStart, tz), toZonedTime(rangeEnd, tz), true)
-        .map((d) => fromZonedTime(d, tz));
+        .between(
+            wallClockAsUtc(queryStart, tz),
+            wallClockAsUtc(rangeEnd, tz),
+            true,
+        )
+        .map((d) => wallClockToUtc(d, tz));
 }
