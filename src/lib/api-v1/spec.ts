@@ -115,7 +115,7 @@ registry.registerPath({
                     schema: z.object({
                         data: z.array(EventSchema),
                         total: z.number().int(),
-                        nextCursor: z.string().datetime().optional(),
+                        nextCursor: z.iso.datetime().nullable(),
                     }),
                 },
             },

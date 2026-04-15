@@ -151,13 +151,13 @@ export const GET = withOptionalApiAuth(async (request, actor) => {
     });
 
     const nextCursor = hasMore
-        ? items[items.length - 1]?.dtstart.toISOString()
-        : undefined;
+        ? (items[items.length - 1]?.dtstart.toISOString() ?? null)
+        : null;
 
     return NextResponse.json({
         data,
         total: data.length,
-        ...(nextCursor ? { nextCursor } : {}),
+        nextCursor,
     });
 });
 
