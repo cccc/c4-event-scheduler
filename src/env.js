@@ -22,26 +22,31 @@ export const env = createEnv({
         NODE_ENV: z
             .enum(["development", "test", "production"])
             .default("development"),
+        AUTH_EMAIL_ENABLED: z
+            .string()
+            .default("false")
+            .transform((v) => v === "true"),
+        AUTH_SSO_ENABLED: z
+            .string()
+            .default("true")
+            .transform((v) => v === "true"),
+        AUTH_SSO_NAME: z.string().default("Single Sign-On"),
+        APP_URL: z.url().default("http://localhost:3000"),
+        APP_TIMEZONE: z.string().default("UTC"),
     },
 
     /**
      * Specify your client-side environment variables schema here. This way you can ensure the app
      * isn't built with invalid env vars. To expose them to the client, prefix them with
      * `NEXT_PUBLIC_`.
+     *
+     * Keep this list empty when possible — every `NEXT_PUBLIC_*` value is
+     * baked into the client bundle at build time, so changing it requires a
+     * rebuild rather than a container restart. Prefer server-only vars and
+     * either pass through props from a server component or expose them via a
+     * client context populated from an SSR read.
      */
-    client: {
-        NEXT_PUBLIC_AUTH_EMAIL_ENABLED: z
-            .string()
-            .default("false")
-            .transform((v) => v === "true"),
-        NEXT_PUBLIC_AUTH_SSO_ENABLED: z
-            .string()
-            .default("true")
-            .transform((v) => v === "true"),
-        NEXT_PUBLIC_AUTH_SSO_NAME: z.string().default("Single Sign-On"),
-        NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
-        NEXT_PUBLIC_APP_TIMEZONE: z.string().default("UTC"),
-    },
+    client: {},
 
     /**
      * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
@@ -50,12 +55,11 @@ export const env = createEnv({
     runtimeEnv: {
         BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
         BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-        NEXT_PUBLIC_AUTH_EMAIL_ENABLED:
-            process.env.NEXT_PUBLIC_AUTH_EMAIL_ENABLED,
-        NEXT_PUBLIC_AUTH_SSO_ENABLED: process.env.NEXT_PUBLIC_AUTH_SSO_ENABLED,
-        NEXT_PUBLIC_AUTH_SSO_NAME: process.env.NEXT_PUBLIC_AUTH_SSO_NAME,
-        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-        NEXT_PUBLIC_APP_TIMEZONE: process.env.NEXT_PUBLIC_APP_TIMEZONE,
+        AUTH_EMAIL_ENABLED: process.env.AUTH_EMAIL_ENABLED,
+        AUTH_SSO_ENABLED: process.env.AUTH_SSO_ENABLED,
+        AUTH_SSO_NAME: process.env.AUTH_SSO_NAME,
+        APP_URL: process.env.APP_URL,
+        APP_TIMEZONE: process.env.APP_TIMEZONE,
         BETTER_AUTH_OIDC_CLIENT_ID: process.env.BETTER_AUTH_OIDC_CLIENT_ID,
         BETTER_AUTH_OIDC_CLIENT_SECRET:
             process.env.BETTER_AUTH_OIDC_CLIENT_SECRET,

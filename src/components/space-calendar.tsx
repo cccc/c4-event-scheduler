@@ -18,13 +18,14 @@ import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import type { Space } from "@/components/calendar/types";
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
-import { env } from "@/env";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { authClient } from "@/server/better-auth/client";
 import { api } from "@/trpc/react";
 
 export function SpaceCalendar({ space }: { space: Space }) {
+    const tz = useAppTimezone();
     const calendarRef = useRef<FullCalendar>(null);
     const { openCreate, openDetails } = useCalendarDialogStore();
 
@@ -156,7 +157,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
                     ]}
                     ref={calendarRef}
                     selectable={isLoggedIn}
-                    timeZone={env.NEXT_PUBLIC_APP_TIMEZONE}
+                    timeZone={tz}
                 />
             </div>
 

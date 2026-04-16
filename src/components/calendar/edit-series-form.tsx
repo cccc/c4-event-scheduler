@@ -8,6 +8,7 @@ import {
     parseRRuleToConfig,
     type RecurrenceConfig,
 } from "@/components/recurrence-picker";
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppForm } from "@/hooks/form";
@@ -63,6 +64,7 @@ export function EditSeriesForm({
     onClose,
     initialTab,
 }: EditSeriesFormProps) {
+    const tz = useAppTimezone();
     const [editTab, setEditTab] = useState<"occurrence" | "fromHere" | "whole">(
         initialTab ?? "occurrence",
     );
@@ -124,11 +126,12 @@ export function EditSeriesForm({
                 : "",
             notes: occurrence.notes ?? "",
             status: occurrence.status,
-            dtstart: toLocalDateTimeString(occurrence.dtstart),
+            dtstart: toLocalDateTimeString(occurrence.dtstart, tz),
             dtend: occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend)
+                ? toLocalDateTimeString(occurrence.dtend, tz)
                 : toLocalDateTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
             hasEndTime: !!occurrence.dtend,
         } as z.infer<typeof occurrenceFormSchema>,
@@ -136,10 +139,10 @@ export function EditSeriesForm({
             onSubmit: occurrenceFormSchema,
         },
         onSubmit: async ({ value }) => {
-            const dtstart = parseLocalDateTime(value.dtstart);
+            const dtstart = parseLocalDateTime(value.dtstart, tz);
             const dtend =
                 value.hasEndTime && value.dtend
-                    ? parseLocalDateTime(value.dtend)
+                    ? parseLocalDateTime(value.dtend, tz)
                     : null;
 
             upsertOverride.mutate({
@@ -174,11 +177,12 @@ export function EditSeriesForm({
             status: occurrence.status,
             isDraft: occurrence.isDraft,
             seriesFirstDate: occurrence.occurrenceDate,
-            occurrenceStartTime: toLocalTimeString(occurrence.dtstart),
+            occurrenceStartTime: toLocalTimeString(occurrence.dtstart, tz),
             occurrenceEndTime: occurrence.dtend
-                ? toLocalTimeString(occurrence.dtend)
+                ? toLocalTimeString(occurrence.dtend, tz)
                 : toLocalTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
             hasEndTime: !!occurrence.dtend,
             seriesLastDate: "",
@@ -197,7 +201,7 @@ export function EditSeriesForm({
                     : occurrence.occurrenceDate;
 
             const dtstart = value.occurrenceStartTime
-                ? combineDateAndTime(dateForTime, value.occurrenceStartTime)
+                ? combineDateAndTime(dateForTime, value.occurrenceStartTime, tz)
                 : undefined;
             const dtend =
                 value.hasEndTime && value.occurrenceEndTime && dtstart
@@ -206,6 +210,7 @@ export function EditSeriesForm({
                           combineDateAndTime(
                               dateForTime,
                               value.occurrenceEndTime,
+                              tz,
                           ),
                       )
                     : undefined;
@@ -219,6 +224,7 @@ export function EditSeriesForm({
                 if (value.seriesHasEndDate && value.seriesLastDate) {
                     recurrenceEndDate = parseDateAsEndOfDayInTz(
                         value.seriesLastDate,
+                        tz,
                     );
                 } else if (
                     value.recurrenceConfig.endType === "date" &&
@@ -281,14 +287,15 @@ export function EditSeriesForm({
         occurrenceForm.setFieldValue("status", occurrence.status);
         occurrenceForm.setFieldValue(
             "dtstart",
-            toLocalDateTimeString(occurrence.dtstart),
+            toLocalDateTimeString(occurrence.dtstart, tz),
         );
         occurrenceForm.setFieldValue(
             "dtend",
             occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend)
+                ? toLocalDateTimeString(occurrence.dtend, tz)
                 : toLocalDateTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
         );
         occurrenceForm.setFieldValue("hasEndTime", !!occurrence.dtend);
@@ -302,14 +309,15 @@ export function EditSeriesForm({
         seriesForm.setFieldValue("seriesFirstDate", occurrence.occurrenceDate);
         seriesForm.setFieldValue(
             "occurrenceStartTime",
-            toLocalTimeString(occurrence.dtstart),
+            toLocalTimeString(occurrence.dtstart, tz),
         );
         seriesForm.setFieldValue(
             "occurrenceEndTime",
             occurrence.dtend
-                ? toLocalTimeString(occurrence.dtend)
+                ? toLocalTimeString(occurrence.dtend, tz)
                 : toLocalTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
         );
         seriesForm.setFieldValue("hasEndTime", !!occurrence.dtend);
@@ -329,6 +337,7 @@ export function EditSeriesForm({
     }, [
         occurrence,
         initialTab,
+        tz,
         occurrenceForm.setFieldValue,
         seriesForm.setFieldValue,
     ]);
@@ -340,12 +349,12 @@ export function EditSeriesForm({
         if (editTab === "whole" && eventData) {
             seriesForm.setFieldValue(
                 "seriesFirstDate",
-                toLocalDateString(eventData.dtstart),
+                toLocalDateString(eventData.dtstart, tz),
             );
             if (eventData.recurrenceEndDate) {
                 seriesForm.setFieldValue(
                     "seriesLastDate",
-                    toLocalDateString(eventData.recurrenceEndDate),
+                    toLocalDateString(eventData.recurrenceEndDate, tz),
                 );
                 seriesForm.setFieldValue("seriesHasEndDate", true);
             } else {
@@ -363,6 +372,7 @@ export function EditSeriesForm({
     }, [
         editTab,
         eventData,
+        tz,
         occurrence.occurrenceDate,
         seriesForm.setFieldValue,
     ]);

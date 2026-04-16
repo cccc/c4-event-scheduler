@@ -103,7 +103,7 @@ export const eventsRouter = createTRPCRouter({
         )
         .query(async ({ ctx, input }) => {
             const isLoggedIn = !!ctx.session?.user;
-            const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+            const tz = env.APP_TIMEZONE;
             const conditions = [];
 
             if (input.spaceId) {
@@ -371,7 +371,7 @@ export const eventsRouter = createTRPCRouter({
                 .insert(event)
                 .values({
                     ...input,
-                    timezone: env.NEXT_PUBLIC_APP_TIMEZONE,
+                    timezone: env.APP_TIMEZONE,
                     createdByActorId: ctx.actor.actorId ?? null,
                 })
                 .returning();
@@ -727,7 +727,7 @@ export const eventsRouter = createTRPCRouter({
         })
         .mutation(async ({ ctx, input }) => {
             const { eventId, splitDate, ...updates } = input;
-            const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+            const tz = env.APP_TIMEZONE;
             const evt = ctx.evt;
 
             if (!evt.rrule) {

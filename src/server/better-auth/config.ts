@@ -12,7 +12,7 @@ export const auth = betterAuth({
         provider: "pg",
     }),
     emailAndPassword: {
-        enabled: env.NEXT_PUBLIC_AUTH_EMAIL_ENABLED,
+        enabled: env.AUTH_EMAIL_ENABLED,
     },
     databaseHooks: {
         user: {

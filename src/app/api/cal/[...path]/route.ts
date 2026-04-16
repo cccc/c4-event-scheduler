@@ -123,7 +123,7 @@ export async function GET(
     { params }: { params: Promise<{ path: string[] }> },
 ) {
     const { path } = await params;
-    const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+    const tz = env.APP_TIMEZONE;
 
     // Parse the path: all.ics, {space}.ics, or {space}/{eventType}.ics
     if (!path || path.length === 0) {
@@ -183,7 +183,7 @@ export async function GET(
                 name: calendarName,
                 prodId: { company: "C4 Events", product: "Event Calendar" },
                 method: ICalCalendarMethod.PUBLISH,
-                url: env.NEXT_PUBLIC_APP_URL,
+                url: env.APP_URL,
             });
             return new Response(emptyCalendar.toString(), {
                 headers: {
@@ -223,7 +223,7 @@ export async function GET(
         name: calendarName,
         prodId: { company: "C4 Events", product: "Event Calendar" },
         method: ICalCalendarMethod.PUBLISH,
-        url: env.NEXT_PUBLIC_APP_URL,
+        url: env.APP_URL,
     });
 
     for (const evt of events) {

@@ -6,7 +6,9 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "next-themes";
 
+import { TimezoneProvider } from "@/components/timezone-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { env } from "@/env";
 import { TRPCReactProvider } from "@/trpc/react";
 
 export const metadata: Metadata = {
@@ -43,8 +45,10 @@ export default async function RootLayout({
                     enableSystem
                 >
                     <NextIntlClientProvider messages={messages}>
-                        <TRPCReactProvider>{children}</TRPCReactProvider>
-                        <Toaster position="bottom-right" richColors />
+                        <TimezoneProvider tz={env.APP_TIMEZONE}>
+                            <TRPCReactProvider>{children}</TRPCReactProvider>
+                            <Toaster position="bottom-right" richColors />
+                        </TimezoneProvider>
                     </NextIntlClientProvider>
                 </ThemeProvider>
             </body>

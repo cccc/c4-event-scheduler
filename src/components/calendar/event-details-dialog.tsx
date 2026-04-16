@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { RRule } from "rrule";
-
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,19 +25,15 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { env } from "@/env";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { api } from "@/trpc/react";
-
 import type { EventStatus } from "./types";
-
-const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
 
 type EventDetailsDialogProps = {
     canEdit: boolean;
 };
 
-function formatDate(date: Date): string {
+function formatDate(date: Date, tz: string): string {
     return date.toLocaleDateString("de-DE", {
         weekday: "long",
         day: "numeric",
@@ -47,7 +43,7 @@ function formatDate(date: Date): string {
     });
 }
 
-function formatTime(date: Date): string {
+function formatTime(date: Date, tz: string): string {
     return date.toLocaleTimeString("de-DE", {
         hour: "2-digit",
         minute: "2-digit",
@@ -55,7 +51,7 @@ function formatTime(date: Date): string {
     });
 }
 
-function formatDateTime(date: Date): string {
+function formatDateTime(date: Date, tz: string): string {
     return date.toLocaleString("de-DE", {
         day: "numeric",
         month: "short",
@@ -80,21 +76,25 @@ function formatExdate(dateStr: string): string {
     });
 }
 
-function describeOverride(override: {
-    occurrenceDate: string;
-    status: string | null;
-    summary: string | null;
-    description: string | null;
-    url: string | null;
-    location: string | null;
-    dtstart: Date | null;
-    dtend: Date | null;
-    notes: string | null;
-}): string {
+function describeOverride(
+    override: {
+        occurrenceDate: string;
+        status: string | null;
+        summary: string | null;
+        description: string | null;
+        url: string | null;
+        location: string | null;
+        dtstart: Date | null;
+        dtend: Date | null;
+        notes: string | null;
+    },
+    tz: string,
+): string {
     const changes: string[] = [];
     if (override.status) changes.push(`status: ${override.status}`);
     if (override.summary) changes.push("title changed");
-    if (override.dtstart) changes.push(`time: ${formatTime(override.dtstart)}`);
+    if (override.dtstart)
+        changes.push(`time: ${formatTime(override.dtstart, tz)}`);
     if (override.location) changes.push("location changed");
     if (override.notes) changes.push(`note: ${override.notes}`);
     if (override.description) changes.push("description changed");
@@ -138,6 +138,7 @@ function getStatusBadge(status: EventStatus, isDraft: boolean) {
 }
 
 function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
+    const tz = useAppTimezone();
     const store = useCalendarDialogStore();
     const occurrence = store.occurrence;
 
@@ -161,14 +162,14 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
                     <CalendarDays className="mt-0.5 h-5 w-5 text-muted-foreground" />
                     <div>
                         <div className="font-medium">
-                            {formatDate(occurrence.dtstart)}
+                            {formatDate(occurrence.dtstart, tz)}
                         </div>
                         <div className="flex items-center gap-1 text-muted-foreground text-sm">
                             <Clock className="h-3.5 w-3.5" />
                             <span>
-                                {formatTime(occurrence.dtstart)}
+                                {formatTime(occurrence.dtstart, tz)}
                                 {occurrence.dtend &&
-                                    ` – ${formatTime(occurrence.dtend)}`}
+                                    ` – ${formatTime(occurrence.dtend, tz)}`}
                             </span>
                         </div>
                         {occurrence.isRecurring && (
@@ -254,6 +255,7 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
                                                 {" · "}
                                                 {formatDateTime(
                                                     eventData.createdAt,
+                                                    tz,
                                                 )}
                                             </span>
                                         </div>
@@ -268,6 +270,7 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
                                                 {" · "}
                                                 {formatDateTime(
                                                     eventData.updatedAt,
+                                                    tz,
                                                 )}
                                             </span>
                                         </div>
@@ -298,6 +301,7 @@ function SeriesInfoContent({
     eventId: string;
     canEdit: boolean;
 }) {
+    const tz = useAppTimezone();
     const utils = api.useUtils();
     const { data: seriesEvent, isLoading } = api.events.getById.useQuery({
         id: eventId,
@@ -380,12 +384,13 @@ function SeriesInfoContent({
             <div className="flex items-start gap-3">
                 <CalendarDays className="mt-0.5 h-5 w-5 text-muted-foreground" />
                 <div className="text-sm">
-                    <span>Starts {formatDate(seriesEvent.dtstart)}</span>
+                    <span>Starts {formatDate(seriesEvent.dtstart, tz)}</span>
                     {seriesEvent.recurrenceEndDate && (
                         <>
                             <br />
                             <span>
-                                Ends {formatDate(seriesEvent.recurrenceEndDate)}
+                                Ends{" "}
+                                {formatDate(seriesEvent.recurrenceEndDate, tz)}
                             </span>
                         </>
                     )}
@@ -457,7 +462,7 @@ function SeriesInfoContent({
                                             {formatExdate(o.occurrenceDate)}
                                         </span>
                                         {" — "}
-                                        {describeOverride(o)}
+                                        {describeOverride(o, tz)}
                                     </span>
                                     {canEdit && (
                                         <button
@@ -497,7 +502,7 @@ function SeriesInfoContent({
                             Created by {label}
                             <span className="text-muted-foreground">
                                 {" · "}
-                                {formatDateTime(seriesEvent.createdAt)}
+                                {formatDateTime(seriesEvent.createdAt, tz)}
                             </span>
                         </div>
                     </div>
@@ -518,7 +523,7 @@ function SeriesInfoContent({
                             Last edited by {label}
                             <span className="text-muted-foreground">
                                 {" · "}
-                                {formatDateTime(seriesEvent.updatedAt)}
+                                {formatDateTime(seriesEvent.updatedAt, tz)}
                             </span>
                         </div>
                     </div>

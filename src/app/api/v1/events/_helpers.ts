@@ -20,7 +20,7 @@ export function buildEventInsertValues(
         location: input.location,
         dtstart: new Date(input.dtstart),
         dtend: input.dtend ? new Date(input.dtend) : undefined,
-        timezone: env.NEXT_PUBLIC_APP_TIMEZONE,
+        timezone: env.APP_TIMEZONE,
         allDay: input.allDay,
         rrule: input.rrule,
         recurrenceEndDate: input.recurrenceEndDate

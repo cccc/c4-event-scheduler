@@ -17,7 +17,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Skip env validation during build (vars provided at runtime)
+# Skip env validation during build (all env vars are read at runtime now)
 ENV SKIP_ENV_VALIDATION=1
 ENV NODE_ENV=production
 
@@ -26,6 +26,12 @@ RUN pnpm build
 # Production runner
 FROM node:22-alpine AS runner
 WORKDIR /app
+
+# IANA timezone database — required for Node's Intl / date-fns-tz to resolve
+# zones like "Europe/Berlin". Without it, lookups silently fall back to UTC,
+# so e.g. fromZonedTime("2026-02-03T20:30", "Europe/Berlin") parses as UTC
+# and stores events one offset off.
+RUN apk add --no-cache tzdata
 
 ENV NODE_ENV=production
 ENV PORT=3000

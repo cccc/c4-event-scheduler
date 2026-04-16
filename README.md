@@ -92,8 +92,9 @@ docker run -p 3000:3000 \
   -e BETTER_AUTH_OIDC_CLIENT_ID="c4-events-app" \
   -e BETTER_AUTH_OIDC_CLIENT_SECRET="<client-secret>" \
   -e BETTER_AUTH_OIDC_ISSUER="https://auth.example.com/realms/main" \
-  -e NEXT_PUBLIC_APP_URL="https://events.example.com" \
-  -e NEXT_PUBLIC_AUTH_SSO_ENABLED=true \
+  -e APP_URL="https://events.example.com" \
+  -e APP_TIMEZONE="Europe/Berlin" \
+  -e AUTH_SSO_ENABLED=true \
   ghcr.io/cccc/c4-event-scheduler:latest
 ```
 
@@ -129,4 +130,5 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `BETTER_AUTH_OIDC_*`  | OIDC provider configuration                  |
 | `OIDC_CLAIM_PREFIX`   | Prefix for permission claims (default: `c4`) |
 | `OIDC_ROLES_CLAIM`    | Dot-notation path to roles in OIDC token     |
-| `NEXT_PUBLIC_APP_URL` | Public app URL for feeds and callbacks       |
+| `APP_URL`             | Public app URL for feeds and callbacks       |
+| `APP_TIMEZONE`        | IANA timezone (e.g. `Europe/Berlin`)         |

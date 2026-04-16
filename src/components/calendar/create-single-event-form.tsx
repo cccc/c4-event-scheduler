@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
@@ -35,6 +36,7 @@ export function CreateSingleEventForm({
     eventTypes,
     onClose,
 }: CreateSingleEventFormProps) {
+    const tz = useAppTimezone();
     const utils = api.useUtils();
 
     const createEvent = api.events.create.useMutation({
@@ -51,10 +53,13 @@ export function CreateSingleEventForm({
             description: "",
             url: "",
             location: "",
-            dtstart: selectedDate ? toLocalDateTimeString(selectedDate) : "",
+            dtstart: selectedDate
+                ? toLocalDateTimeString(selectedDate, tz)
+                : "",
             dtend: selectedDate
                 ? toLocalDateTimeString(
                       new Date(selectedDate.getTime() + 60 * 60 * 1000),
+                      tz,
                   )
                 : "",
             hasEndTime: true,
@@ -65,10 +70,10 @@ export function CreateSingleEventForm({
             onSubmit: formSchema,
         },
         onSubmit: async ({ value }) => {
-            const dtstart = parseLocalDateTime(value.dtstart);
+            const dtstart = parseLocalDateTime(value.dtstart, tz);
             const dtend =
                 value.hasEndTime && value.dtend
-                    ? parseLocalDateTime(value.dtend)
+                    ? parseLocalDateTime(value.dtend, tz)
                     : undefined;
 
             return createEvent.mutate({

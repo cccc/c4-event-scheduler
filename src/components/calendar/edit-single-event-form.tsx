@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { z } from "zod";
 
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
@@ -31,6 +32,7 @@ export function EditSingleEventForm({
     occurrence,
     onClose,
 }: EditSingleEventFormProps) {
+    const tz = useAppTimezone();
     const utils = api.useUtils();
 
     const updateEvent = api.events.update.useMutation({
@@ -56,11 +58,12 @@ export function EditSingleEventForm({
             location: occurrence.location ?? "",
             status: occurrence.status,
             isDraft: occurrence.isDraft,
-            dtstart: toLocalDateTimeString(occurrence.dtstart),
+            dtstart: toLocalDateTimeString(occurrence.dtstart, tz),
             dtend: occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend)
+                ? toLocalDateTimeString(occurrence.dtend, tz)
                 : toLocalDateTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
             hasEndTime: !!occurrence.dtend,
         } as z.infer<typeof formSchema>,
@@ -69,11 +72,11 @@ export function EditSingleEventForm({
         },
         onSubmit: async ({ value }) => {
             const dtstart = value.dtstart
-                ? parseLocalDateTime(value.dtstart)
+                ? parseLocalDateTime(value.dtstart, tz)
                 : undefined;
             const dtend =
                 value.hasEndTime && value.dtend
-                    ? parseLocalDateTime(value.dtend)
+                    ? parseLocalDateTime(value.dtend, tz)
                     : undefined;
 
             updateEvent.mutate({
@@ -100,18 +103,19 @@ export function EditSingleEventForm({
         form.setFieldValue("isDraft", occurrence.isDraft);
         form.setFieldValue(
             "dtstart",
-            toLocalDateTimeString(occurrence.dtstart),
+            toLocalDateTimeString(occurrence.dtstart, tz),
         );
         form.setFieldValue(
             "dtend",
             occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend)
+                ? toLocalDateTimeString(occurrence.dtend, tz)
                 : toLocalDateTimeString(
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
+                      tz,
                   ),
         );
         form.setFieldValue("hasEndTime", !!occurrence.dtend);
-    }, [occurrence, form.setFieldValue]);
+    }, [occurrence, form.setFieldValue, tz]);
 
     const handleCancel = () => {
         updateEvent.mutate({

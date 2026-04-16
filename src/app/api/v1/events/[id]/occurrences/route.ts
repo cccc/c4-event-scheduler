@@ -11,7 +11,7 @@ export const GET = withOptionalApiAuth(async (request, actor, params) => {
     const id = params.id;
     if (!id) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const isAuthenticated = actor !== null;
-    const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+    const tz = env.APP_TIMEZONE;
 
     const { searchParams } = new URL(request.url);
     const startParam = searchParams.get("start");

@@ -29,7 +29,7 @@ type UpcomingEvent = {
 // Format date in German locale, always in the app timezone
 function formatDate(date: Date, locale = "de-DE"): string {
     return date.toLocaleString(locale, {
-        timeZone: env.NEXT_PUBLIC_APP_TIMEZONE,
+        timeZone: env.APP_TIMEZONE,
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     );
     const format = searchParams.get("format") || "json";
     const locale = searchParams.get("locale") || "de-DE";
-    const tz = env.NEXT_PUBLIC_APP_TIMEZONE;
+    const tz = env.APP_TIMEZONE;
 
     // Build query conditions
     const conditions: ReturnType<typeof eq>[] = [];
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     const upcomingEvents: UpcomingEvent[] = [];
 
     for (const evt of events) {
-        const calendarUrl = `${env.NEXT_PUBLIC_APP_URL}/spaces/${evt.space.slug}`;
+        const calendarUrl = `${env.APP_URL}/spaces/${evt.space.slug}`;
 
         // Parse exdates for recurring events
         const exdatesSet = new Set(evt.exdates ?? []);
@@ -297,8 +297,8 @@ function generateHtml(
     spaceSlug: string | null,
 ): string {
     const calendarLink = spaceSlug
-        ? `${env.NEXT_PUBLIC_APP_URL}/spaces/${spaceSlug}`
-        : `${env.NEXT_PUBLIC_APP_URL}/spaces`;
+        ? `${env.APP_URL}/spaces/${spaceSlug}`
+        : `${env.APP_URL}/spaces`;
 
     let rows: string;
     if (events.length === 0) {

@@ -6,6 +6,7 @@ import {
     buildRRuleFromConfig,
     type RecurrenceConfig,
 } from "@/components/recurrence-picker";
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
 import { api } from "@/trpc/react";
@@ -50,6 +51,7 @@ export function CreateSeriesForm({
     eventTypes,
     onClose,
 }: CreateSeriesFormProps) {
+    const tz = useAppTimezone();
     const utils = api.useUtils();
 
     const createEvent = api.events.create.useMutation({
@@ -67,16 +69,17 @@ export function CreateSeriesForm({
             url: "",
             location: "",
             seriesFirstDate: selectedDate
-                ? toLocalDateString(selectedDate)
+                ? toLocalDateString(selectedDate, tz)
                 : "",
             seriesLastDate: "",
             seriesHasEndDate: false,
             occurrenceStartTime: selectedDate
-                ? toLocalTimeString(selectedDate)
+                ? toLocalTimeString(selectedDate, tz)
                 : "19:00",
             occurrenceEndTime: selectedDate
                 ? toLocalTimeString(
                       new Date(selectedDate.getTime() + 60 * 60 * 1000),
+                      tz,
                   )
                 : "21:00",
             seriesHasEndTime: true,
@@ -92,6 +95,7 @@ export function CreateSeriesForm({
             const dtstart = combineDateAndTime(
                 value.seriesFirstDate,
                 value.occurrenceStartTime,
+                tz,
             );
             const dtend =
                 value.seriesHasEndTime && value.occurrenceEndTime
@@ -100,6 +104,7 @@ export function CreateSeriesForm({
                           combineDateAndTime(
                               value.seriesFirstDate,
                               value.occurrenceEndTime,
+                              tz,
                           ),
                       )
                     : undefined;
@@ -112,6 +117,7 @@ export function CreateSeriesForm({
             if (value.seriesHasEndDate && value.seriesLastDate) {
                 recurrenceEndDate = parseDateAsEndOfDayInTz(
                     value.seriesLastDate,
+                    tz,
                 );
             } else if (
                 value.recurrenceConfig?.endType === "date" &&
