@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1771086816740,
+      "tag": "0000_public_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771432758536,
+      "tag": "0001_quiet_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772232790086,
+      "tag": "0002_busy_crystal",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772386730492,
+      "tag": "0003_magical_masked_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772405624620,
+      "tag": "0004_conscious_klaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787967228749,
+      "tag": "0005_account_issuer",
+      "breakpoints": true
+    }
+  ]
+}

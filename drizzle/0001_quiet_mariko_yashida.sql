@@ -1,0 +1,2 @@
+ALTER TABLE "c4_event" ADD COLUMN "updated_by_id" text;--> statement-breakpoint
+ALTER TABLE "c4_event" ADD CONSTRAINT "c4_event_updated_by_id_c4_user_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "public"."c4_user"("id") ON DELETE set null ON UPDATE no action;
