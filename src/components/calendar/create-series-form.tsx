@@ -87,7 +87,7 @@ export function CreateSeriesForm({
                 : "21:00",
             hasEndTime: true,
             status: "confirmed",
-            isDraft: true,
+            isDraft: false,
             frequencyLabel: "",
             recurrenceConfig: null,
         } as z.infer<typeof formSchema>,
