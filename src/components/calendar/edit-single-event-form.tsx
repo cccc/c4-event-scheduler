@@ -1,31 +1,65 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
 
 import { useAppTimezone } from "@/components/timezone-provider";
-import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
-import { eventsKeys } from "@/lib/queries/events";
 import {
     deleteEvent as deleteEventFn,
     update as updateEventFn,
 } from "@/server/fns/events";
 
-import { parseLocalDateTime, toLocalDateTimeString } from "./date-utils";
-import { OptionalEndField, openEndHint } from "./optional-end-field";
+import {
+    oneHourLater,
+    parseLocalDateTime,
+    toLocalDateTimeString,
+} from "./date-utils";
+import { EditActions } from "./edit-actions";
+import {
+    EventBasicsGroup,
+    eventBasicsFields,
+} from "./form-groups/event-basics-group";
+import {
+    EventStatusGroup,
+    eventStatusFields,
+} from "./form-groups/event-status-group";
+import {
+    EventTimeGroup,
+    eventTimeFields,
+} from "./form-groups/event-time-group";
+import {
+    eventBasicsShape,
+    eventStatusShape,
+    eventTimeShape,
+} from "./form-groups/schemas";
+import { openEndHint } from "./optional-end-field";
 import type { Occurrence } from "./types";
+import { useEventMutation } from "./use-event-mutation";
 
 const formSchema = z.object({
-    summary: z.string().min(1, "Title is required"),
-    description: z.string(),
-    url: z.string().url("Must be a valid URL").or(z.literal("")),
-    location: z.string(),
-    status: z.enum(["confirmed", "tentative", "cancelled"]),
-    isDraft: z.boolean(),
-    dtstart: z.string().min(1, "Start time is required"),
-    dtend: z.string(),
-    hasEndTime: z.boolean(),
+    ...eventBasicsShape,
+    ...eventTimeShape,
+    ...eventStatusShape,
 });
+
+function initialValues(
+    occurrence: Occurrence,
+    tz: string,
+): z.infer<typeof formSchema> {
+    return {
+        summary: occurrence.summary,
+        description: occurrence.description ?? "",
+        url: occurrence.url ?? "",
+        location: occurrence.location ?? "",
+        dtstart: toLocalDateTimeString(occurrence.dtstart, tz),
+        dtend: toLocalDateTimeString(
+            occurrence.dtend ?? oneHourLater(occurrence.dtstart),
+            tz,
+        ),
+        hasEndTime: !!occurrence.dtend,
+        status: occurrence.status,
+        isDraft: occurrence.isDraft,
+    };
+}
 
 type EditSingleEventFormProps = {
     occurrence: Occurrence;
@@ -37,43 +71,11 @@ export function EditSingleEventForm({
     onClose,
 }: EditSingleEventFormProps) {
     const tz = useAppTimezone();
-    const queryClient = useQueryClient();
-
-    const updateEvent = useMutation({
-        mutationFn: (input: Parameters<typeof updateEventFn>[0]["data"]) =>
-            updateEventFn({ data: input }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: eventsKeys.all });
-            onClose();
-        },
-    });
-
-    const deleteEvent = useMutation({
-        mutationFn: (input: Parameters<typeof deleteEventFn>[0]["data"]) =>
-            deleteEventFn({ data: input }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: eventsKeys.all });
-            onClose();
-        },
-    });
+    const updateEvent = useEventMutation(updateEventFn, onClose);
+    const deleteEvent = useEventMutation(deleteEventFn, onClose);
 
     const form = useAppForm({
-        defaultValues: {
-            summary: occurrence.summary,
-            description: occurrence.description ?? "",
-            url: occurrence.url ?? "",
-            location: occurrence.location ?? "",
-            status: occurrence.status,
-            isDraft: occurrence.isDraft,
-            dtstart: toLocalDateTimeString(occurrence.dtstart, tz),
-            dtend: occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend, tz)
-                : toLocalDateTimeString(
-                      new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
-                      tz,
-                  ),
-            hasEndTime: !!occurrence.dtend,
-        } as z.infer<typeof formSchema>,
+        defaultValues: initialValues(occurrence, tz),
         validators: {
             onSubmit: formSchema,
         },
@@ -102,27 +104,8 @@ export function EditSingleEventForm({
 
     // Re-initialize form when occurrence changes (e.g. navigating between events)
     useEffect(() => {
-        form.setFieldValue("summary", occurrence.summary);
-        form.setFieldValue("description", occurrence.description ?? "");
-        form.setFieldValue("url", occurrence.url ?? "");
-        form.setFieldValue("location", occurrence.location ?? "");
-        form.setFieldValue("status", occurrence.status);
-        form.setFieldValue("isDraft", occurrence.isDraft);
-        form.setFieldValue(
-            "dtstart",
-            toLocalDateTimeString(occurrence.dtstart, tz),
-        );
-        form.setFieldValue(
-            "dtend",
-            occurrence.dtend
-                ? toLocalDateTimeString(occurrence.dtend, tz)
-                : toLocalDateTimeString(
-                      new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
-                      tz,
-                  ),
-        );
-        form.setFieldValue("hasEndTime", !!occurrence.dtend);
-    }, [occurrence, form.setFieldValue, tz]);
+        form.reset(initialValues(occurrence, tz));
+    }, [occurrence, form.reset, tz]);
 
     const handleCancel = () => {
         updateEvent.mutate({
@@ -139,135 +122,40 @@ export function EditSingleEventForm({
     return (
         <form.AppForm>
             <form.Form className="space-y-4">
-                <form.AppField name="summary">
-                    {(field) => (
-                        <>
-                            <field.TextField label="Title" required />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
+                <EventBasicsGroup
+                    fields={eventBasicsFields}
+                    form={form}
+                    titleRequired
+                />
+                <EventTimeGroup
+                    endHint={openEndHint(occurrence.eventType)}
+                    fields={eventTimeFields}
+                    form={form}
+                    idPrefix="edit-single"
+                    startRequired
+                />
+                <EventStatusGroup fields={eventStatusFields} form={form} />
 
-                <form.AppField name="description">
-                    {(field) => (
-                        <field.TextareaField label="Description" rows={2} />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="url">
-                    {(field) => (
-                        <>
-                            <field.TextField
-                                label="URL"
-                                placeholder="https://..."
-                                type="url"
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="location">
-                    {(field) => (
-                        <field.TextField
-                            label="Location"
-                            placeholder="Leave empty to use space name"
-                        />
-                    )}
-                </form.AppField>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <form.AppField name="dtstart">
-                        {(field) => (
-                            <>
-                                <field.DateTimeField
-                                    label="Start Date & Time"
-                                    required
-                                />
-                                <field.FieldError />
-                            </>
-                        )}
-                    </form.AppField>
-
-                    <form.AppField name="hasEndTime">
-                        {(field) => (
-                            <OptionalEndField
-                                checked={field.state.value}
-                                hint={openEndHint(occurrence.eventType)}
-                                id="single-hasEndTime"
-                                label="End Date & Time"
-                                onCheckedChange={field.handleChange}
-                            >
-                                <form.AppField name="dtend">
-                                    {(endField) => <endField.DateTimeField />}
-                                </form.AppField>
-                            </OptionalEndField>
-                        )}
-                    </form.AppField>
-                </div>
-
-                <form.AppField name="status">
-                    {(field) => (
-                        <field.SelectField
-                            label="Status"
-                            options={[
-                                { value: "confirmed", label: "Confirmed" },
-                                { value: "tentative", label: "Tentative" },
-                                { value: "cancelled", label: "Cancelled" },
-                            ]}
-                        />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="isDraft">
-                    {(field) => (
-                        <field.CheckboxField
-                            id="isDraft"
-                            label="Draft (hidden from public feeds)"
-                        />
-                    )}
-                </form.AppField>
-
-                <div className="flex justify-between gap-2 border-t pt-4">
-                    <div className="flex gap-2">
-                        {occurrence.status !== "cancelled" && (
-                            <Button
-                                disabled={updateEvent.isPending}
-                                onClick={handleCancel}
-                                type="button"
-                                variant="outline"
-                            >
-                                Cancel Event
-                            </Button>
-                        )}
-                        <Button
-                            disabled={deleteEvent.isPending}
-                            onClick={handleDelete}
-                            type="button"
-                            variant="destructive"
-                        >
-                            Delete Event
-                        </Button>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={onClose}
-                            type="button"
-                            variant="outline"
-                        >
-                            Close
-                        </Button>
-                        <form.SubmitButton
-                            disabled={updateEvent.isPending || undefined}
-                        >
-                            {({ isSubmitting }) =>
-                                isSubmitting || updateEvent.isPending
-                                    ? "Saving..."
-                                    : "Save Changes"
-                            }
-                        </form.SubmitButton>
-                    </div>
-                </div>
+                <EditActions
+                    canCancel={occurrence.status !== "cancelled"}
+                    cancelLabel="Cancel Event"
+                    deleteLabel="Delete Event"
+                    deletePending={deleteEvent.isPending}
+                    onCancel={handleCancel}
+                    onClose={onClose}
+                    onDelete={handleDelete}
+                    pending={updateEvent.isPending}
+                >
+                    <form.SubmitButton
+                        disabled={updateEvent.isPending || undefined}
+                    >
+                        {({ isSubmitting }) =>
+                            isSubmitting || updateEvent.isPending
+                                ? "Saving..."
+                                : "Save Changes"
+                        }
+                    </form.SubmitButton>
+                </EditActions>
             </form.Form>
         </form.AppForm>
     );

@@ -33,6 +33,11 @@ export function combineDateAndTime(
     return fromZonedTime(`${dateStr}T${timeStr}`, tz);
 }
 
+// Default end time offered by the forms when an event has none
+export function oneHourLater(date: Date): Date {
+    return new Date(date.getTime() + 60 * 60 * 1000);
+}
+
 // If dtend is before or equal to dtstart (e.g., start 23:00, end 01:00),
 // assume the end time is on the next day and add 24 hours.
 export function adjustEndDate(dtstart: Date, dtend: Date): Date {

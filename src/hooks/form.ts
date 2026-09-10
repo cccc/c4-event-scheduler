@@ -16,7 +16,7 @@ import { TimeField } from "@/components/form-fields/time-field";
 const { fieldContext, formContext, useFieldContext, useFormContext } =
     createFormHookContexts();
 
-const { useAppForm } = createFormHook({
+const { useAppForm, withFieldGroup } = createFormHook({
     fieldContext,
     formContext,
     fieldComponents: {
@@ -37,4 +37,4 @@ const { useAppForm } = createFormHook({
     },
 });
 
-export { useAppForm, useFieldContext, useFormContext };
+export { useAppForm, useFieldContext, useFormContext, withFieldGroup };

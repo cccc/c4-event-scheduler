@@ -1,4 +1,3 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import {
@@ -8,33 +7,46 @@ import {
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
-import { eventsKeys } from "@/lib/queries/events";
 import { create as createEventFn } from "@/server/fns/events";
 
 import {
     adjustEndDate,
     combineDateAndTime,
+    oneHourLater,
     parseDateAsEndOfDayInTz,
     toLocalDateString,
     toLocalTimeString,
 } from "./date-utils";
-import { OptionalEndField, openEndHint } from "./optional-end-field";
+import {
+    EventBasicsGroup,
+    eventBasicsFields,
+} from "./form-groups/event-basics-group";
+import {
+    EventStatusGroup,
+    eventStatusFields,
+} from "./form-groups/event-status-group";
+import {
+    EventTypeGroup,
+    eventTypeFields,
+} from "./form-groups/event-type-group";
+import {
+    eventBasicsShape,
+    eventStatusShape,
+    seriesScheduleShape,
+} from "./form-groups/schemas";
+import {
+    SeriesScheduleGroup,
+    seriesScheduleFields,
+} from "./form-groups/series-schedule-group";
+import { openEndHint } from "./optional-end-field";
 import type { EventType, Space } from "./types";
+import { useEventMutation } from "./use-event-mutation";
 
 const formSchema = z.object({
     eventTypeId: z.string().min(1, "Event type is required"),
-    summary: z.string().min(1, "Title is required"),
-    description: z.string(),
-    url: z.url("Must be a valid URL").or(z.literal("")),
-    location: z.string(),
-    seriesFirstDate: z.string().min(1, "First occurrence date is required"),
-    seriesLastDate: z.string(),
-    seriesHasEndDate: z.boolean(),
-    occurrenceStartTime: z.string().min(1, "Start time is required"),
-    occurrenceEndTime: z.string(),
-    seriesHasEndTime: z.boolean(),
-    status: z.enum(["confirmed", "tentative", "cancelled"]),
-    isDraft: z.boolean(),
+    ...eventBasicsShape,
+    ...seriesScheduleShape,
+    ...eventStatusShape,
     frequencyLabel: z.string(),
     recurrenceConfig: z.custom<RecurrenceConfig>().nullable(),
 });
@@ -53,16 +65,7 @@ export function CreateSeriesForm({
     onClose,
 }: CreateSeriesFormProps) {
     const tz = useAppTimezone();
-    const queryClient = useQueryClient();
-
-    const createEvent = useMutation({
-        mutationFn: (input: Parameters<typeof createEventFn>[0]["data"]) =>
-            createEventFn({ data: input }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: eventsKeys.all });
-            onClose();
-        },
-    });
+    const createEvent = useEventMutation(createEventFn, onClose);
 
     const form = useAppForm({
         defaultValues: {
@@ -80,12 +83,9 @@ export function CreateSeriesForm({
                 ? toLocalTimeString(selectedDate, tz)
                 : "19:00",
             occurrenceEndTime: selectedDate
-                ? toLocalTimeString(
-                      new Date(selectedDate.getTime() + 60 * 60 * 1000),
-                      tz,
-                  )
+                ? toLocalTimeString(oneHourLater(selectedDate), tz)
                 : "21:00",
-            seriesHasEndTime: true,
+            hasEndTime: true,
             status: "confirmed",
             isDraft: true,
             frequencyLabel: "",
@@ -101,7 +101,7 @@ export function CreateSeriesForm({
                 tz,
             );
             const dtend =
-                value.seriesHasEndTime && value.occurrenceEndTime
+                value.hasEndTime && value.occurrenceEndTime
                     ? adjustEndDate(
                           dtstart,
                           combineDateAndTime(
@@ -147,190 +147,42 @@ export function CreateSeriesForm({
         },
     });
 
-    const eventTypeOptions = eventTypes.map((et) => ({
-        value: et.id,
-        label: (
-            <span className="flex items-center gap-2">
-                {et.color && (
-                    <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: et.color }}
-                    />
-                )}
-                {et.name}
-            </span>
-        ),
-    }));
-
     return (
         <form.AppForm>
             <form.Form className="space-y-4">
-                <form.AppField name="eventTypeId">
-                    {(field) => (
-                        <>
-                            <field.SelectField
-                                label="Event Type"
-                                options={eventTypeOptions}
-                                placeholder="Select an event type"
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="summary">
-                    {(field) => (
-                        <>
-                            <field.TextField label="Title" required />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="description">
-                    {(field) => (
-                        <field.TextareaField label="Description" rows={2} />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="url">
-                    {(field) => (
-                        <>
-                            <field.TextField
-                                label="URL (blog post, etc.)"
-                                placeholder="https://..."
-                                type="url"
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="location">
-                    {(field) => (
-                        <field.TextField
-                            label="Location"
-                            placeholder="Leave empty to use space name"
+                <EventTypeGroup
+                    eventTypes={eventTypes}
+                    fields={eventTypeFields}
+                    form={form}
+                />
+                <EventBasicsGroup
+                    fields={eventBasicsFields}
+                    form={form}
+                    titleRequired
+                    urlLabel="URL (blog post, etc.)"
+                />
+                <form.Subscribe selector={(state) => state.values.eventTypeId}>
+                    {(eventTypeId) => (
+                        <SeriesScheduleGroup
+                            endHint={openEndHint(
+                                eventTypes.find((et) => et.id === eventTypeId),
+                            )}
+                            fields={seriesScheduleFields}
+                            firstDateRequired
+                            form={form}
+                            idPrefix="create-series"
                         />
                     )}
-                </form.AppField>
+                </form.Subscribe>
 
-                {/* Series Date Range */}
-                <div className="space-y-4 rounded-md border p-4">
-                    <h4 className="font-medium text-sm">Series Date Range</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <form.AppField name="seriesFirstDate">
-                            {(field) => (
-                                <>
-                                    <field.DateField
-                                        label="First Occurrence"
-                                        required
-                                    />
-                                    <field.FieldError />
-                                </>
-                            )}
-                        </form.AppField>
-
-                        <form.AppField name="seriesHasEndDate">
-                            {(field) => (
-                                <OptionalEndField
-                                    checked={field.state.value}
-                                    hint="No end date; repeats indefinitely"
-                                    id="seriesHasEndDate"
-                                    label="Last Occurrence"
-                                    onCheckedChange={field.handleChange}
-                                >
-                                    <form.AppField name="seriesLastDate">
-                                        {(lastField) => <lastField.DateField />}
-                                    </form.AppField>
-                                </OptionalEndField>
-                            )}
-                        </form.AppField>
-                    </div>
-                </div>
-
-                {/* Occurrence Times */}
-                <div className="space-y-4 rounded-md border p-4">
-                    <h4 className="font-medium text-sm">Occurrence Times</h4>
-                    <p className="text-muted-foreground text-xs">
-                        Each occurrence will use these times
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                        <form.AppField name="occurrenceStartTime">
-                            {(field) => (
-                                <>
-                                    <field.TimeField
-                                        label="Start Time"
-                                        required
-                                    />
-                                    <field.FieldError />
-                                </>
-                            )}
-                        </form.AppField>
-
-                        <form.AppField name="seriesHasEndTime">
-                            {(field) => (
-                                <form.Subscribe
-                                    selector={(state) =>
-                                        state.values.eventTypeId
-                                    }
-                                >
-                                    {(eventTypeId) => (
-                                        <OptionalEndField
-                                            checked={field.state.value}
-                                            hint={openEndHint(
-                                                eventTypes.find(
-                                                    (et) =>
-                                                        et.id === eventTypeId,
-                                                ),
-                                            )}
-                                            id="seriesHasEndTime"
-                                            label="End Time"
-                                            onCheckedChange={field.handleChange}
-                                        >
-                                            <form.AppField name="occurrenceEndTime">
-                                                {(endField) => (
-                                                    <endField.TimeField />
-                                                )}
-                                            </form.AppField>
-                                        </OptionalEndField>
-                                    )}
-                                </form.Subscribe>
-                            )}
-                        </form.AppField>
-                    </div>
-                </div>
-
-                {/* Recurrence Pattern */}
                 <form.AppField name="recurrenceConfig">
                     {(field) => (
                         <field.RecurrencePickerField startDate={selectedDate} />
                     )}
                 </form.AppField>
 
-                <form.AppField name="status">
-                    {(field) => (
-                        <field.SelectField
-                            label="Status"
-                            options={[
-                                { value: "confirmed", label: "Confirmed" },
-                                { value: "tentative", label: "Tentative" },
-                                { value: "cancelled", label: "Cancelled" },
-                            ]}
-                        />
-                    )}
-                </form.AppField>
+                <EventStatusGroup fields={eventStatusFields} form={form} />
 
-                <form.AppField name="isDraft">
-                    {(field) => (
-                        <field.CheckboxField
-                            id="isDraft"
-                            label="Draft (hidden from public feeds)"
-                        />
-                    )}
-                </form.AppField>
-
-                {/* Frequency Label for Widget */}
                 <form.AppField name="frequencyLabel">
                     {(field) => (
                         <field.TextField

@@ -1,27 +1,45 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/hooks/form";
-import { eventsKeys } from "@/lib/queries/events";
 import { create as createEventFn } from "@/server/fns/events";
 
-import { parseLocalDateTime, toLocalDateTimeString } from "./date-utils";
-import { OptionalEndField, openEndHint } from "./optional-end-field";
+import {
+    oneHourLater,
+    parseLocalDateTime,
+    toLocalDateTimeString,
+} from "./date-utils";
+import {
+    EventBasicsGroup,
+    eventBasicsFields,
+} from "./form-groups/event-basics-group";
+import {
+    EventStatusGroup,
+    eventStatusFields,
+} from "./form-groups/event-status-group";
+import {
+    EventTimeGroup,
+    eventTimeFields,
+} from "./form-groups/event-time-group";
+import {
+    EventTypeGroup,
+    eventTypeFields,
+} from "./form-groups/event-type-group";
+import {
+    eventBasicsShape,
+    eventStatusShape,
+    eventTimeShape,
+} from "./form-groups/schemas";
+import { openEndHint } from "./optional-end-field";
 import type { EventType, Space } from "./types";
+import { useEventMutation } from "./use-event-mutation";
 
 const formSchema = z.object({
     eventTypeId: z.string().min(1, "Event type is required"),
-    summary: z.string().min(1, "Title is required"),
-    description: z.string(),
-    url: z.url("Must be a valid URL").or(z.literal("")),
-    location: z.string(),
-    dtstart: z.string().min(1, "Start time is required"),
-    dtend: z.string(),
-    hasEndTime: z.boolean(),
-    status: z.enum(["confirmed", "tentative", "cancelled"]),
-    isDraft: z.boolean(),
+    ...eventBasicsShape,
+    ...eventTimeShape,
+    ...eventStatusShape,
 });
 
 type CreateSingleEventFormProps = {
@@ -38,16 +56,7 @@ export function CreateSingleEventForm({
     onClose,
 }: CreateSingleEventFormProps) {
     const tz = useAppTimezone();
-    const queryClient = useQueryClient();
-
-    const createEvent = useMutation({
-        mutationFn: (input: Parameters<typeof createEventFn>[0]["data"]) =>
-            createEventFn({ data: input }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: eventsKeys.all });
-            onClose();
-        },
-    });
+    const createEvent = useEventMutation(createEventFn, onClose);
 
     const form = useAppForm({
         defaultValues: {
@@ -60,10 +69,7 @@ export function CreateSingleEventForm({
                 ? toLocalDateTimeString(selectedDate, tz)
                 : "",
             dtend: selectedDate
-                ? toLocalDateTimeString(
-                      new Date(selectedDate.getTime() + 60 * 60 * 1000),
-                      tz,
-                  )
+                ? toLocalDateTimeString(oneHourLater(selectedDate), tz)
                 : "",
             hasEndTime: true,
             status: "confirmed",
@@ -94,137 +100,34 @@ export function CreateSingleEventForm({
         },
     });
 
-    const eventTypeOptions = eventTypes.map((et) => ({
-        value: et.id,
-        label: (
-            <span className="flex items-center gap-2">
-                {et.color && (
-                    <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: et.color }}
-                    />
-                )}
-                {et.name}
-            </span>
-        ),
-    }));
-
     return (
         <form.AppForm>
             <form.Form className="space-y-4">
-                <form.AppField name="eventTypeId">
-                    {(field) => (
-                        <>
-                            <field.SelectField
-                                label="Event Type"
-                                options={eventTypeOptions}
-                                placeholder="Select an event type"
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="summary">
-                    {(field) => (
-                        <>
-                            <field.TextField label="Title" required />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="description">
-                    {(field) => (
-                        <field.TextareaField label="Description" rows={2} />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="url">
-                    {(field) => (
-                        <>
-                            <field.TextField
-                                label="URL (blog post, etc.)"
-                                placeholder="https://..."
-                                type="url"
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="location">
-                    {(field) => (
-                        <field.TextField
-                            label="Location"
-                            placeholder="Leave empty to use space name"
+                <EventTypeGroup
+                    eventTypes={eventTypes}
+                    fields={eventTypeFields}
+                    form={form}
+                />
+                <EventBasicsGroup
+                    fields={eventBasicsFields}
+                    form={form}
+                    titleRequired
+                    urlLabel="URL (blog post, etc.)"
+                />
+                <form.Subscribe selector={(state) => state.values.eventTypeId}>
+                    {(eventTypeId) => (
+                        <EventTimeGroup
+                            endHint={openEndHint(
+                                eventTypes.find((et) => et.id === eventTypeId),
+                            )}
+                            fields={eventTimeFields}
+                            form={form}
+                            idPrefix="create-single"
+                            startRequired
                         />
                     )}
-                </form.AppField>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <form.AppField name="dtstart">
-                        {(field) => (
-                            <>
-                                <field.DateTimeField
-                                    label="Start Date & Time"
-                                    required
-                                />
-                                <field.FieldError />
-                            </>
-                        )}
-                    </form.AppField>
-
-                    <form.AppField name="hasEndTime">
-                        {(field) => (
-                            <form.Subscribe
-                                selector={(state) => state.values.eventTypeId}
-                            >
-                                {(eventTypeId) => (
-                                    <OptionalEndField
-                                        checked={field.state.value}
-                                        hint={openEndHint(
-                                            eventTypes.find(
-                                                (et) => et.id === eventTypeId,
-                                            ),
-                                        )}
-                                        id="hasEndTime"
-                                        label="End Date & Time"
-                                        onCheckedChange={field.handleChange}
-                                    >
-                                        <form.AppField name="dtend">
-                                            {(endField) => (
-                                                <endField.DateTimeField />
-                                            )}
-                                        </form.AppField>
-                                    </OptionalEndField>
-                                )}
-                            </form.Subscribe>
-                        )}
-                    </form.AppField>
-                </div>
-
-                <form.AppField name="status">
-                    {(field) => (
-                        <field.SelectField
-                            label="Status"
-                            options={[
-                                { value: "confirmed", label: "Confirmed" },
-                                { value: "tentative", label: "Tentative" },
-                                { value: "cancelled", label: "Cancelled" },
-                            ]}
-                        />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="isDraft">
-                    {(field) => (
-                        <field.CheckboxField
-                            id="isDraft"
-                            label="Draft (hidden from public feeds)"
-                        />
-                    )}
-                </form.AppField>
+                </form.Subscribe>
+                <EventStatusGroup fields={eventStatusFields} form={form} />
 
                 <div className="flex gap-2 pt-2">
                     <Button onClick={onClose} type="button" variant="outline">
