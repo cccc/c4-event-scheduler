@@ -2,10 +2,17 @@ import { withFieldGroup } from "@/hooks/form";
 
 type EventBasicsProps = {
     titleRequired?: boolean;
-    titlePlaceholder?: string;
     urlLabel?: string;
-    /** Occurrence overrides: empty fields inherit from the series */
-    inheritPlaceholders?: boolean;
+    /**
+     * Per-field placeholders; occurrence overrides pass the series values
+     * so an empty field visibly inherits them.
+     */
+    placeholders?: {
+        summary?: string;
+        description?: string;
+        url?: string;
+        location?: string;
+    };
 };
 
 // Group field -> form field mapping (module-level: withFieldGroup memoizes
@@ -21,16 +28,7 @@ export const eventBasicsFields = {
 export const EventBasicsGroup = withFieldGroup({
     defaultValues: { summary: "", description: "", url: "", location: "" },
     props: {} as EventBasicsProps,
-    render: function Render({
-        group,
-        titleRequired,
-        titlePlaceholder,
-        urlLabel,
-        inheritPlaceholders,
-    }) {
-        const inherit = inheritPlaceholders
-            ? "Leave empty to inherit from series"
-            : undefined;
+    render: function Render({ group, titleRequired, urlLabel, placeholders }) {
         return (
             <>
                 <group.AppField name="summary">
@@ -38,7 +36,7 @@ export const EventBasicsGroup = withFieldGroup({
                         <>
                             <field.TextField
                                 label="Title"
-                                placeholder={titlePlaceholder}
+                                placeholder={placeholders?.summary}
                                 required={titleRequired}
                             />
                             <field.FieldError />
@@ -50,7 +48,7 @@ export const EventBasicsGroup = withFieldGroup({
                     {(field) => (
                         <field.TextareaField
                             label="Description"
-                            placeholder={inherit}
+                            placeholder={placeholders?.description}
                             rows={2}
                         />
                     )}
@@ -61,7 +59,7 @@ export const EventBasicsGroup = withFieldGroup({
                         <>
                             <field.TextField
                                 label={urlLabel ?? "URL"}
-                                placeholder="https://..."
+                                placeholder={placeholders?.url ?? "https://..."}
                                 type="url"
                             />
                             <field.FieldError />
@@ -74,7 +72,8 @@ export const EventBasicsGroup = withFieldGroup({
                         <field.TextField
                             label="Location"
                             placeholder={
-                                inherit ?? "Leave empty to use space name"
+                                placeholders?.location ??
+                                "Leave empty to use space name"
                             }
                         />
                     )}

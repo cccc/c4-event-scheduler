@@ -76,12 +76,17 @@ const seriesFormSchema = z.object({
 type EditTab = "occurrence" | "fromHere" | "whole";
 
 // Override form: only fields the override itself sets are filled in,
-// empty fields inherit from the series
+// empty fields inherit from the series. Times count as the override's own
+// only when they differ from what the series gives this occurrence.
 function occurrenceInitialValues(
     occurrence: Occurrence,
     tz: string,
+    series: { startMs: number; endMs: number | null },
 ): z.infer<typeof occurrenceFormSchema> {
     const own = occurrence.isOverridden;
+    const ownStart = own && occurrence.dtstart.getTime() !== series.startMs;
+    const ownEnd =
+        own && (occurrence.dtend?.getTime() ?? null) !== series.endMs;
     return {
         summary: own ? occurrence.summary : "",
         description: own ? (occurrence.description ?? "") : "",
@@ -89,12 +94,12 @@ function occurrenceInitialValues(
         location: own ? (occurrence.location ?? "") : "",
         notes: occurrence.notes ?? "",
         status: occurrence.status,
-        dtstart: toLocalDateTimeString(occurrence.dtstart, tz),
+        dtstart: ownStart ? toLocalDateTimeString(occurrence.dtstart, tz) : "",
         dtend: toLocalDateTimeString(
             occurrence.dtend ?? oneHourLater(occurrence.dtstart),
             tz,
         ),
-        hasEndTime: own && !!occurrence.dtend,
+        hasEndTime: ownEnd,
     };
 }
 
@@ -143,6 +148,41 @@ export function EditSeriesForm({
         eventsQueries.getById(occurrence.eventId),
     );
 
+    // What this occurrence inherits from the series, shown as placeholders
+    // in the override form. eventData holds the series' own values; the
+    // occurrence's values may already be overridden.
+    const series = eventData ?? occurrence;
+    const inherit = "Leave empty to inherit from series";
+    const seriesPlaceholders = {
+        summary: series.summary,
+        description: series.description ?? inherit,
+        url: series.url ?? inherit,
+        location: series.location ?? inherit,
+    };
+    const seriesStart = eventData
+        ? combineDateAndTime(
+              occurrence.occurrenceDate,
+              toLocalTimeString(eventData.dtstart, tz),
+              tz,
+          )
+        : occurrence.dtstart;
+    const seriesEnd = eventData
+        ? eventData.dtend
+            ? new Date(
+                  seriesStart.getTime() +
+                      (eventData.dtend.getTime() - eventData.dtstart.getTime()),
+              )
+            : null
+        : occurrence.dtend;
+    const inheritedStart = toLocalDateTimeString(seriesStart, tz);
+    const inheritedEndHint = seriesEnd
+        ? `Inherited from series (${toLocalTimeString(seriesEnd, tz)})`
+        : "Inherited from series (open end)";
+    const seriesTimes = {
+        startMs: seriesStart.getTime(),
+        endMs: seriesEnd?.getTime() ?? null,
+    };
+
     const updateEvent = useEventMutation(updateEventFn, onClose);
     const upsertOverride = useEventMutation(upsertOverrideFn, onClose);
     const deleteOccurrence = useEventMutation(deleteOccurrenceFn, onClose);
@@ -150,12 +190,14 @@ export function EditSeriesForm({
     const deleteEvent = useEventMutation(deleteEventFn, onClose);
 
     const occurrenceForm = useAppForm({
-        defaultValues: occurrenceInitialValues(occurrence, tz),
+        defaultValues: occurrenceInitialValues(occurrence, tz, seriesTimes),
         validators: {
             onSubmit: occurrenceFormSchema,
         },
         onSubmit: async ({ value }) => {
-            const dtstart = parseLocalDateTime(value.dtstart, tz);
+            const dtstart = value.dtstart
+                ? parseLocalDateTime(value.dtstart, tz)
+                : null;
             const dtend =
                 value.hasEndTime && value.dtend
                     ? parseLocalDateTime(value.dtend, tz)
@@ -173,6 +215,7 @@ export function EditSeriesForm({
                 // Send null to explicitly clear stored override time (inherit from series).
                 // Send the value only when it actually differs from the computed occurrence time.
                 dtstart:
+                    dtstart &&
                     dtstart.getTime() !== occurrence.dtstart.getTime()
                         ? dtstart
                         : null,
@@ -261,12 +304,28 @@ export function EditSeriesForm({
         },
     });
 
-    // Re-initialize forms when occurrence changes
+    // Re-initialize forms when the occurrence changes (the override form
+    // also once the series data has loaded, since that decides which times
+    // count as overridden)
     useEffect(() => {
-        occurrenceForm.reset(occurrenceInitialValues(occurrence, tz));
+        occurrenceForm.reset(
+            occurrenceInitialValues(occurrence, tz, {
+                startMs: seriesTimes.startMs,
+                endMs: seriesTimes.endMs,
+            }),
+        );
+    }, [
+        occurrence,
+        tz,
+        seriesTimes.startMs,
+        seriesTimes.endMs,
+        occurrenceForm.reset,
+    ]);
+
+    useEffect(() => {
         seriesForm.reset(seriesInitialValues(occurrence, tz));
         setEditTab(initialTab ?? "occurrence");
-    }, [occurrence, initialTab, tz, occurrenceForm.reset, seriesForm.reset]);
+    }, [occurrence, initialTab, tz, seriesForm.reset]);
 
     // When switching to "Whole Series" mode, reset seriesFirstDate to the actual series
     // start date (not the clicked occurrence's date). When switching to "From Here",
@@ -364,8 +423,7 @@ export function EditSeriesForm({
                         <EventBasicsGroup
                             fields={eventBasicsFields}
                             form={occurrenceForm}
-                            inheritPlaceholders
-                            titlePlaceholder={occurrence.summary}
+                            placeholders={seriesPlaceholders}
                         />
 
                         <occurrenceForm.AppField name="notes">
@@ -379,10 +437,11 @@ export function EditSeriesForm({
                         </occurrenceForm.AppField>
 
                         <EventTimeGroup
-                            endHint="Inherited from series"
+                            endHint={inheritedEndHint}
                             fields={eventTimeFields}
                             form={occurrenceForm}
                             idPrefix="edit-occurrence"
+                            startPlaceholder={inheritedStart}
                         />
 
                         <occurrenceForm.AppField name="status">

@@ -8,6 +8,8 @@ type EventTimeProps = {
     /** Shown in place of the end input while "no end time" */
     endHint: string;
     startRequired?: boolean;
+    /** Start placeholder in value format (e.g. the inherited series time) */
+    startPlaceholder?: string;
 };
 
 export const eventTimeFields = {
@@ -20,7 +22,13 @@ export const eventTimeFields = {
 export const EventTimeGroup = withFieldGroup({
     defaultValues: { dtstart: "", dtend: "", hasEndTime: true },
     props: { idPrefix: "", endHint: "" } as EventTimeProps,
-    render: function Render({ group, idPrefix, endHint, startRequired }) {
+    render: function Render({
+        group,
+        idPrefix,
+        endHint,
+        startRequired,
+        startPlaceholder,
+    }) {
         return (
             <div className="grid grid-cols-2 gap-4">
                 <group.AppField name="dtstart">
@@ -28,6 +36,7 @@ export const EventTimeGroup = withFieldGroup({
                         <>
                             <field.DateTimeField
                                 label="Start Date & Time"
+                                placeholder={startPlaceholder}
                                 required={startRequired}
                             />
                             <field.FieldError />

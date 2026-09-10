@@ -1,14 +1,17 @@
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFieldContext } from "@/hooks/form";
+
+import { DateTextInput } from "./date-text-input";
 
 type TimeFieldProps = {
     /** Omit when a wrapping component renders the label */
     label?: string;
     required?: boolean;
+    /** Shown while empty, in the value format ("HH:mm") */
+    placeholder?: string;
 };
 
-export function TimeField({ label, required }: TimeFieldProps) {
+export function TimeField({ label, required, placeholder }: TimeFieldProps) {
     const field = useFieldContext<string>();
     return (
         <div>
@@ -18,9 +21,10 @@ export function TimeField({ label, required }: TimeFieldProps) {
                     {required && <span className="text-destructive"> *</span>}
                 </Label>
             )}
-            <Input
-                onChange={(e) => field.handleChange(e.target.value)}
-                type="time"
+            <DateTextInput
+                mode="time"
+                onChange={field.handleChange}
+                placeholder={placeholder}
                 value={field.state.value}
             />
         </div>

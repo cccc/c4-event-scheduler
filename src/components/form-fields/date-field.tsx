@@ -1,6 +1,7 @@
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFieldContext } from "@/hooks/form";
+
+import { DateTextInput } from "./date-text-input";
 
 type DateFieldProps = {
     /** Omit when a wrapping component renders the label */
@@ -8,6 +9,8 @@ type DateFieldProps = {
     required?: boolean;
     disabled?: boolean;
     description?: string;
+    /** Shown while empty, in the value format ("yyyy-MM-dd") */
+    placeholder?: string;
 };
 
 export function DateField({
@@ -15,6 +18,7 @@ export function DateField({
     required,
     disabled,
     description,
+    placeholder,
 }: DateFieldProps) {
     const field = useFieldContext<string>();
     return (
@@ -25,10 +29,11 @@ export function DateField({
                     {required && <span className="text-destructive"> *</span>}
                 </Label>
             )}
-            <Input
+            <DateTextInput
                 disabled={disabled}
-                onChange={(e) => field.handleChange(e.target.value)}
-                type="date"
+                mode="date"
+                onChange={field.handleChange}
+                placeholder={placeholder}
                 value={field.state.value}
             />
             {description && (
