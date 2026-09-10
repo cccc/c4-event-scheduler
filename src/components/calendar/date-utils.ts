@@ -42,6 +42,28 @@ export function adjustEndDate(dtstart: Date, dtend: Date): Date {
     return dtend;
 }
 
+// End time to display: the stored end, or dtstart + the event type's default
+// duration for open-end events (null when there is neither).
+export function effectiveEnd(occurrence: {
+    dtstart: Date;
+    dtend: Date | null;
+    eventType: { defaultDurationMinutes: number | null } | null;
+}): Date | null {
+    if (occurrence.dtend) return occurrence.dtend;
+    const minutes = occurrence.eventType?.defaultDurationMinutes;
+    if (!minutes) return null;
+    return new Date(occurrence.dtstart.getTime() + minutes * 60_000);
+}
+
+// Human-readable duration, e.g. 90 -> "1 h 30 min", 120 -> "2 h", 45 -> "45 min"
+export function formatDurationMinutes(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    if (hours === 0) return `${rest} min`;
+    if (rest === 0) return `${hours} h`;
+    return `${hours} h ${rest} min`;
+}
+
 // Parse a YYYY-MM-DD date string as end-of-day in the app timezone,
 // so that series UNTIL dates include all occurrences on that day.
 export function parseDateAsEndOfDayInTz(dateStr: string, tz: string): Date {

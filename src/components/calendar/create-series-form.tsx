@@ -18,6 +18,7 @@ import {
     toLocalDateString,
     toLocalTimeString,
 } from "./date-utils";
+import { OptionalEndField, openEndHint } from "./optional-end-field";
 import type { EventType, Space } from "./types";
 
 const formSchema = z.object({
@@ -232,19 +233,17 @@ export function CreateSeriesForm({
 
                         <form.AppField name="seriesHasEndDate">
                             {(field) => (
-                                <div>
-                                    <field.CheckboxField
-                                        id="seriesHasEndDate"
-                                        label="Has end date"
-                                    />
-                                    {form.state.values.seriesHasEndDate && (
-                                        <form.AppField name="seriesLastDate">
-                                            {(lastField) => (
-                                                <lastField.DateField label="Last Occurrence" />
-                                            )}
-                                        </form.AppField>
-                                    )}
-                                </div>
+                                <OptionalEndField
+                                    checked={field.state.value}
+                                    hint="No end date; repeats indefinitely"
+                                    id="seriesHasEndDate"
+                                    label="Last Occurrence"
+                                    onCheckedChange={field.handleChange}
+                                >
+                                    <form.AppField name="seriesLastDate">
+                                        {(lastField) => <lastField.DateField />}
+                                    </form.AppField>
+                                </OptionalEndField>
                             )}
                         </form.AppField>
                     </div>
@@ -271,19 +270,32 @@ export function CreateSeriesForm({
 
                         <form.AppField name="seriesHasEndTime">
                             {(field) => (
-                                <div>
-                                    <field.CheckboxField
-                                        id="seriesHasEndTime"
-                                        label="Has end time"
-                                    />
-                                    {form.state.values.seriesHasEndTime && (
-                                        <form.AppField name="occurrenceEndTime">
-                                            {(endField) => (
-                                                <endField.TimeField label="End Time" />
+                                <form.Subscribe
+                                    selector={(state) =>
+                                        state.values.eventTypeId
+                                    }
+                                >
+                                    {(eventTypeId) => (
+                                        <OptionalEndField
+                                            checked={field.state.value}
+                                            hint={openEndHint(
+                                                eventTypes.find(
+                                                    (et) =>
+                                                        et.id === eventTypeId,
+                                                ),
                                             )}
-                                        </form.AppField>
+                                            id="seriesHasEndTime"
+                                            label="End Time"
+                                            onCheckedChange={field.handleChange}
+                                        >
+                                            <form.AppField name="occurrenceEndTime">
+                                                {(endField) => (
+                                                    <endField.TimeField />
+                                                )}
+                                            </form.AppField>
+                                        </OptionalEndField>
                                     )}
-                                </div>
+                                </form.Subscribe>
                             )}
                         </form.AppField>
                     </div>

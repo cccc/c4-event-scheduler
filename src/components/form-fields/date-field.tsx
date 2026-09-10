@@ -3,7 +3,8 @@ import { Label } from "@/components/ui/label";
 import { useFieldContext } from "@/hooks/form";
 
 type DateFieldProps = {
-    label: string;
+    /** Omit when a wrapping component renders the label */
+    label?: string;
     required?: boolean;
     disabled?: boolean;
     description?: string;
@@ -18,10 +19,12 @@ export function DateField({
     const field = useFieldContext<string>();
     return (
         <div>
-            <Label>
-                {label}
-                {required && <span className="text-destructive"> *</span>}
-            </Label>
+            {label && (
+                <Label>
+                    {label}
+                    {required && <span className="text-destructive"> *</span>}
+                </Label>
+            )}
             <Input
                 disabled={disabled}
                 onChange={(e) => field.handleChange(e.target.value)}

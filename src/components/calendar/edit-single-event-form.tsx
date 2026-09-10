@@ -12,6 +12,7 @@ import {
 } from "@/server/fns/events";
 
 import { parseLocalDateTime, toLocalDateTimeString } from "./date-utils";
+import { OptionalEndField, openEndHint } from "./optional-end-field";
 import type { Occurrence } from "./types";
 
 const formSchema = z.object({
@@ -175,6 +176,36 @@ export function EditSingleEventForm({
                     )}
                 </form.AppField>
 
+                <div className="grid grid-cols-2 gap-4">
+                    <form.AppField name="dtstart">
+                        {(field) => (
+                            <>
+                                <field.DateTimeField
+                                    label="Start Date & Time"
+                                    required
+                                />
+                                <field.FieldError />
+                            </>
+                        )}
+                    </form.AppField>
+
+                    <form.AppField name="hasEndTime">
+                        {(field) => (
+                            <OptionalEndField
+                                checked={field.state.value}
+                                hint={openEndHint(occurrence.eventType)}
+                                id="single-hasEndTime"
+                                label="End Date & Time"
+                                onCheckedChange={field.handleChange}
+                            >
+                                <form.AppField name="dtend">
+                                    {(endField) => <endField.DateTimeField />}
+                                </form.AppField>
+                            </OptionalEndField>
+                        )}
+                    </form.AppField>
+                </div>
+
                 <form.AppField name="status">
                     {(field) => (
                         <field.SelectField
@@ -194,36 +225,6 @@ export function EditSingleEventForm({
                             id="isDraft"
                             label="Draft (hidden from public feeds)"
                         />
-                    )}
-                </form.AppField>
-
-                <form.AppField name="dtstart">
-                    {(field) => (
-                        <>
-                            <field.DateTimeField
-                                label="Start Date & Time"
-                                required
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
-
-                <form.AppField name="hasEndTime">
-                    {(field) => (
-                        <div className="space-y-2">
-                            <field.CheckboxField
-                                id="single-hasEndTime"
-                                label="Has end time"
-                            />
-                            {form.state.values.hasEndTime && (
-                                <form.AppField name="dtend">
-                                    {(endField) => (
-                                        <endField.DateTimeField label="End Date & Time" />
-                                    )}
-                                </form.AppField>
-                            )}
-                        </div>
                     )}
                 </form.AppField>
 

@@ -9,6 +9,8 @@ export type Occurrence = {
     url: string | null;
     location: string | null;
     dtstart: Date;
+    // null = open end; for display use effectiveEnd(), which applies the
+    // event type's default duration
     dtend: Date | null;
     allDay: boolean;
     isOverridden: boolean;
@@ -17,7 +19,12 @@ export type Occurrence = {
     status: EventStatus;
     notes: string | null;
     space: { id: string; name: string };
-    eventType: { id: string; name: string; color: string | null } | null;
+    eventType: {
+        id: string;
+        name: string;
+        color: string | null;
+        defaultDurationMinutes: number | null;
+    } | null;
     color: string | null;
     isRecurring: boolean;
     rrule: string | null;
@@ -38,4 +45,5 @@ export type EventType = {
     description: string | null;
     color: string | null;
     spaceId: string | null;
+    defaultDurationMinutes: number | null;
 };

@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
+import { effectiveEnd } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import type { Space } from "@/components/calendar/types";
@@ -60,7 +61,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
             id: occ.id,
             title: occ.summary,
             start: occ.dtstart,
-            end: occ.dtend ?? undefined,
+            end: effectiveEnd(occ) ?? undefined,
             allDay: occ.allDay,
             classNames: [
                 `event-${occ.status}`,

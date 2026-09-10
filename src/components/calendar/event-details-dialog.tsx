@@ -30,6 +30,7 @@ import {
     removeExdate as removeExdateFn,
     removeOverride as removeOverrideFn,
 } from "@/server/fns/events";
+import { effectiveEnd } from "./date-utils";
 import type { EventStatus } from "./types";
 
 type EventDetailsDialogProps = {
@@ -153,6 +154,7 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
 
     if (!occurrence) return null;
 
+    const displayEnd = effectiveEnd(occurrence);
     const displayLocation = occurrence.location ?? occurrence.space.name;
     const showSpaceSeparately =
         occurrence.location && occurrence.location !== occurrence.space.name;
@@ -171,8 +173,8 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
                             <Clock className="h-3.5 w-3.5" />
                             <span>
                                 {formatTime(occurrence.dtstart, tz)}
-                                {occurrence.dtend &&
-                                    ` – ${formatTime(occurrence.dtend, tz)}`}
+                                {displayEnd &&
+                                    ` – ${formatTime(displayEnd, tz)}`}
                             </span>
                         </div>
                         {occurrence.isRecurring && (

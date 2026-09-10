@@ -8,6 +8,7 @@ import { eventsKeys } from "@/lib/queries/events";
 import { create as createEventFn } from "@/server/fns/events";
 
 import { parseLocalDateTime, toLocalDateTimeString } from "./date-utils";
+import { OptionalEndField, openEndHint } from "./optional-end-field";
 import type { EventType, Space } from "./types";
 
 const formSchema = z.object({
@@ -161,35 +162,47 @@ export function CreateSingleEventForm({
                     )}
                 </form.AppField>
 
-                <form.AppField name="dtstart">
-                    {(field) => (
-                        <>
-                            <field.DateTimeField
-                                label="Start Date & Time"
-                                required
-                            />
-                            <field.FieldError />
-                        </>
-                    )}
-                </form.AppField>
+                <div className="grid grid-cols-2 gap-4">
+                    <form.AppField name="dtstart">
+                        {(field) => (
+                            <>
+                                <field.DateTimeField
+                                    label="Start Date & Time"
+                                    required
+                                />
+                                <field.FieldError />
+                            </>
+                        )}
+                    </form.AppField>
 
-                <form.AppField name="hasEndTime">
-                    {(field) => (
-                        <div className="space-y-2">
-                            <field.CheckboxField
-                                id="hasEndTime"
-                                label="Has end time"
-                            />
-                            {form.state.values.hasEndTime && (
-                                <form.AppField name="dtend">
-                                    {(endField) => (
-                                        <endField.DateTimeField label="End Date & Time" />
-                                    )}
-                                </form.AppField>
-                            )}
-                        </div>
-                    )}
-                </form.AppField>
+                    <form.AppField name="hasEndTime">
+                        {(field) => (
+                            <form.Subscribe
+                                selector={(state) => state.values.eventTypeId}
+                            >
+                                {(eventTypeId) => (
+                                    <OptionalEndField
+                                        checked={field.state.value}
+                                        hint={openEndHint(
+                                            eventTypes.find(
+                                                (et) => et.id === eventTypeId,
+                                            ),
+                                        )}
+                                        id="hasEndTime"
+                                        label="End Date & Time"
+                                        onCheckedChange={field.handleChange}
+                                    >
+                                        <form.AppField name="dtend">
+                                            {(endField) => (
+                                                <endField.DateTimeField />
+                                            )}
+                                        </form.AppField>
+                                    </OptionalEndField>
+                                )}
+                            </form.Subscribe>
+                        )}
+                    </form.AppField>
+                </div>
 
                 <form.AppField name="status">
                     {(field) => (

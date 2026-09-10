@@ -153,7 +153,7 @@ export const getOccurrences = createServerFn({ method: "GET" })
             url: string | null;
             location: string | null;
             dtstart: Date;
-            dtend: Date | null;
+            dtend: Date | null; // stored value; null = open end
             allDay: boolean;
             isOverridden: boolean;
             isDraft: boolean;
@@ -174,12 +174,11 @@ export const getOccurrences = createServerFn({ method: "GET" })
             if (evt.isDraft && !isLoggedIn) continue;
 
             const isInternal = evt.eventType?.isInternal ?? false;
-            const defaultDurationMs = evt.eventType?.defaultDurationMinutes
-                ? evt.eventType.defaultDurationMinutes * 60_000
-                : 0;
-            const duration = evt.dtend
+            // Duration of the stored end, if any. Open-end events stay open
+            // here; the type's default duration is applied at display time.
+            const durationMs = evt.dtend
                 ? evt.dtend.getTime() - evt.dtstart.getTime()
-                : defaultDurationMs;
+                : 0;
 
             // Parse exdates into a Set for fast lookup
             const exdatesSet = new Set(evt.exdates ?? []);
@@ -208,12 +207,7 @@ export const getOccurrences = createServerFn({ method: "GET" })
                     url: override?.url ?? evt.url,
                     location: override?.location ?? evt.location,
                     dtstart: start,
-                    dtend:
-                        override?.dtend ??
-                        evt.dtend ??
-                        (defaultDurationMs
-                            ? new Date(start.getTime() + defaultDurationMs)
-                            : null),
+                    dtend: override?.dtend ?? evt.dtend ?? null,
                     allDay: evt.allDay,
                     isOverridden: !!override,
                     isDraft: evt.isDraft,
@@ -268,8 +262,8 @@ export const getOccurrences = createServerFn({ method: "GET" })
                         const start = override?.dtstart ?? date;
                         const end =
                             override?.dtend ??
-                            (duration > 0
-                                ? new Date(date.getTime() + duration)
+                            (durationMs > 0
+                                ? new Date(date.getTime() + durationMs)
                                 : null);
 
                         // Check if within requested date range

@@ -29,6 +29,7 @@ import {
     toLocalDateTimeString,
     toLocalTimeString,
 } from "./date-utils";
+import { OptionalEndField, openEndHint } from "./optional-end-field";
 import type { Occurrence } from "./types";
 
 const occurrenceFormSchema = z.object({
@@ -147,7 +148,7 @@ export function EditSeriesForm({
                       new Date(occurrence.dtstart.getTime() + 60 * 60 * 1000),
                       tz,
                   ),
-            hasEndTime: !!occurrence.dtend,
+            hasEndTime: occurrence.isOverridden && !!occurrence.dtend,
         } as z.infer<typeof occurrenceFormSchema>,
         validators: {
             onSubmit: occurrenceFormSchema,
@@ -312,7 +313,10 @@ export function EditSeriesForm({
                       tz,
                   ),
         );
-        occurrenceForm.setFieldValue("hasEndTime", !!occurrence.dtend);
+        occurrenceForm.setFieldValue(
+            "hasEndTime",
+            occurrence.isOverridden && !!occurrence.dtend,
+        );
 
         seriesForm.setFieldValue("summary", occurrence.summary);
         seriesForm.setFieldValue("description", occurrence.description ?? "");
@@ -508,29 +512,31 @@ export function EditSeriesForm({
                             )}
                         </occurrenceForm.AppField>
 
-                        <occurrenceForm.AppField name="dtstart">
-                            {(field) => (
-                                <field.DateTimeField label="Start Date & Time" />
-                            )}
-                        </occurrenceForm.AppField>
+                        <div className="grid grid-cols-2 gap-4">
+                            <occurrenceForm.AppField name="dtstart">
+                                {(field) => (
+                                    <field.DateTimeField label="Start Date & Time" />
+                                )}
+                            </occurrenceForm.AppField>
 
-                        <occurrenceForm.AppField name="hasEndTime">
-                            {(field) => (
-                                <div className="space-y-2">
-                                    <field.CheckboxField
+                            <occurrenceForm.AppField name="hasEndTime">
+                                {(field) => (
+                                    <OptionalEndField
+                                        checked={field.state.value}
+                                        hint="Inherited from series"
                                         id="occ-hasEndTime"
-                                        label="Has end time"
-                                    />
-                                    {occurrenceForm.state.values.hasEndTime && (
+                                        label="End Date & Time"
+                                        onCheckedChange={field.handleChange}
+                                    >
                                         <occurrenceForm.AppField name="dtend">
                                             {(endField) => (
-                                                <endField.DateTimeField label="End" />
+                                                <endField.DateTimeField />
                                             )}
                                         </occurrenceForm.AppField>
-                                    )}
-                                </div>
-                            )}
-                        </occurrenceForm.AppField>
+                                    </OptionalEndField>
+                                )}
+                            </occurrenceForm.AppField>
+                        </div>
 
                         <occurrenceForm.AppField name="status">
                             {(field) => (
@@ -682,20 +688,21 @@ export function EditSeriesForm({
                                     </seriesForm.AppField>
                                     <seriesForm.AppField name="seriesHasEndDate">
                                         {(field) => (
-                                            <div>
-                                                <field.CheckboxField
-                                                    id="edit-seriesHasEndDate"
-                                                    label="Has end date"
-                                                />
-                                                {seriesForm.state.values
-                                                    .seriesHasEndDate && (
-                                                    <seriesForm.AppField name="seriesLastDate">
-                                                        {(lastField) => (
-                                                            <lastField.DateField label="Last Occurrence" />
-                                                        )}
-                                                    </seriesForm.AppField>
-                                                )}
-                                            </div>
+                                            <OptionalEndField
+                                                checked={field.state.value}
+                                                hint="No end date; repeats indefinitely"
+                                                id="edit-seriesHasEndDate"
+                                                label="Last Occurrence"
+                                                onCheckedChange={
+                                                    field.handleChange
+                                                }
+                                            >
+                                                <seriesForm.AppField name="seriesLastDate">
+                                                    {(lastField) => (
+                                                        <lastField.DateField />
+                                                    )}
+                                                </seriesForm.AppField>
+                                            </OptionalEndField>
                                         )}
                                     </seriesForm.AppField>
                                 </div>
@@ -724,20 +731,23 @@ export function EditSeriesForm({
 
                                     <seriesForm.AppField name="hasEndTime">
                                         {(field) => (
-                                            <div>
-                                                <field.CheckboxField
-                                                    id="edit-seriesHasEndTime"
-                                                    label="Has end time"
-                                                />
-                                                {seriesForm.state.values
-                                                    .hasEndTime && (
-                                                    <seriesForm.AppField name="occurrenceEndTime">
-                                                        {(endField) => (
-                                                            <endField.TimeField label="End Time" />
-                                                        )}
-                                                    </seriesForm.AppField>
+                                            <OptionalEndField
+                                                checked={field.state.value}
+                                                hint={openEndHint(
+                                                    occurrence.eventType,
                                                 )}
-                                            </div>
+                                                id="edit-seriesHasEndTime"
+                                                label="End Time"
+                                                onCheckedChange={
+                                                    field.handleChange
+                                                }
+                                            >
+                                                <seriesForm.AppField name="occurrenceEndTime">
+                                                    {(endField) => (
+                                                        <endField.TimeField />
+                                                    )}
+                                                </seriesForm.AppField>
+                                            </OptionalEndField>
                                         )}
                                     </seriesForm.AppField>
                                 </div>
