@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
+import { UserApiKeys } from "@/components/api-keys/user-api-keys";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,6 +105,7 @@ function AdminUsersPage() {
     const [confirmPassword, setConfirmPassword] = useState("");
 
     const queryClient = useQueryClient();
+
     const { isAdmin, session, authOptions } = Route.useRouteContext();
     const currentUserId = session?.user.id;
 
@@ -516,6 +517,8 @@ function AdminUsersPage() {
                                     OIDC claims)
                                 </p>
                             )}
+
+                            <UserApiKeys userId={u.id} />
                         </div>
                     ))}
 

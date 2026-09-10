@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { authLog } from "@/server/auth-log";
 import { db } from "@/server/db";
-import { apiKey } from "@/server/db/schema";
+import { apiKey, apiKeySecret } from "@/server/db/schema";
 
 export type ApiKeyWithActor = Awaited<ReturnType<typeof getApiKeyFromRequest>>;
 
@@ -96,12 +96,15 @@ export async function getApiKeyFromRequest(
         : rawKey;
     const hash = createHash("sha256").update(baseKey).digest("hex");
 
-    const key = await db.query.apiKey.findFirst({
-        where: and(eq(apiKey.keyHash, hash), eq(apiKey.isActive, true)),
+    // The hash lives in its own table; only this lookup ever touches it
+    const secret = await db.query.apiKeySecret.findFirst({
+        where: eq(apiKeySecret.keyHash, hash),
+        columns: {},
         with: {
-            actor: { with: { permissions: true } },
+            apiKey: { with: { actor: { with: { permissions: true } } } },
         },
     });
+    const key = secret?.apiKey.isActive ? secret.apiKey : null;
 
     if (!key) {
         authLog.warn("api key rejected: unknown or inactive", {
@@ -140,15 +143,21 @@ export async function getApiKeyFromRequest(
 
 /**
  * Generate a new API key.
- * Returns { rawKey, keyPrefix, keyHash }
- * The rawKey must be returned to the user exactly once; only hash and prefix are stored.
+ * Returns { rawKey, keyHash, fingerprint }
+ * The rawKey must be returned to the user exactly once; only the hash
+ * (apiKeySecret) and the fingerprint are stored.
  */
-export function generateApiKey(): { rawKey: string; keyHash: string } {
+export function generateApiKey(): {
+    rawKey: string;
+    keyHash: string;
+    fingerprint: string;
+} {
     const random = randomBytes(24).toString("base64url");
     const baseKey = `c4k_${random}`;
     const keyHash = createHash("sha256").update(baseKey).digest("hex");
-    // Append the first 8 hex chars of the hash as a human-readable fingerprint.
-    // The suffix is for identification only — verification always strips it first.
-    const rawKey = `${baseKey}#${keyHash.slice(0, 8)}`;
-    return { rawKey, keyHash };
+    // The first 8 hex chars of the hash are the public fingerprint, appended
+    // to the key for identification only; verification strips the suffix.
+    const fingerprint = keyHash.slice(0, 8);
+    const rawKey = `${baseKey}#${fingerprint}`;
+    return { rawKey, keyHash, fingerprint };
 }

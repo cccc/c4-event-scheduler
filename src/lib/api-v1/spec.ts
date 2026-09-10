@@ -39,7 +39,7 @@ registry.registerComponent("securitySchemes", "BearerAuth", {
 // ─── Reusable response components ────────────────────────────────────────────
 
 const authNote =
-    "When no valid API key is provided, draft events are hidden and author fields (`createdByActor`, `updatedByActor`, `createdByActorId`, `updatedByActorId`) are omitted from all responses.";
+    "When no valid API key is provided, draft events are hidden and author fields (`createdByActor`, `updatedByActor`, `createdByActorId`, `updatedByActorId`) are omitted from all responses. Personal keys act within their owner's permissions.";
 
 const errorResponses = {
     400: {

@@ -111,7 +111,7 @@ docker run -p 3000:3000 \
 - `GET /api/cal/{space}/{event-type}.ics` — Filtered by event type
 
 Feeds are public and contain only public spaces and non-internal event types.
-An API key (Admin -> API Keys) unlocks internal event types and non-public
+An API key (see below) unlocks internal event types and non-public
 spaces; pass it as `?key=c4k_...` in the feed URL, since calendar clients
 cannot send headers. Clients that can send headers may use `X-Api-Key` or
 `Authorization: Bearer` instead — precedence is query parameter, then
@@ -121,6 +121,23 @@ as `%23` — an un-encoded `#` would be treated as a URL fragment and cut off.
 A feed URL with an invalid key returns 401 instead of silently falling back to
 the public subset. Note that keys in URLs can end up in proxy logs; treat such
 feed URLs as secrets. Draft events never appear in feeds.
+
+### API keys
+
+There are two kinds of keys, both usable for the REST API and the feeds:
+
+- **Personal keys** are created by any signed-in user under **Account -> API Keys** and
+  managed exactly like service keys (name, admin flag, a list of permissions). The
+  difference is the owner: every request must be allowed by the key's own permissions
+  *and* by the owner's current permissions, the key's admin flag only counts while the
+  owner is an admin, only scopes the owner has can be granted, events created through
+  the key are attributed to the owner, and the key is deleted with the user. A key
+  without any permissions can read everything a signed-in user sees (also in feeds) but
+  cannot modify anything. Admins see every personal key
+  under **Admin -> Users** (per user) and in the "Personal keys" section of
+  **Admin -> API Keys**, with the same controls.
+- **Service keys** are created by admins under **Admin -> API Keys** and carry their own
+  admin flag and permission list, for integrations not tied to a person.
 
 ### Widget API
 

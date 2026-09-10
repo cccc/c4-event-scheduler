@@ -379,8 +379,14 @@ export const permissionRelations = relations(permission, ({ one }) => ({
 export const apiKey = createTable("api_key", {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    // SHA-256 hex of full key (no salt needed; key is random)
-    keyHash: text("key_hash").notNull(),
+    // Public identifier shown in the UI and in the key's "#suffix" (first 8
+    // hex chars of the hash). The hash itself lives in apiKeySecret so that
+    // no query on this table can pick it up by accident.
+    fingerprint: text("fingerprint").notNull(),
+    // Owner of a personal key. Every key has its own actor (admin flag +
+    // permission rows); a personal key is additionally capped by its owner's
+    // current rights and dies with the user. null = service key, admin-managed.
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
         .notNull()
@@ -390,4 +396,29 @@ export const apiKey = createTable("api_key", {
 
 export const apiKeyRelations = relations(apiKey, ({ one }) => ({
     actor: one(actor, { fields: [apiKey.id], references: [actor.apiKeyId] }),
+    user: one(user, { fields: [apiKey.userId], references: [user.id] }),
+    secret: one(apiKeySecret, {
+        fields: [apiKey.id],
+        references: [apiKeySecret.apiKeyId],
+    }),
+}));
+
+// ============================================================================
+// ApiKeySecret - Key hash, kept out of api_key so it is never selected
+// unless a query asks for this table explicitly
+// ============================================================================
+
+export const apiKeySecret = createTable("api_key_secret", {
+    apiKeyId: uuid("api_key_id")
+        .primaryKey()
+        .references(() => apiKey.id, { onDelete: "cascade" }),
+    // SHA-256 hex of the full key (no salt needed; the key is random)
+    keyHash: text("key_hash").notNull().unique(),
+});
+
+export const apiKeySecretRelations = relations(apiKeySecret, ({ one }) => ({
+    apiKey: one(apiKey, {
+        fields: [apiKeySecret.apiKeyId],
+        references: [apiKey.id],
+    }),
 }));

@@ -43,7 +43,7 @@ export function withApiAuth(handler: ApiHandler) {
             });
             return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
-        return handler(request, actorFromApiKey(key), params);
+        return handler(request, await actorFromApiKey(key), params);
     };
 }
 
@@ -54,7 +54,7 @@ export function withApiAuth(handler: ApiHandler) {
 export function withOptionalApiAuth(handler: OptionalApiHandler) {
     return async ({ request, params }: RouteHandlerContext) => {
         const key = await getApiKeyFromRequest(request);
-        const actor = key ? actorFromApiKey(key) : null;
+        const actor = key ? await actorFromApiKey(key) : null;
         return handler(request, actor, params);
     };
 }

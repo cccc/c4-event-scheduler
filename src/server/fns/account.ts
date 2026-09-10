@@ -7,7 +7,9 @@ import { account } from "@/server/db/schema";
 /**
  * How the current user signs in: local users have a "credential" account
  * (email + password), SSO users an "oidc" one. Drives the self-service
- * account page (password change is only offered to local users).
+ * account page (password change is only offered to local users). Also
+ * returns the user's effective rights, which bound the scopes their
+ * personal API keys may be limited to.
  */
 export const getAccountInfo = createServerFn({ method: "GET" })
     .middleware([authed])
@@ -20,5 +22,7 @@ export const getAccountInfo = createServerFn({ method: "GET" })
         return {
             providers,
             hasPassword: providers.includes("credential"),
+            isAdmin: context.actor.isAdmin,
+            permissions: context.actor.permissions,
         };
     });

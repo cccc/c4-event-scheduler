@@ -1,28 +1,19 @@
 import { and, eq, ne } from "drizzle-orm";
 
 import { env } from "@/env";
+import {
+    type Actor,
+    type Capabilities,
+    can,
+    type Permission,
+    type PermissionScope,
+} from "@/lib/permissions-core";
 import { authLog } from "@/server/auth-log";
 import { db } from "@/server/db";
 import { account, actor, permission } from "@/server/db/schema";
 import { forbidden } from "@/server/fn-errors";
 
-export type Permission = {
-    spaceSlug: string | null;
-    eventTypeSlug: string | null;
-};
-
-export type Actor = {
-    kind: "user" | "apiKey";
-    id: string;
-    actorId: string | undefined; // actor row UUID — used for createdByActorId / updatedByActorId
-    isAdmin: boolean;
-    permissions: Permission[];
-};
-
-export type PermissionScope = {
-    spaceSlug?: string;
-    eventTypeSlug?: string;
-};
+export { type Actor, can, type Permission, type PermissionScope };
 
 // ─── Admin resolution ───────────────────────────────────────────────────────
 
@@ -36,7 +27,7 @@ if (env.AUTH_SSO_USERS_ADMIN) {
  * Effective admin flag for a *user* actor: the stored flag, or true when
  * AUTH_SSO_USERS_ADMIN is set and the user signed up through the OIDC
  * provider (has a non-credential account). Local email/password accounts
- * and API keys always use the stored flag.
+ * and service API keys always use the stored flag.
  */
 export async function resolveUserIsAdmin(
     userId: string,
@@ -56,68 +47,18 @@ export async function resolveUserIsAdmin(
 
 /** Compact, log-friendly description of an actor and its permissions */
 export function describeActor(actorArg: Actor) {
+    const scopes = (perms: Permission[]) =>
+        perms.map((p) => `${p.spaceSlug ?? "*"}/${p.eventTypeSlug ?? "*"}`);
     return {
         actorKind: actorArg.kind,
         actorId: actorArg.id,
         isAdmin: actorArg.isAdmin,
-        permissions: actorArg.permissions.map(
-            (p) => `${p.spaceSlug ?? "*"}/${p.eventTypeSlug ?? "*"}`,
-        ),
+        permissions: scopes(actorArg.permissions),
+        ownerIsAdmin: actorArg.owner?.isAdmin,
+        ownerPermissions: actorArg.owner
+            ? scopes(actorArg.owner.permissions)
+            : undefined,
     };
-}
-
-// ─── Core check (pure, sync) ────────────────────────────────────────────────
-
-/**
- * Check if an actor has permission for a given scope.
- *
- * Permission hierarchy:
- * - isAdmin=true → full access to everything
- * - Global permission (both slugs null) → access to all spaces/event-types
- * - Space permission (spaceSlug set) → access to that space and all its event types
- * - EventType permission (eventTypeSlug set) → access to that event type in all spaces
- * - Scoped permission (both set) → access only to that event type in that space
- */
-export function can(
-    actorArg: Actor,
-    _action: string,
-    scope: PermissionScope = {},
-): boolean {
-    if (actorArg.isAdmin) return true;
-
-    for (const perm of actorArg.permissions) {
-        // Global permission (both null)
-        if (perm.spaceSlug === null && perm.eventTypeSlug === null) return true;
-
-        if (scope.spaceSlug) {
-            // Space-level permission (covers all event types in that space)
-            if (
-                perm.spaceSlug === scope.spaceSlug &&
-                perm.eventTypeSlug === null
-            )
-                return true;
-
-            if (scope.eventTypeSlug) {
-                // Scoped permission (specific event type in specific space)
-                if (
-                    perm.spaceSlug === scope.spaceSlug &&
-                    perm.eventTypeSlug === scope.eventTypeSlug
-                )
-                    return true;
-            }
-        }
-
-        if (scope.eventTypeSlug) {
-            // Global event type permission (covers this event type in all spaces)
-            if (
-                perm.spaceSlug === null &&
-                perm.eventTypeSlug === scope.eventTypeSlug
-            )
-                return true;
-        }
-    }
-
-    return false;
 }
 
 /** Throws a 403 AppError if not allowed (for use inside server functions) */
@@ -147,7 +88,7 @@ export function assertCan(
 
 // ─── Actor builders ─────────────────────────────────────────────────────────
 
-/** For use outside tRPC (e.g., scripts). tRPC uses protectedProcedure's actorRecord directly. */
+/** Actor for a signed-in user (session middleware, scripts, key owners) */
 export async function actorFromUserId(userId: string): Promise<Actor> {
     const actorRecord = await db.query.actor.findFirst({
         where: eq(actor.userId, userId),
@@ -162,17 +103,38 @@ export async function actorFromUserId(userId: string): Promise<Actor> {
     };
 }
 
-/** Sync — API key's actor+permissions are already loaded by getApiKeyFromRequest() */
-export function actorFromApiKey(key: {
+/**
+ * Actor for an API key (key + its actor/permissions already loaded by
+ * getApiKeyFromRequest). Every key uses its own admin flag and permission
+ * rows. A personal key additionally carries its owner's capabilities: the
+ * owner must allow the action too, the key's admin flag only counts while
+ * the owner is an admin, and audit fields record the owner.
+ */
+export async function actorFromApiKey(key: {
     id: string;
+    userId: string | null;
     actor: { id: string; isAdmin: boolean; permissions: Permission[] } | null;
-}): Actor {
+}): Promise<Actor> {
+    const own: Capabilities = {
+        isAdmin: key.actor?.isAdmin ?? false,
+        permissions: key.actor?.permissions ?? [],
+    };
+    if (key.userId) {
+        const owner = await actorFromUserId(key.userId);
+        return {
+            kind: "apiKey",
+            id: key.id,
+            actorId: owner.actorId,
+            isAdmin: own.isAdmin && owner.isAdmin,
+            permissions: own.permissions,
+            owner: { isAdmin: owner.isAdmin, permissions: owner.permissions },
+        };
+    }
     return {
         kind: "apiKey",
         id: key.id,
         actorId: key.actor?.id,
-        isAdmin: key.actor?.isAdmin ?? false,
-        permissions: key.actor?.permissions ?? [],
+        ...own,
     };
 }
 

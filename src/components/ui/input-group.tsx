@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
     return (
+        // biome-ignore lint/a11y/useSemanticElements: shadcn upstream markup (a fieldset would break the input styling)
         <div
             className={cn(
                 "group/input-group relative flex w-full items-center rounded-md border border-input shadow-xs outline-none transition-[color,box-shadow] dark:bg-input/30",
@@ -62,6 +63,8 @@ function InputGroupAddon({
     ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
     return (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: shadcn upstream; the click only refocuses the input, keyboard users tab into it directly
+        // biome-ignore lint/a11y/useSemanticElements: shadcn upstream markup (a fieldset would break the input styling)
         <div
             className={cn(inputGroupAddonVariants({ align }), className)}
             data-align={align}

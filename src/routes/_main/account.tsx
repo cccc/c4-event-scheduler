@@ -3,6 +3,7 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PersonalApiKeysCard } from "@/components/account/api-keys-card";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -238,6 +239,8 @@ function AccountPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                <PersonalApiKeysCard owner={info} />
             </div>
         </>
     );
