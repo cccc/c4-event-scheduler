@@ -197,13 +197,19 @@ export function CreateSeriesForm({
                     <Button onClick={onClose} type="button" variant="outline">
                         Cancel
                     </Button>
-                    <form.SubmitButton disabled={createEvent.isPending}>
-                        {({ isSubmitting }) =>
-                            isSubmitting || createEvent.isPending
-                                ? "Creating..."
-                                : "Create Series"
-                        }
-                    </form.SubmitButton>
+                    <form.Subscribe selector={(state) => state.values.isDraft}>
+                        {(isDraft) => (
+                            <form.SubmitButton disabled={createEvent.isPending}>
+                                {({ isSubmitting }) =>
+                                    isSubmitting || createEvent.isPending
+                                        ? "Creating..."
+                                        : isDraft
+                                          ? "Create Draft Series"
+                                          : "Create Series"
+                                }
+                            </form.SubmitButton>
+                        )}
+                    </form.Subscribe>
                 </div>
             </form.Form>
         </form.AppForm>

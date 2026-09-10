@@ -146,15 +146,21 @@ export function EditSingleEventForm({
                     onDelete={handleDelete}
                     pending={updateEvent.isPending}
                 >
-                    <form.SubmitButton
-                        disabled={updateEvent.isPending || undefined}
-                    >
-                        {({ isSubmitting }) =>
-                            isSubmitting || updateEvent.isPending
-                                ? "Saving..."
-                                : "Save Changes"
-                        }
-                    </form.SubmitButton>
+                    <form.Subscribe selector={(state) => state.values.isDraft}>
+                        {(isDraft) => (
+                            <form.SubmitButton
+                                disabled={updateEvent.isPending || undefined}
+                            >
+                                {({ isSubmitting }) =>
+                                    isSubmitting || updateEvent.isPending
+                                        ? "Saving..."
+                                        : isDraft
+                                          ? "Save Draft"
+                                          : "Save Changes"
+                                }
+                            </form.SubmitButton>
+                        )}
+                    </form.Subscribe>
                 </EditActions>
             </form.Form>
         </form.AppForm>

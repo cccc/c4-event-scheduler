@@ -133,13 +133,19 @@ export function CreateSingleEventForm({
                     <Button onClick={onClose} type="button" variant="outline">
                         Cancel
                     </Button>
-                    <form.SubmitButton>
-                        {({ isSubmitting }) =>
-                            isSubmitting || createEvent.isPending
-                                ? "Creating..."
-                                : "Create Event"
-                        }
-                    </form.SubmitButton>
+                    <form.Subscribe selector={(state) => state.values.isDraft}>
+                        {(isDraft) => (
+                            <form.SubmitButton>
+                                {({ isSubmitting }) =>
+                                    isSubmitting || createEvent.isPending
+                                        ? "Creating..."
+                                        : isDraft
+                                          ? "Create Draft"
+                                          : "Create Event"
+                                }
+                            </form.SubmitButton>
+                        )}
+                    </form.Subscribe>
                 </div>
             </form.Form>
         </form.AppForm>

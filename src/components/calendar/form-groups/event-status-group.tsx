@@ -6,6 +6,9 @@ export const STATUS_OPTIONS = [
     { value: "cancelled", label: "Cancelled" },
 ];
 
+export const DRAFT_NOTE =
+    "This event is a draft. Drafts never appear in iCal feeds and are hidden from unauthenticated users.";
+
 export const eventStatusFields = {
     status: "status",
     isDraft: "isDraft",
@@ -31,10 +34,14 @@ export const EventStatusGroup = withFieldGroup({
 
                 <group.AppField name="isDraft">
                     {(field) => (
-                        <field.CheckboxField
-                            id="isDraft"
-                            label="Draft (hidden from public feeds)"
-                        />
+                        <div>
+                            <field.CheckboxField id="isDraft" label="Draft" />
+                            {field.state.value && (
+                                <p className="mt-1 text-muted-foreground text-xs">
+                                    {DRAFT_NOTE}
+                                </p>
+                            )}
+                        </div>
                     )}
                 </group.AppField>
             </>

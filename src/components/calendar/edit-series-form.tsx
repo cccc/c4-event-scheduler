@@ -472,17 +472,27 @@ export function EditSeriesForm({
                                 onDelete={handleDelete}
                                 pending={seriesIsPending}
                             >
-                                <seriesForm.SubmitButton
-                                    disabled={seriesIsPending || undefined}
+                                <seriesForm.Subscribe
+                                    selector={(state) => state.values.isDraft}
                                 >
-                                    {({ isSubmitting }) =>
-                                        isSubmitting || seriesIsPending
-                                            ? "Saving..."
-                                            : editTab === "whole"
-                                              ? "Update Series"
-                                              : "Split & Update"
-                                    }
-                                </seriesForm.SubmitButton>
+                                    {(isDraft) => (
+                                        <seriesForm.SubmitButton
+                                            disabled={
+                                                seriesIsPending || undefined
+                                            }
+                                        >
+                                            {({ isSubmitting }) =>
+                                                isSubmitting || seriesIsPending
+                                                    ? "Saving..."
+                                                    : editTab !== "whole"
+                                                      ? "Split & Update"
+                                                      : isDraft
+                                                        ? "Update Draft Series"
+                                                        : "Update Series"
+                                            }
+                                        </seriesForm.SubmitButton>
+                                    )}
+                                </seriesForm.Subscribe>
                             </EditActions>
                         </seriesForm.Form>
                     </seriesForm.AppForm>
