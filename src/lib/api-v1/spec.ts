@@ -20,12 +20,20 @@ const registry = new OpenAPIRegistry();
 
 // ─── Security scheme ──────────────────────────────────────────────────────────
 
+registry.registerComponent("securitySchemes", "ApiKeyAuth", {
+    type: "apiKey",
+    in: "header",
+    name: "X-Api-Key",
+    description:
+        "Machine-to-machine API key. Obtain from **Admin → API Keys**. Format: `c4k_<random>#<fingerprint>`",
+});
+
 registry.registerComponent("securitySchemes", "BearerAuth", {
     type: "http",
     scheme: "bearer",
     bearerFormat: "c4k_…",
     description:
-        "Machine-to-machine API key. Obtain from **Admin → API Keys**. Format: `c4k_<random>#<fingerprint>`",
+        "The same API key sent as a Bearer token. X-Api-Key takes precedence when both are present.",
 });
 
 // ─── Reusable response components ────────────────────────────────────────────
@@ -63,7 +71,11 @@ const errorResponses = {
 
 // Security shorthand: send the token if configured, but don't require it.
 // An empty object in the security array means "unauthenticated is also valid".
-const optionalAuth = [{} as Record<string, string[]>, { BearerAuth: [] }];
+const requiredAuth: Record<string, string[]>[] = [
+    { ApiKeyAuth: [] },
+    { BearerAuth: [] },
+];
+const optionalAuth: Record<string, string[]>[] = [{}, ...requiredAuth];
 
 // ─── /api/v1/events ───────────────────────────────────────────────────────────
 
@@ -129,7 +141,7 @@ registry.registerPath({
     path: "/api/v1/events",
     tags: ["Events"],
     summary: "Create event",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: {
         body: {
             required: true,
@@ -179,7 +191,7 @@ registry.registerPath({
     summary: "Upsert event",
     description:
         "Creates the event with the given ID if it does not exist (201), or fully replaces it if it does (200). The body must always be a complete event payload.",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: {
         params: eventIdParam,
         body: {
@@ -209,7 +221,7 @@ registry.registerPath({
     path: "/api/v1/events/{id}",
     tags: ["Events"],
     summary: "Delete event",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: { params: eventIdParam },
     responses: {
         200: {
@@ -279,7 +291,7 @@ registry.registerPath({
     summary: "Upsert occurrence override",
     description:
         "Creates or updates an override for a specific occurrence of a recurring event. Also bumps the parent event's `sequence` counter.",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: {
         params: occurrenceParams,
         body: {
@@ -307,7 +319,7 @@ registry.registerPath({
     summary: "Delete occurrence",
     description:
         "For single events: deletes the entire event. For recurring events: adds the date to `exdates` and removes any override.",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: { params: occurrenceParams },
     responses: {
         200: {
@@ -336,7 +348,7 @@ registry.registerPath({
     summary: "Remove occurrence override",
     description:
         "Removes a specific occurrence override, reverting it to the series defaults. The occurrence itself is NOT deleted.",
-    security: [{ BearerAuth: [] }],
+    security: requiredAuth,
     request: { params: occurrenceParams },
     responses: {
         200: {

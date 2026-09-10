@@ -8,26 +8,58 @@ import { apiKey } from "@/server/db/schema";
 export type ApiKeyWithActor = Awaited<ReturnType<typeof getApiKeyFromRequest>>;
 
 /**
- * Extract and verify an API key from the Authorization header.
- * Format: "Bearer c4k_<32 chars>"
+ * Locate API key credentials by precedence: the X-Api-Key header, then
+ * "Authorization: Bearer".
+ * An Authorization header with another scheme (e.g. Basic) is not treated
+ * as API key credentials.
+ */
+function findRawApiKey(
+    request: Request,
+): { rawKey: string; source: string } | null {
+    const headerKey = request.headers.get("x-api-key");
+    if (headerKey !== null) {
+        return { rawKey: headerKey, source: "x-api-key header" };
+    }
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer c4k_")) {
+        return {
+            rawKey: authHeader.slice(7), // remove "Bearer "
+            source: "authorization header",
+        };
+    }
+    return null;
+}
+
+/**
+ * Extract and verify an API key (see findRawApiKey for the accepted
+ * sources and their precedence).
  *
  * Returns the key record (with actor + permissions loaded) if valid, null otherwise.
  * Also fires-and-forgets a lastUsedAt update.
  */
 export async function getApiKeyFromRequest(request: Request) {
     const path = new URL(request.url).pathname;
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) return null;
-    if (!authHeader.startsWith("Bearer c4k_")) {
-        authLog.debug("ignoring authorization header: not an api key", {
+    const found = findRawApiKey(request);
+    if (!found) {
+        const authHeader = request.headers.get("authorization");
+        if (authHeader) {
+            authLog.debug("ignoring authorization header: not an api key", {
+                method: request.method,
+                path: path,
+                scheme: authHeader.split(" ")[0],
+            });
+        }
+        return null;
+    }
+    const { rawKey, source } = found;
+    if (!rawKey.startsWith("c4k_")) {
+        authLog.debug(`ignoring ${source}: not an api key`, {
             method: request.method,
             path: path,
-            scheme: authHeader.split(" ")[0],
         });
         return null;
     }
 
-    const rawKey = authHeader.slice(7); // remove "Bearer "
     // Strip optional fingerprint suffix (e.g. "c4k_...#ae2f3933" → "c4k_...")
     const baseKey = rawKey.includes("#")
         ? (rawKey.split("#")[0] ?? rawKey)
