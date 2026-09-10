@@ -110,6 +110,18 @@ docker run -p 3000:3000 \
 - `GET /api/cal/{space}.ics` — Events for a specific space
 - `GET /api/cal/{space}/{event-type}.ics` — Filtered by event type
 
+Feeds are public and contain only public spaces and non-internal event types.
+An API key (Admin -> API Keys) unlocks internal event types and non-public
+spaces; pass it as `?key=c4k_...` in the feed URL, since calendar clients
+cannot send headers. Clients that can send headers may use `X-Api-Key` or
+`Authorization: Bearer` instead — precedence is query parameter, then
+`X-Api-Key`, then `Authorization`, and the same headers work on the REST API.
+Use the key without its `#fingerprint` suffix in URLs, or URL-encode the `#`
+as `%23` — an un-encoded `#` would be treated as a URL fragment and cut off.
+A feed URL with an invalid key returns 401 instead of silently falling back to
+the public subset. Note that keys in URLs can end up in proxy logs; treat such
+feed URLs as secrets. Draft events never appear in feeds.
+
 ### Widget API
 
 `GET /api/widget/upcoming` — Upcoming events as JSON or HTML.
@@ -126,20 +138,20 @@ docker run -p 3000:3000 \
 
 See [`.env.example`](.env.example) for the full list. Key variables:
 
-| Variable              | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `DATABASE_URL`        | PostgreSQL connection string                 |
-| `BETTER_AUTH_URL`     | Public URL of the app                        |
-| `BETTER_AUTH_SECRET`  | Auth session secret                          |
-| `BETTER_AUTH_OIDC_*`  | OIDC provider configuration                  |
-| `OIDC_CLAIM_PREFIX`   | Prefix for permission claims (default: `c4`) |
-| `OIDC_ROLES_CLAIM`    | Dot-notation path to roles in OIDC token     |
-| `AUTH_EMAIL_ENABLED`  | Email/password sign-in for local accounts (default `false`) |
+| Variable                    | Description                                                          |
+| --------------------------- | -------------------------------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL connection string                                         |
+| `BETTER_AUTH_URL`           | Public URL of the app                                                |
+| `BETTER_AUTH_SECRET`        | Auth session secret                                                  |
+| `BETTER_AUTH_OIDC_*`        | OIDC provider configuration                                          |
+| `OIDC_CLAIM_PREFIX`         | Prefix for permission claims (default: `c4`)                         |
+| `OIDC_ROLES_CLAIM`          | Dot-notation path to roles in OIDC token                             |
+| `AUTH_EMAIL_ENABLED`        | Email/password sign-in for local accounts (default `false`)          |
 | `AUTH_EMAIL_SIGNUP_ENABLED` | Open public self-registration (default `false`; needs email sign-in) |
-| `AUTH_ALL_USERS_ADMIN` | `true` makes every signed-in user an admin (see below) |
-| `AUTH_LOG_LEVEL`      | Auth log verbosity: `debug`, `info` (default), `warn`, `error` |
-| `APP_URL`             | Public app URL for feeds and callbacks       |
-| `APP_TIMEZONE`        | IANA timezone (e.g. `Europe/Berlin`)         |
+| `AUTH_ALL_USERS_ADMIN`      | `true` makes every signed-in user an admin (see below)               |
+| `AUTH_LOG_LEVEL`            | Auth log verbosity: `debug`, `info` (default), `warn`, `error`       |
+| `APP_URL`                   | Public app URL for feeds and callbacks                               |
+| `APP_TIMEZONE`              | IANA timezone (e.g. `Europe/Berlin`)                                 |
 
 
 ### Everyone-is-admin mode

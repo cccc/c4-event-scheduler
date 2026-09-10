@@ -7,15 +7,31 @@ import { apiKey } from "@/server/db/schema";
 
 export type ApiKeyWithActor = Awaited<ReturnType<typeof getApiKeyFromRequest>>;
 
+type ApiKeyRequestOptions = {
+    /**
+     * Also accept the key as a `?key=` query parameter. Only for endpoints
+     * consumed by clients that cannot send headers (iCal feed subscriptions);
+     * the raw key then ends up in request logs of any intermediate proxy.
+     */
+    allowQueryParam?: boolean;
+};
+
 /**
- * Locate API key credentials by precedence: the X-Api-Key header, then
- * "Authorization: Bearer".
+ * Locate API key credentials by precedence: `?key=` query parameter (only
+ * where allowed), then the X-Api-Key header, then "Authorization: Bearer".
  * An Authorization header with another scheme (e.g. Basic) is not treated
  * as API key credentials.
  */
 function findRawApiKey(
     request: Request,
+    options: ApiKeyRequestOptions = {},
 ): { rawKey: string; source: string } | null {
+    if (options.allowQueryParam) {
+        const queryKey = new URL(request.url).searchParams.get("key");
+        if (queryKey !== null) {
+            return { rawKey: queryKey, source: "key query parameter" };
+        }
+    }
     const headerKey = request.headers.get("x-api-key");
     if (headerKey !== null) {
         return { rawKey: headerKey, source: "x-api-key header" };
@@ -31,15 +47,29 @@ function findRawApiKey(
 }
 
 /**
+ * Whether the request carries API key credentials at all (used to
+ * distinguish "anonymous" from "invalid key" without re-verifying).
+ */
+export function hasApiKeyCredentials(
+    request: Request,
+    options: ApiKeyRequestOptions = {},
+): boolean {
+    return findRawApiKey(request, options) !== null;
+}
+
+/**
  * Extract and verify an API key (see findRawApiKey for the accepted
  * sources and their precedence).
  *
  * Returns the key record (with actor + permissions loaded) if valid, null otherwise.
  * Also fires-and-forgets a lastUsedAt update.
  */
-export async function getApiKeyFromRequest(request: Request) {
+export async function getApiKeyFromRequest(
+    request: Request,
+    options: ApiKeyRequestOptions = {},
+) {
     const path = new URL(request.url).pathname;
-    const found = findRawApiKey(request);
+    const found = findRawApiKey(request, options);
     if (!found) {
         const authHeader = request.headers.get("authorization");
         if (authHeader) {

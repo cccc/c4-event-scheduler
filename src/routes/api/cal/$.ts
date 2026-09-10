@@ -6,6 +6,10 @@ import { RRule } from "rrule";
 
 import { env } from "@/env";
 import { formatOccurrenceDate } from "@/lib/rrule-utils";
+import {
+    getApiKeyFromRequest,
+    hasApiKeyCredentials,
+} from "@/server/api-key-auth";
 import { db } from "@/server/db";
 import { event, eventType, space } from "@/server/db/schema";
 
@@ -118,11 +122,28 @@ function mapStatus(status: string): ICalEventStatus {
 // Route handler
 // ============================================================================
 
-async function GET(splat: string | undefined) {
+async function GET(splat: string | undefined, request: Request) {
     // The splat has no leading slash, e.g. "all.ics" or "space/type.ics";
     // split it into segments to mirror the old [...path] param.
     const path = (splat ?? "").split("/").filter((s) => s.length > 0);
     const tz = env.APP_TIMEZONE;
+
+    // Feeds are public by default. A valid API key (Authorization header, or
+    // "?key=" since calendar clients cannot send headers) additionally
+    // unlocks internal event types and non-public spaces, matching what any
+    // authenticated identity sees elsewhere. Drafts stay hidden regardless.
+    // A key that is present but invalid is an error, not an anonymous feed;
+    // silently serving the public subset would hide the misconfiguration.
+    const keyProvided = hasApiKeyCredentials(request, {
+        allowQueryParam: true,
+    });
+    const apiKeyRecord = keyProvided
+        ? await getApiKeyFromRequest(request, { allowQueryParam: true })
+        : null;
+    if (keyProvided && !apiKeyRecord) {
+        return new Response("Invalid API key", { status: 401 });
+    }
+    const authenticated = apiKeyRecord !== null;
 
     // Parse the path: all.ics, {space}.ics, or {space}/{eventType}.ics
     if (!path || path.length === 0) {
@@ -159,7 +180,9 @@ async function GET(splat: string | undefined) {
 
     if (spaceSlug) {
         const spaceRecord = await db.query.space.findFirst({
-            where: and(eq(space.slug, spaceSlug), eq(space.isPublic, true)),
+            where: authenticated
+                ? eq(space.slug, spaceSlug)
+                : and(eq(space.slug, spaceSlug), eq(space.isPublic, true)),
         });
 
         if (!spaceRecord) {
@@ -172,10 +195,11 @@ async function GET(splat: string | undefined) {
         calendarName = spaceRecord.name;
     } else {
         // For "all.ics", only include events from public spaces
-        const publicSpaces = await db.query.space.findMany({
-            where: eq(space.isPublic, true),
+        // (all spaces for authenticated feeds)
+        const visibleSpaces = await db.query.space.findMany({
+            where: authenticated ? undefined : eq(space.isPublic, true),
         });
-        allowedSpaceIds = publicSpaces.map((s) => s.id);
+        allowedSpaceIds = visibleSpaces.map((s) => s.id);
         if (allowedSpaceIds.length === 0) {
             // No public spaces, return empty calendar
             const emptyCalendar = ical({
@@ -226,9 +250,9 @@ async function GET(splat: string | undefined) {
     });
 
     for (const evt of events) {
-        // Skip draft and internal events entirely (public feed)
+        // Drafts never appear; internal events only in authenticated feeds
         if (evt.isDraft) continue;
-        if (evt.eventType?.isInternal) continue;
+        if (evt.eventType?.isInternal && !authenticated) continue;
 
         const defaultDurationMs = evt.eventType?.defaultDurationMinutes
             ? evt.eventType.defaultDurationMinutes * 60_000
@@ -381,7 +405,7 @@ async function GET(splat: string | undefined) {
 export const Route = createFileRoute("/api/cal/$")({
     server: {
         handlers: {
-            GET: ({ params }) => GET(params._splat),
+            GET: ({ params, request }) => GET(params._splat, request),
         },
     },
 });
