@@ -25,7 +25,7 @@ export function EditEventDialog() {
 
     return (
         <Dialog onOpenChange={handleClose} open={isOpen}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Edit Event</DialogTitle>
                     {occurrence.isRecurring && (
