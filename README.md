@@ -148,26 +148,28 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `OIDC_ROLES_CLAIM`          | Dot-notation path to roles in OIDC token                             |
 | `AUTH_EMAIL_ENABLED`        | Email/password sign-in for local accounts (default `false`)          |
 | `AUTH_EMAIL_SIGNUP_ENABLED` | Open public self-registration (default `false`; needs email sign-in) |
-| `AUTH_ALL_USERS_ADMIN`      | `true` makes every signed-in user an admin (see below)               |
+| `AUTH_SSO_USERS_ADMIN`      | `true` makes every user signed in via OIDC an admin (see below)      |
 | `AUTH_LOG_LEVEL`            | Auth log verbosity: `debug`, `info` (default), `warn`, `error`       |
 | `APP_URL`                   | Public app URL for feeds and callbacks                               |
 | `APP_TIMEZONE`              | IANA timezone (e.g. `Europe/Berlin`)                                 |
 
 
-### Everyone-is-admin mode
+### SSO-users-are-admins mode
 
-Set `AUTH_ALL_USERS_ADMIN=true` to treat every signed-in user as an admin, regardless of
-their OIDC claims or the stored admin flag. This is meant for local development or for
-bootstrapping a fresh instance before role mapping is configured; it does not modify the
-database, so turning it off restores the real permissions. API keys are not affected.
-A warning is logged at startup and on every login while it is enabled.
+Set `AUTH_SSO_USERS_ADMIN=true` to treat every user who signed in through the OIDC
+provider as an admin, regardless of their claims or the stored admin flag. Use it when
+everyone with an account at the identity provider should be able to manage events, while
+local email/password accounts (e.g. created for external people) keep only the
+permissions granted to them under **Admin -> Users**. API keys are not affected either.
+Nothing is written to the database, so turning it off restores the real permissions. A
+warning is logged at startup and on every login while it is enabled.
 
 ### Users and local accounts
 
 Admins manage users under **Admin -> Users**: permissions, admin status, and local
 email/password accounts (create, edit, reset password, delete). Public self-registration is
-disabled unless `AUTH_EMAIL_SIGNUP_ENABLED=true`; local sign-in requires `AUTH_EMAIL_ENABLED=true`. Do not
-combine self-registration with `AUTH_ALL_USERS_ADMIN`. Every signed-in user can change
+disabled unless `AUTH_EMAIL_SIGNUP_ENABLED=true`; local sign-in requires `AUTH_EMAIL_ENABLED=true`.
+Every signed-in user can change
 their display name (and, for local accounts, their password) under **Account**.
 
 ### Auth logging

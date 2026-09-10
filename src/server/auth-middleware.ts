@@ -46,7 +46,10 @@ export const withActor = createMiddleware({ type: "function" }).server(
                 kind: "user",
                 id: session.user.id,
                 actorId: actorRecord?.id,
-                isAdmin: resolveUserIsAdmin(actorRecord?.isAdmin),
+                isAdmin: await resolveUserIsAdmin(
+                    session.user.id,
+                    actorRecord?.isAdmin,
+                ),
                 permissions: actorRecord?.permissions ?? [],
             };
         }

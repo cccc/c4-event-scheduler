@@ -42,8 +42,9 @@ export const env = createEnv({
             .default("true")
             .transform((v) => v === "true"),
         AUTH_SSO_NAME: z.string().default("Single Sign-On"),
-        // Treat every signed-in user as admin (API keys are unaffected). Dev/bootstrap aid.
-        AUTH_ALL_USERS_ADMIN: z
+        // Treat every user signed in through the OIDC provider as admin; local
+        // (email/password) accounts and API keys are unaffected.
+        AUTH_SSO_USERS_ADMIN: z
             .string()
             .default("false")
             .transform((v) => v === "true"),

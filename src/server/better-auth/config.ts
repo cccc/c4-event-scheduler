@@ -11,9 +11,7 @@ import { syncOidcRoles } from "./role-sync";
 
 if (env.AUTH_EMAIL_ENABLED && env.AUTH_EMAIL_SIGNUP_ENABLED) {
     authLog.warn(
-        env.AUTH_ALL_USERS_ADMIN
-            ? "AUTH_EMAIL_SIGNUP_ENABLED and AUTH_ALL_USERS_ADMIN are both on: anyone who registers becomes an admin"
-            : "AUTH_EMAIL_SIGNUP_ENABLED is on: anyone can register a local account",
+        "AUTH_EMAIL_SIGNUP_ENABLED is on: anyone can register a local account",
     );
 }
 
@@ -61,7 +59,7 @@ export const auth = betterAuth({
                         userId: session.userId,
                         sessionId: session.id,
                         ip: session.ipAddress ?? undefined,
-                        allUsersAdmin: env.AUTH_ALL_USERS_ADMIN || undefined,
+                        ssoUsersAdmin: env.AUTH_SSO_USERS_ADMIN || undefined,
                     });
                     // Sync roles after session creation (covers both new and returning users)
                     // The account info with tokens is stored, we can fetch and process it

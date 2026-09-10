@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { env } from "@/env";
 import { authLog } from "@/server/auth-log";
 import { db } from "@/server/db";
-import { actor, permission } from "@/server/db/schema";
+import { account, actor, permission } from "@/server/db/schema";
 import { forbidden } from "@/server/fn-errors";
 
 export type Permission = {
@@ -26,18 +26,32 @@ export type PermissionScope = {
 
 // ─── Admin resolution ───────────────────────────────────────────────────────
 
-if (env.AUTH_ALL_USERS_ADMIN) {
+if (env.AUTH_SSO_USERS_ADMIN) {
     authLog.warn(
-        "AUTH_ALL_USERS_ADMIN is enabled: every signed-in user is treated as admin",
+        "AUTH_SSO_USERS_ADMIN is enabled: every user signed in via the OIDC provider is treated as admin",
     );
 }
 
 /**
- * Effective admin flag for a *user* actor: the stored flag, or true for
- * everyone when AUTH_ALL_USERS_ADMIN is set. API keys always use the stored flag.
+ * Effective admin flag for a *user* actor: the stored flag, or true when
+ * AUTH_SSO_USERS_ADMIN is set and the user signed up through the OIDC
+ * provider (has a non-credential account). Local email/password accounts
+ * and API keys always use the stored flag.
  */
-export function resolveUserIsAdmin(stored: boolean | undefined): boolean {
-    return (stored ?? false) || env.AUTH_ALL_USERS_ADMIN;
+export async function resolveUserIsAdmin(
+    userId: string,
+    stored: boolean | undefined,
+): Promise<boolean> {
+    if (stored) return true;
+    if (!env.AUTH_SSO_USERS_ADMIN) return false;
+    const ssoAccount = await db.query.account.findFirst({
+        where: and(
+            eq(account.userId, userId),
+            ne(account.providerId, "credential"),
+        ),
+        columns: { id: true },
+    });
+    return !!ssoAccount;
 }
 
 /** Compact, log-friendly description of an actor and its permissions */
@@ -143,7 +157,7 @@ export async function actorFromUserId(userId: string): Promise<Actor> {
         kind: "user",
         id: userId,
         actorId: actorRecord?.id,
-        isAdmin: resolveUserIsAdmin(actorRecord?.isAdmin),
+        isAdmin: await resolveUserIsAdmin(userId, actorRecord?.isAdmin),
         permissions: actorRecord?.permissions ?? [],
     };
 }

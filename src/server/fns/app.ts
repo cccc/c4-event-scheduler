@@ -26,7 +26,10 @@ export const getAppContext = createServerFn({ method: "GET" }).handler(
                 where: eq(actor.userId, session.user.id),
                 columns: { isAdmin: true },
             });
-            isAdmin = resolveUserIsAdmin(actorRecord?.isAdmin);
+            isAdmin = await resolveUserIsAdmin(
+                session.user.id,
+                actorRecord?.isAdmin,
+            );
         }
 
         return {
