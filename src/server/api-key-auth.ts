@@ -17,10 +17,19 @@ type ApiKeyRequestOptions = {
 };
 
 /**
+ * Username that marks HTTP Basic credentials as an API key (the key goes in
+ * the password field). Local accounts sign in with an email address, so a
+ * username without "@" can never be a real user; Basic credentials with any
+ * other username (e.g. a reverse proxy's) are ignored, not rejected.
+ */
+export const API_KEY_BASIC_USERNAME = "apikey";
+
+/**
  * Locate API key credentials by precedence: `?key=` query parameter (only
- * where allowed), then the X-Api-Key header, then "Authorization: Bearer".
- * An Authorization header with another scheme (e.g. Basic) is not treated
- * as API key credentials.
+ * where allowed), then the X-Api-Key header, then the Authorization header
+ * as either "Bearer <key>" or "Basic" with the apikey username.
+ * An Authorization header with anything else is not treated as API key
+ * credentials.
  */
 function findRawApiKey(
     request: Request,
@@ -40,10 +49,36 @@ function findRawApiKey(
     if (authHeader?.startsWith("Bearer c4k_")) {
         return {
             rawKey: authHeader.slice(7), // remove "Bearer "
-            source: "authorization header",
+            source: "authorization header (bearer)",
         };
     }
+    if (authHeader?.startsWith("Basic ")) {
+        const basic = parseBasicCredentials(authHeader.slice(6));
+        if (basic?.username === API_KEY_BASIC_USERNAME) {
+            return {
+                rawKey: basic.password,
+                source: "authorization header (basic)",
+            };
+        }
+    }
     return null;
+}
+
+function parseBasicCredentials(
+    encoded: string,
+): { username: string; password: string } | null {
+    let decoded: string;
+    try {
+        decoded = Buffer.from(encoded.trim(), "base64").toString("utf8");
+    } catch {
+        return null;
+    }
+    const separator = decoded.indexOf(":");
+    if (separator === -1) return null;
+    return {
+        username: decoded.slice(0, separator),
+        password: decoded.slice(separator + 1),
+    };
 }
 
 /**

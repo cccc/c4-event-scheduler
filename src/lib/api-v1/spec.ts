@@ -25,7 +25,7 @@ registry.registerComponent("securitySchemes", "ApiKeyAuth", {
     in: "header",
     name: "X-Api-Key",
     description:
-        "Machine-to-machine API key. Obtain from **Admin → API Keys**. Format: `c4k_<random>#<fingerprint>`",
+        "API key sent in the `X-Api-Key` header. Personal keys are created under **Account -> API Keys**, service keys under **Admin -> API Keys**. Format: `c4k_<random>#<fingerprint>`",
 });
 
 registry.registerComponent("securitySchemes", "BearerAuth", {
@@ -33,7 +33,14 @@ registry.registerComponent("securitySchemes", "BearerAuth", {
     scheme: "bearer",
     bearerFormat: "c4k_…",
     description:
-        "The same API key sent as a Bearer token. X-Api-Key takes precedence when both are present.",
+        "Alternative: the same API key as a Bearer token in the `Authorization` header. `X-Api-Key` takes precedence when both are present.",
+});
+
+registry.registerComponent("securitySchemes", "BasicAuth", {
+    type: "http",
+    scheme: "basic",
+    description:
+        "Alternative for clients that only support HTTP Basic auth: username `apikey`, the API key as the password. `X-Api-Key` takes precedence when both are present.",
 });
 
 // ─── Reusable response components ────────────────────────────────────────────
@@ -74,6 +81,7 @@ const errorResponses = {
 const requiredAuth: Record<string, string[]>[] = [
     { ApiKeyAuth: [] },
     { BearerAuth: [] },
+    { BasicAuth: [] },
 ];
 const optionalAuth: Record<string, string[]>[] = [{}, ...requiredAuth];
 
@@ -424,7 +432,7 @@ export function generateSpec(serverUrl: string) {
             title: "C4 Event Scheduler API",
             version: "1",
             description:
-                "REST API for managing events, spaces and event types.\n\nAuthenticate with an API key obtained from **Admin → API Keys** by passing it in the `Authorization` header:\n\n```\nAuthorization: Bearer c4k_…\n```",
+                "REST API for managing events, spaces and event types.\n\nAuthenticate with an API key in the `X-Api-Key` header:\n\n```\nX-Api-Key: c4k_...\n```\n\nPersonal keys are created under **Account -> API Keys** and act within their owner's permissions; service keys are managed under **Admin -> API Keys**. The key is also accepted as `Authorization: Bearer c4k_...` or as HTTP Basic credentials with username `apikey` and the key as the password; `X-Api-Key` takes precedence when both are present.",
         },
         servers: [{ url: serverUrl }],
     });

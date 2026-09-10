@@ -113,9 +113,10 @@ docker run -p 3000:3000 \
 Feeds are public and contain only public spaces and non-internal event types.
 An API key (see below) unlocks internal event types and non-public
 spaces; pass it as `?key=c4k_...` in the feed URL, since calendar clients
-cannot send headers. Clients that can send headers may use `X-Api-Key` or
-`Authorization: Bearer` instead — precedence is query parameter, then
-`X-Api-Key`, then `Authorization`, and the same headers work on the REST API.
+cannot send headers. Clients that can send headers may use `X-Api-Key`,
+`Authorization: Bearer`, or HTTP Basic auth with the username `apikey` and the
+key as the password instead — precedence is query parameter, then `X-Api-Key`,
+then `Authorization`, and the same headers work on the REST API.
 Use the key without its `#fingerprint` suffix in URLs, or URL-encode the `#`
 as `%23` — an un-encoded `#` would be treated as a URL fragment and cut off.
 A feed URL with an invalid key returns 401 instead of silently falling back to
