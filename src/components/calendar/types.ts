@@ -45,5 +45,6 @@ export type EventType = {
     description: string | null;
     color: string | null;
     spaceId: string | null;
+    isInternal: boolean;
     defaultDurationMinutes: number | null;
 };

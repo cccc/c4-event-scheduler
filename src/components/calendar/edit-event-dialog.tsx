@@ -10,6 +10,10 @@ import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 
 import { EditSeriesForm } from "./edit-series-form";
 import { EditSingleEventForm } from "./edit-single-event-form";
+import {
+    INTERNAL_EVENT_TYPE_NOTE,
+    InternalBadge,
+} from "./form-groups/event-type-group";
 
 export function EditEventDialog() {
     const store = useCalendarDialogStore();
@@ -48,7 +52,13 @@ export function EditEventDialog() {
                             />
                         )}
                         {occurrence.eventType?.name ?? "Unknown"}
+                        {occurrence.isInternal && <InternalBadge />}
                     </div>
+                    {occurrence.isInternal && (
+                        <p className="mt-1 text-muted-foreground text-xs">
+                            {INTERNAL_EVENT_TYPE_NOTE}
+                        </p>
+                    )}
                 </div>
 
                 {occurrence.isRecurring ? (
