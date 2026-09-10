@@ -254,6 +254,7 @@ export function EditSeriesForm({
                     dtstart,
                     dtend,
                     status: value.status,
+                    isDraft: value.isDraft,
                     rrule,
                 });
             }
@@ -485,7 +486,9 @@ export function EditSeriesForm({
                                                 isSubmitting || seriesIsPending
                                                     ? "Saving..."
                                                     : editTab !== "whole"
-                                                      ? "Split & Update"
+                                                      ? isDraft
+                                                          ? "Split & Update Draft"
+                                                          : "Split & Update"
                                                       : isDraft
                                                         ? "Update Draft Series"
                                                         : "Update Series"

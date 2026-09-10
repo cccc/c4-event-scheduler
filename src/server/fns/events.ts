@@ -646,6 +646,7 @@ const editSeriesFromDateSchema = z.object({
     dtstart: z.date().optional(), // New time-of-day (date part ignored for recurring)
     dtend: z.date().optional(),
     status: icalStatusSchema.optional(),
+    isDraft: z.boolean().optional(),
     rrule: z.string().optional(), // New RRULE (if changing recurrence pattern)
 });
 
@@ -782,7 +783,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
                 recurrenceEndDate: evt.recurrenceEndDate,
                 exdates: newExdates.length > 0 ? newExdates : null,
                 status: updates.status ?? evt.status,
-                isDraft: evt.isDraft,
+                isDraft: updates.isDraft ?? evt.isDraft,
             })
             .returning();
 
