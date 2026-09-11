@@ -11,7 +11,7 @@ import { resolveUserIsAdmin } from "@/server/permissions";
 /**
  * Everything the root route needs per request: the session, whether the user
  * is an admin (for the header), and the runtime-configured values the UI needs
- * (timezone, which login methods to offer). Resolved once in the root
+ * (timezone, public app URL, which login methods to offer). Resolved once in the root
  * `beforeLoad` and read from route context everywhere else.
  */
 export const getAppContext = createServerFn({ method: "GET" }).handler(
@@ -36,6 +36,7 @@ export const getAppContext = createServerFn({ method: "GET" }).handler(
             session,
             isAdmin,
             timezone: env.APP_TIMEZONE,
+            appUrl: env.APP_URL,
             auth: {
                 emailEnabled: env.AUTH_EMAIL_ENABLED,
                 signupEnabled:

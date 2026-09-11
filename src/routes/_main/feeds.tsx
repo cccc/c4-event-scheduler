@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
@@ -10,17 +12,120 @@ export const Route = createFileRoute("/_main/feeds")({
     component: FeedsPage,
 });
 
-function FeedsPage() {
-    const { data: spaces } = useQuery(
-        spacesQueries.list({ includePrivate: false }),
-    );
-    const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
-    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+}
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard");
-    };
+/** Marks feeds that only contain events once an API key is supplied. */
+function InternalFeedBadge() {
+    return (
+        <Badge className="ml-2 align-middle" variant="outline">
+            Internal, API key required
+        </Badge>
+    );
+}
+
+function FeedRow({
+    name,
+    url,
+    internal,
+    compact,
+}: {
+    name: string;
+    url: string;
+    internal: boolean;
+    compact?: boolean;
+}) {
+    return (
+        <div
+            className={
+                compact
+                    ? "flex items-center justify-between rounded border p-2"
+                    : "flex items-center justify-between rounded-lg border p-4"
+            }
+        >
+            <div>
+                <div className={compact ? "text-sm" : "font-medium"}>
+                    {name}
+                    {internal && <InternalFeedBadge />}
+                </div>
+                <code
+                    className={
+                        compact
+                            ? "text-muted-foreground text-xs"
+                            : "text-muted-foreground text-sm"
+                    }
+                >
+                    {url}
+                </code>
+            </div>
+            <Button
+                onClick={() => copyToClipboard(url)}
+                size="sm"
+                variant={compact ? "ghost" : "outline"}
+            >
+                {compact ? "Copy" : "Copy URL"}
+            </Button>
+        </div>
+    );
+}
+
+/** Explains, to signed-in users only, how to get internal events into a feed. */
+function ApiKeyNote() {
+    return (
+        <Alert>
+            <AlertTitle>Internal events in feeds</AlertTitle>
+            <AlertDescription className="space-y-2">
+                <p>
+                    Feeds are public by default: internal event types, private
+                    spaces and drafts are left out. Supply an API key and the
+                    same feeds include internal event types and private spaces
+                    (drafts never appear). Feeds tagged <em>Internal</em> below
+                    are empty without a key. You can create a personal key under{" "}
+                    <Link className="underline" to="/account">
+                        Account
+                    </Link>
+                    .
+                </p>
+                <p>The key can be passed in any of these ways:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                    <li>
+                        Query parameter, for calendar apps that cannot send
+                        headers: <code>?key=c4k_…</code>. Leave off the{" "}
+                        <code>#fingerprint</code> suffix or encode the{" "}
+                        <code>#</code> as <code>%23</code>, otherwise the URL is
+                        cut off there. Treat such a URL as a secret.
+                    </li>
+                    <li>
+                        <code>X-Api-Key</code> header.
+                    </li>
+                    <li>
+                        <code>Authorization: Bearer c4k_…</code> header.
+                    </li>
+                    <li>
+                        HTTP Basic auth with the username <code>apikey</code>{" "}
+                        and the key as the password, for clients that only offer
+                        a username and password field.
+                    </li>
+                </ul>
+                <p>
+                    A feed URL with an invalid key returns an error instead of
+                    silently falling back to the public events.
+                </p>
+            </AlertDescription>
+        </Alert>
+    );
+}
+
+function FeedsPage() {
+    const { session, appUrl } = Route.useRouteContext();
+    const isLoggedIn = !!session?.user;
+    const { data: spaces } = useQuery(
+        spacesQueries.list({ includePrivate: isLoggedIn }),
+    );
+    // Internal event types are only returned for signed-in users
+    const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
 
     return (
         <>
@@ -34,61 +139,31 @@ function FeedsPage() {
             </div>
 
             <div className="space-y-8">
+                {isLoggedIn && <ApiKeyNote />}
+
                 <section>
                     <h2 className="mb-4 font-semibold text-xl">All Events</h2>
-                    <div className="rounded-lg border p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="font-medium">
-                                    All Public Events
-                                </div>
-                                <code className="text-muted-foreground text-sm">
-                                    {appUrl}/api/cal/all.ics
-                                </code>
-                            </div>
-                            <Button
-                                onClick={() =>
-                                    copyToClipboard(`${appUrl}/api/cal/all.ics`)
-                                }
-                                size="sm"
-                                variant="outline"
-                            >
-                                Copy URL
-                            </Button>
-                        </div>
-                    </div>
+                    <FeedRow
+                        internal={false}
+                        name={
+                            isLoggedIn
+                                ? "All events (internal ones with an API key)"
+                                : "All public events"
+                        }
+                        url={`${appUrl}/api/cal/all.ics`}
+                    />
                 </section>
 
                 <section>
                     <h2 className="mb-4 font-semibold text-xl">By Space</h2>
                     <div className="space-y-2">
                         {spaces?.map((space) => (
-                            <div
-                                className="rounded-lg border p-4"
+                            <FeedRow
+                                internal={!space.isPublic}
                                 key={space.id}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <div className="font-medium">
-                                            {space.name}
-                                        </div>
-                                        <code className="text-muted-foreground text-sm">
-                                            {appUrl}/api/cal/{space.slug}.ics
-                                        </code>
-                                    </div>
-                                    <Button
-                                        onClick={() =>
-                                            copyToClipboard(
-                                                `${appUrl}/api/cal/${space.slug}.ics`,
-                                            )
-                                        }
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        Copy URL
-                                    </Button>
-                                </div>
-                            </div>
+                                name={space.name}
+                                url={`${appUrl}/api/cal/${space.slug}.ics`}
+                            />
                         ))}
                         {spaces?.length === 0 && (
                             <p className="text-muted-foreground">
@@ -116,37 +191,22 @@ function FeedsPage() {
                         <div className="space-y-4 border-t p-4">
                             {spaces?.map((space) => (
                                 <div key={space.id}>
+                                    {/* The space tag covers all rows below it */}
                                     <h3 className="mb-2 font-medium">
                                         {space.name}
+                                        {!space.isPublic && (
+                                            <InternalFeedBadge />
+                                        )}
                                     </h3>
                                     <div className="space-y-2 pl-4">
                                         {eventTypes?.map((et) => (
-                                            <div
-                                                className="flex items-center justify-between rounded border p-2"
+                                            <FeedRow
+                                                compact
+                                                internal={et.isInternal}
                                                 key={et.id}
-                                            >
-                                                <div>
-                                                    <div className="text-sm">
-                                                        {et.name}
-                                                    </div>
-                                                    <code className="text-muted-foreground text-xs">
-                                                        {appUrl}/api/cal/
-                                                        {space.slug}/{et.slug}
-                                                        .ics
-                                                    </code>
-                                                </div>
-                                                <Button
-                                                    onClick={() =>
-                                                        copyToClipboard(
-                                                            `${appUrl}/api/cal/${space.slug}/${et.slug}.ics`,
-                                                        )
-                                                    }
-                                                    size="sm"
-                                                    variant="ghost"
-                                                >
-                                                    Copy
-                                                </Button>
-                                            </div>
+                                                name={et.name}
+                                                url={`${appUrl}/api/cal/${space.slug}/${et.slug}.ics`}
+                                            />
                                         ))}
                                     </div>
                                 </div>

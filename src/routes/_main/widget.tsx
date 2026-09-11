@@ -13,7 +13,7 @@ function WidgetPage() {
     const { data: spaces } = useQuery(
         spacesQueries.list({ includePrivate: false }),
     );
-    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const { appUrl } = Route.useRouteContext();
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);

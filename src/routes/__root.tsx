@@ -49,6 +49,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
             session: app.session,
             isAdmin: app.isAdmin,
             timezone: app.timezone,
+            appUrl: app.appUrl,
             authOptions: app.auth,
         };
     },
