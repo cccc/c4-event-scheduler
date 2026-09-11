@@ -118,7 +118,7 @@ function AccountPage() {
                 </p>
             </div>
 
-            <div className="grid max-w-2xl gap-6">
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle>Profile</CardTitle>
@@ -240,7 +240,9 @@ function AccountPage() {
                     </CardContent>
                 </Card>
 
-                <PersonalApiKeysCard owner={info} />
+                <div className="md:col-span-2">
+                    <PersonalApiKeysCard owner={info} />
+                </div>
             </div>
         </>
     );
