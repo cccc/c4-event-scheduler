@@ -4,7 +4,7 @@ A multi-space event calendar application with recurring events, iCal feeds, and 
 
 ## Features
 
-- Multi-space calendars with per-space event types
+- Multi-space calendars with per-space event types; the home page opens the default space (or the space list if none is set)
 - Recurring events (RRULE / RFC 5545) with per-occurrence overrides
 - Event statuses: confirmed, tentative, pending (draft), cancelled
 - iCal feed endpoints for calendar subscriptions

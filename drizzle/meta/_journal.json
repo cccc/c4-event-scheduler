@@ -57,6 +57,13 @@
       "when": 1789124212260,
       "tag": "0007_event_type_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789125839223,
+      "tag": "0008_space_default",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
     boolean,
     date,
@@ -112,10 +112,17 @@ export const space = createTable(
         name: varchar("name", { length: 255 }).notNull(),
         description: text("description"),
         isPublic: boolean("is_public").notNull().default(true),
+        // The home page redirects to this space; at most one may be set
+        isDefault: boolean("is_default").notNull().default(false),
         createdAt: timestamp("created_at").notNull().defaultNow(),
         updatedAt: timestamp("updated_at").notNull().defaultNow(),
     },
-    (table) => [index("space_slug_idx").on(table.slug)],
+    (table) => [
+        index("space_slug_idx").on(table.slug),
+        uniqueIndex("space_default_idx")
+            .on(table.isDefault)
+            .where(sql`${table.isDefault} = true`),
+    ],
 );
 
 export const spaceRelations = relations(space, ({ many }) => ({

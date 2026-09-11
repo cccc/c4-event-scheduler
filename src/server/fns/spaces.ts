@@ -3,6 +3,7 @@ import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
+import type { db } from "@/server/db";
 import { event, eventType, space } from "@/server/db/schema";
 import { eventImpactBySpace, sumImpact } from "@/server/event-impact";
 import { notFound } from "@/server/fn-errors";
@@ -65,6 +66,7 @@ const createSchema = z.object({
     name: z.string().min(1).max(255),
     description: z.string().optional(),
     isPublic: z.boolean().default(true),
+    isDefault: z.boolean().default(false),
 });
 
 export const create = createServerFn({ method: "POST" })
@@ -74,11 +76,11 @@ export const create = createServerFn({ method: "POST" })
         // Creating a space requires admin or global permission (no scope)
         assertCan(context.actor, "manage:spaces");
 
-        const [result] = await context.db
-            .insert(space)
-            .values(data)
-            .returning();
-        return result ?? null;
+        return context.db.transaction(async (tx) => {
+            if (data.isDefault) await clearDefaultSpace(tx);
+            const [result] = await tx.insert(space).values(data).returning();
+            return result ?? null;
+        });
     });
 
 const updateSchema = z.object({
@@ -86,7 +88,16 @@ const updateSchema = z.object({
     name: z.string().min(1).max(255).optional(),
     description: z.string().optional(),
     isPublic: z.boolean().optional(),
+    isDefault: z.boolean().optional(),
 });
+
+/** Only one space can be the default: unset it everywhere before setting it */
+async function clearDefaultSpace(tx: Pick<typeof db, "update">) {
+    await tx
+        .update(space)
+        .set({ isDefault: false })
+        .where(eq(space.isDefault, true));
+}
 
 export const update = createServerFn({ method: "POST" })
     .middleware([authed])
@@ -97,14 +108,24 @@ export const update = createServerFn({ method: "POST" })
         });
         if (!existing) throw notFound("Space not found");
         assertCan(context.actor, "manage:spaces", { spaceSlug: existing.slug });
+        // Which space is the default affects the whole site, not just this space
+        if (
+            data.isDefault !== undefined &&
+            data.isDefault !== existing.isDefault
+        ) {
+            assertCan(context.actor, "manage:spaces");
+        }
 
         const { id, ...updates } = data;
-        const [result] = await context.db
-            .update(space)
-            .set({ ...updates, updatedAt: new Date() })
-            .where(eq(space.id, id))
-            .returning();
-        return result ?? null;
+        return context.db.transaction(async (tx) => {
+            if (updates.isDefault) await clearDefaultSpace(tx);
+            const [result] = await tx
+                .update(space)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(space.id, id))
+                .returning();
+            return result ?? null;
+        });
     });
 
 /**

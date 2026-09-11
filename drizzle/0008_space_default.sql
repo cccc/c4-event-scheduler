@@ -1,0 +1,2 @@
+ALTER TABLE "c4_space" ADD COLUMN "is_default" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "space_default_idx" ON "c4_space" USING btree ("is_default") WHERE "c4_space"."is_default" = true;

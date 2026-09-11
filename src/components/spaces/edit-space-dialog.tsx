@@ -18,6 +18,7 @@ const formSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string(),
     isPublic: z.boolean(),
+    isDefault: z.boolean(),
 });
 
 export type EditSpace = {
@@ -26,18 +27,22 @@ export type EditSpace = {
     name: string;
     description: string | null;
     isPublic: boolean;
+    isDefault: boolean;
 };
 
 type EditSpaceDialogProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     space: EditSpace | null;
+    /** Whether the user may change which space is the default (global permission) */
+    allowDefault: boolean;
 };
 
 export function EditSpaceDialog({
     open,
     onOpenChange,
     space,
+    allowDefault,
 }: EditSpaceDialogProps) {
     const queryClient = useQueryClient();
 
@@ -55,6 +60,7 @@ export function EditSpaceDialog({
             name: space?.name ?? "",
             description: space?.description ?? "",
             isPublic: space?.isPublic ?? true,
+            isDefault: space?.isDefault ?? false,
         } as z.infer<typeof formSchema>,
         validators: {
             onSubmit: formSchema,
@@ -66,6 +72,7 @@ export function EditSpaceDialog({
                 name: value.name,
                 description: value.description,
                 isPublic: value.isPublic,
+                ...(allowDefault ? { isDefault: value.isDefault } : {}),
             });
         },
     });
@@ -76,6 +83,7 @@ export function EditSpaceDialog({
                 name: space.name,
                 description: space.description ?? "",
                 isPublic: space.isPublic,
+                isDefault: space.isDefault,
             });
         }
     }, [space, form.reset]);
@@ -128,6 +136,17 @@ export function EditSpaceDialog({
                                 Private spaces and their events are only visible
                                 to signed-in users and API keys.
                             </p>
+
+                            {allowDefault && (
+                                <form.AppField name="isDefault">
+                                    {(field) => (
+                                        <field.CheckboxField
+                                            id="edit-space-isDefault"
+                                            label="Default space (the home page opens this calendar)"
+                                        />
+                                    )}
+                                </form.AppField>
+                            )}
 
                             <form.SubmitButton>
                                 {({ isSubmitting }) =>

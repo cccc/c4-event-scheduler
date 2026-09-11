@@ -22,6 +22,7 @@ const formSchema = z.object({
         ),
     description: z.string(),
     isPublic: z.boolean(),
+    isDefault: z.boolean(),
 });
 
 type CreateSpaceDialogProps = {
@@ -50,6 +51,7 @@ export function CreateSpaceDialog({
             slug: "",
             description: "",
             isPublic: true,
+            isDefault: false,
         } as z.infer<typeof formSchema>,
         validators: {
             onSubmit: formSchema,
@@ -60,6 +62,7 @@ export function CreateSpaceDialog({
                 slug: value.slug,
                 description: value.description || undefined,
                 isPublic: value.isPublic,
+                isDefault: value.isDefault,
             });
         },
     });
@@ -103,6 +106,15 @@ export function CreateSpaceDialog({
                                 <field.CheckboxField
                                     id="isPublic"
                                     label="Public"
+                                />
+                            )}
+                        </form.AppField>
+
+                        <form.AppField name="isDefault">
+                            {(field) => (
+                                <field.CheckboxField
+                                    id="isDefault"
+                                    label="Default space (the home page opens this calendar)"
                                 />
                             )}
                         </form.AppField>

@@ -97,6 +97,11 @@ function SpacesPage() {
                                             Private
                                         </span>
                                     )}
+                                    {space.isDefault && (
+                                        <span className="rounded bg-muted px-1">
+                                            Default
+                                        </span>
+                                    )}
                                 </div>
                             </Link>
                             {canManage(space.slug) && (
@@ -123,6 +128,8 @@ function SpacesPage() {
                                                             space.description,
                                                         isPublic:
                                                             space.isPublic,
+                                                        isDefault:
+                                                            space.isDefault,
                                                     })
                                                 }
                                             >
@@ -165,6 +172,7 @@ function SpacesPage() {
                 space={deleting}
             />
             <EditSpaceDialog
+                allowDefault={canCreate}
                 onOpenChange={(open) => {
                     if (!open) setEditing(null);
                 }}
