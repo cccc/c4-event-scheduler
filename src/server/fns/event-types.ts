@@ -1,10 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
-import { event, eventType, space } from "@/server/db/schema";
-import { eventImpactBySpace, sumImpact } from "@/server/event-impact";
+import type { db as Db } from "@/server/db";
+import {
+    event,
+    eventType,
+    occurrenceOverride,
+    space,
+} from "@/server/db/schema";
+import {
+    type EventImpact,
+    eventImpactBySpace,
+    sumImpact,
+} from "@/server/event-impact";
 import { notFound } from "@/server/fn-errors";
 import { assertCan } from "@/server/permissions";
 
@@ -28,40 +38,93 @@ const listSchema = z
     })
     .optional();
 
+/**
+ * How much each event type is used (single events, series, overrides).
+ * `publicOnly` restricts the count to what anonymous visitors can see
+ * (no drafts, public spaces only).
+ */
+async function usageByEventType(
+    db: typeof Db,
+    publicOnly: boolean,
+): Promise<Map<string, EventImpact>> {
+    const usage = new Map<string, EventImpact>();
+    const entry = (id: string) => {
+        let e = usage.get(id);
+        if (!e) {
+            e = { singles: 0, series: 0, overrides: 0 };
+            usage.set(id, e);
+        }
+        return e;
+    };
+    const visible = publicOnly
+        ? and(eq(event.isDraft, false), eq(space.isPublic, true))
+        : undefined;
+    const singles = await db
+        .select({ id: event.eventTypeId, n: count() })
+        .from(event)
+        .innerJoin(space, eq(event.spaceId, space.id))
+        .where(and(isNull(event.rrule), visible))
+        .groupBy(event.eventTypeId);
+    for (const row of singles) entry(row.id).singles = row.n;
+    const series = await db
+        .select({ id: event.eventTypeId, n: count() })
+        .from(event)
+        .innerJoin(space, eq(event.spaceId, space.id))
+        .where(and(isNotNull(event.rrule), visible))
+        .groupBy(event.eventTypeId);
+    for (const row of series) entry(row.id).series = row.n;
+    const overrides = await db
+        .select({ id: event.eventTypeId, n: count() })
+        .from(occurrenceOverride)
+        .innerJoin(event, eq(occurrenceOverride.eventId, event.id))
+        .innerJoin(space, eq(event.spaceId, space.id))
+        .where(visible)
+        .groupBy(event.eventTypeId);
+    for (const row of overrides) entry(row.id).overrides = row.n;
+    return usage;
+}
+
+const NO_USAGE: EventImpact = { singles: 0, series: 0, overrides: 0 };
+
 export const list = createServerFn({ method: "GET" })
     .middleware([withActor])
     .validator(listSchema)
     .handler(async ({ data, context }) => {
         const visible = visibilityFilter(context.session);
 
-        if (data?.globalOnly) {
-            return context.db.query.eventType.findMany({
-                where: and(isNull(eventType.spaceId), visible),
-                with: { space: true },
-                orderBy: (types, { asc }) => [asc(types.name)],
-            });
-        }
-
-        if (data?.spaceId) {
-            // Return global event types + event types specific to this space
-            return context.db.query.eventType.findMany({
-                where: and(
+        // Global only; global + one space's own types; or everything
+        const where = data?.globalOnly
+            ? and(isNull(eventType.spaceId), visible)
+            : data?.spaceId
+              ? and(
                     or(
                         isNull(eventType.spaceId),
                         eq(eventType.spaceId, data.spaceId),
                     ),
                     visible,
-                ),
-                with: { space: true },
-                orderBy: (types, { asc }) => [asc(types.name)],
-            });
-        }
+                )
+              : visible;
 
-        return context.db.query.eventType.findMany({
-            where: visible,
+        const rows = await context.db.query.eventType.findMany({
+            where,
             with: { space: true },
             orderBy: (types, { asc }) => [asc(types.name)],
         });
+
+        const signedIn = !!context.session?.user;
+        const usage = await usageByEventType(context.db, !signedIn);
+        const withUsage = rows.map((row) => ({
+            ...row,
+            usage: usage.get(row.id) ?? NO_USAGE,
+        }));
+        // Signed-in users see every type with its counts; anonymous visitors
+        // only see types that have at least one event visible to them, and
+        // no counts (they would hint at drafts and private spaces)
+        return signedIn
+            ? withUsage
+            : withUsage
+                  .filter((row) => row.usage.singles + row.usage.series > 0)
+                  .map((row) => ({ ...row, usage: null }));
     });
 
 export const getBySlug = createServerFn({ method: "GET" })

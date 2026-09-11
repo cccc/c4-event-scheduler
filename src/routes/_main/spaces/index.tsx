@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { useState } from "react";
 
 import { CreateSpaceDialog } from "@/components/spaces/create-space-dialog";
@@ -117,7 +117,7 @@ function SpacesPage() {
                                                 size="icon"
                                                 variant="ghost"
                                             >
-                                                <MoreHorizontal className="h-4 w-4" />
+                                                <MoreVertical className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">

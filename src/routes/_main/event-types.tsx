@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { useState } from "react";
 
+import { describeUsage } from "@/components/delete-impact";
 import { CreateEventTypeDialog } from "@/components/event-types/create-event-type-dialog";
 import {
     type DeleteEventType,
@@ -135,6 +136,13 @@ function EventTypesPage() {
                                     <div className="text-muted-foreground text-sm">
                                         /{et.slug}
                                     </div>
+                                    {et.usage && (
+                                        <div className="text-muted-foreground text-sm">
+                                            {describeUsage(et.usage) ?? (
+                                                <em>no events</em>
+                                            )}
+                                        </div>
+                                    )}
                                     {et.description && (
                                         <div className="mt-1 text-muted-foreground text-sm">
                                             {et.description}
@@ -150,7 +158,7 @@ function EventTypesPage() {
                                             size="icon"
                                             variant="ghost"
                                         >
-                                            <MoreHorizontal className="h-4 w-4" />
+                                            <MoreVertical className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">

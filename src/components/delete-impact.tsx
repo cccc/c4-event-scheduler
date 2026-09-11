@@ -29,6 +29,21 @@ export function describeImpact(impact: EventImpact): string {
     return parts.join(", ");
 }
 
+/**
+ * Usage line on the event types page: "1 series · 2 single events", series
+ * first, zero parts left out; null when there is nothing (the caller renders
+ * "no events" in its own style).
+ */
+export function describeUsage(impact: EventImpact): string | null {
+    const parts: string[] = [];
+    if (impact.series > 0)
+        parts.push(plural(impact.series, "series", "series"));
+    if (impact.singles > 0) {
+        parts.push(plural(impact.singles, "single event", "single events"));
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 /** The event-related bullet points of a delete confirmation. */
 export function EventImpactItems({
     impact,
