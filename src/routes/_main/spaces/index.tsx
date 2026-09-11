@@ -45,10 +45,13 @@ function SpacesPage() {
         ...accountQueries.info(),
         enabled: isLoggedIn,
     });
+    // isLoggedIn guards against account data lingering from a previous session
     const canManage = (slug: string) =>
-        !!account && capabilitiesGrant(account, { spaceSlug: slug });
+        isLoggedIn &&
+        !!account &&
+        capabilitiesGrant(account, { spaceSlug: slug });
     // Creating a space needs admin or a global permission (no scope)
-    const canCreate = !!account && capabilitiesGrant(account);
+    const canCreate = isLoggedIn && !!account && capabilitiesGrant(account);
 
     return (
         <>

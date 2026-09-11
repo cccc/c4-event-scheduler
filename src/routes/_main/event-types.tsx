@@ -56,7 +56,9 @@ function EventTypesPage() {
         ...accountQueries.info(),
         enabled: isLoggedIn,
     });
+    // isLoggedIn guards against account data lingering from a previous session
     const canManage = (et: { slug: string; space: { slug: string } | null }) =>
+        isLoggedIn &&
         !!account &&
         capabilitiesGrant(account, {
             eventTypeSlug: et.slug,
@@ -65,7 +67,9 @@ function EventTypesPage() {
     // Global types need admin or a global permission, space-specific ones a
     // permission for that space; anyone with any permission may get to create
     const canCreate =
-        !!account && (account.isAdmin || account.permissions.length > 0);
+        isLoggedIn &&
+        !!account &&
+        (account.isAdmin || account.permissions.length > 0);
 
     return (
         <>

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { ChevronDown, LogOut, Settings, User } from "lucide-react";
 
@@ -23,9 +24,13 @@ type HeaderProps = {
 export function Header({ user, isAdmin }: HeaderProps) {
     const router = useRouter();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     const handleSignOut = async () => {
         await authClient.signOut();
+        // Cached query data (account info, private spaces, internal types)
+        // belongs to the session that just ended
+        queryClient.clear();
         await navigate({ to: "/" });
         // Re-run the root beforeLoad so context.session clears
         await router.invalidate();
