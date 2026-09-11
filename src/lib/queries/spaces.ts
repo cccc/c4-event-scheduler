@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getBySlug, list } from "@/server/fns/spaces";
+import { getBySlug, getDeleteImpact, list } from "@/server/fns/spaces";
 
 type ListInput = { includePrivate?: boolean } | undefined;
 
@@ -9,6 +9,8 @@ export const spacesKeys = {
     list: (input: ListInput) => [...spacesKeys.all, "list", input] as const,
     getBySlug: (slug: string) =>
         [...spacesKeys.all, "getBySlug", slug] as const,
+    deleteImpact: (id: string) =>
+        [...spacesKeys.all, "deleteImpact", id] as const,
 };
 
 export const spacesQueries = {
@@ -21,5 +23,10 @@ export const spacesQueries = {
         queryOptions({
             queryKey: spacesKeys.getBySlug(slug),
             queryFn: () => getBySlug({ data: { slug } }),
+        }),
+    deleteImpact: (id: string) =>
+        queryOptions({
+            queryKey: spacesKeys.deleteImpact(id),
+            queryFn: () => getDeleteImpact({ data: { id } }),
         }),
 };

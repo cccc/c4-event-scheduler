@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
-import { eventType, space } from "@/server/db/schema";
+import { event, eventType, space } from "@/server/db/schema";
 import { notFound } from "@/server/fn-errors";
 import { assertCan } from "@/server/permissions";
 
@@ -104,6 +104,32 @@ export const update = createServerFn({ method: "POST" })
             .where(eq(space.id, id))
             .returning();
         return result ?? null;
+    });
+
+/**
+ * What deleting a space takes with it (events cascade, space-specific event
+ * types cascade). Shown in the delete confirmation so the numbers the user
+ * has to type back are the real ones.
+ */
+export const getDeleteImpact = createServerFn({ method: "GET" })
+    .middleware([authed])
+    .validator(z.object({ id: z.string().uuid() }))
+    .handler(async ({ data, context }) => {
+        const existing = await context.db.query.space.findFirst({
+            where: eq(space.id, data.id),
+        });
+        if (!existing) throw notFound("Space not found");
+        assertCan(context.actor, "manage:spaces", { spaceSlug: existing.slug });
+
+        const [events] = await context.db
+            .select({ n: count() })
+            .from(event)
+            .where(eq(event.spaceId, data.id));
+        const [eventTypes] = await context.db
+            .select({ n: count() })
+            .from(eventType)
+            .where(eq(eventType.spaceId, data.id));
+        return { events: events?.n ?? 0, eventTypes: eventTypes?.n ?? 0 };
     });
 
 // `delete` is a reserved word, hence deleteSpace
