@@ -1,6 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getBySlug, getBySpace, list } from "@/server/fns/event-types";
+import {
+    getBySlug,
+    getBySpace,
+    getDeleteImpact,
+    list,
+} from "@/server/fns/event-types";
 
 type ListInput = { globalOnly?: boolean; spaceId?: string } | undefined;
 
@@ -11,6 +16,8 @@ export const eventTypesKeys = {
         [...eventTypesKeys.all, "getBySlug", slug] as const,
     getBySpace: (spaceId: string) =>
         [...eventTypesKeys.all, "getBySpace", spaceId] as const,
+    deleteImpact: (id: string) =>
+        [...eventTypesKeys.all, "deleteImpact", id] as const,
 };
 
 export const eventTypesQueries = {
@@ -28,5 +35,10 @@ export const eventTypesQueries = {
         queryOptions({
             queryKey: eventTypesKeys.getBySpace(spaceId),
             queryFn: () => getBySpace({ data: { spaceId } }),
+        }),
+    deleteImpact: (id: string) =>
+        queryOptions({
+            queryKey: eventTypesKeys.deleteImpact(id),
+            queryFn: () => getDeleteImpact({ data: { id } }),
         }),
 };

@@ -3,7 +3,8 @@ import { and, eq, isNull, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
-import { eventType, space } from "@/server/db/schema";
+import { event, eventType, space } from "@/server/db/schema";
+import { eventImpactBySpace, sumImpact } from "@/server/event-impact";
 import { notFound } from "@/server/fn-errors";
 import { assertCan } from "@/server/permissions";
 
@@ -174,6 +175,29 @@ export const update = createServerFn({ method: "POST" })
     });
 
 // `delete` is a reserved word, hence deleteEventType
+/**
+ * What deleting an event type takes with it: events (with their overrides)
+ * cascade, listed per space so the confirmation can show where they are.
+ */
+export const getDeleteImpact = createServerFn({ method: "GET" })
+    .middleware([authed])
+    .validator(z.object({ id: z.string().uuid() }))
+    .handler(async ({ data, context }) => {
+        const existing = await context.db.query.eventType.findFirst({
+            where: eq(eventType.id, data.id),
+            with: { space: true },
+        });
+        if (!existing) throw notFound("Event type not found");
+        assertCan(context.actor, "manage:event-types", {
+            eventTypeSlug: existing.slug,
+            spaceSlug: existing.space?.slug,
+        });
+
+        const spaces = await eventImpactBySpace(eq(event.eventTypeId, data.id));
+        return { ...sumImpact(spaces), spaces };
+    });
+
+// Deleting an event type deletes every event using it (cascade)
 export const deleteEventType = createServerFn({ method: "POST" })
     .middleware([authed])
     .validator(z.object({ id: z.string().uuid() }))

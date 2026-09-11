@@ -1,13 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 
 import { CreateEventTypeDialog } from "@/components/event-types/create-event-type-dialog";
+import {
+    type DeleteEventType,
+    DeleteEventTypeDialog,
+} from "@/components/event-types/delete-event-type-dialog";
 import { EditEventTypeDialog } from "@/components/event-types/edit-event-type-dialog";
 import { Button } from "@/components/ui/button";
-import { eventTypesKeys, eventTypesQueries } from "@/lib/queries/event-types";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { capabilitiesGrant } from "@/lib/permissions-core";
+import { accountQueries } from "@/lib/queries/account";
+import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
-import { deleteEventType as deleteEventTypeFn } from "@/server/fns/event-types";
 
 export const Route = createFileRoute("/_main/event-types")({
     component: EventTypesPage,
@@ -27,8 +40,9 @@ function EventTypesPage() {
         spaceId: string | null;
     } | null>(null);
 
-    const queryClient = useQueryClient();
+    const [deleting, setDeleting] = useState<DeleteEventType | null>(null);
     const { session } = Route.useRouteContext();
+    const isLoggedIn = !!session?.user;
 
     const { data: eventTypes, isLoading } = useQuery(
         eventTypesQueries.list({}),
@@ -36,22 +50,22 @@ function EventTypesPage() {
     const { data: spaces } = useQuery(
         spacesQueries.list({ includePrivate: true }),
     );
-
-    const deleteEventType = useMutation({
-        mutationFn: (input: Parameters<typeof deleteEventTypeFn>[0]["data"]) =>
-            deleteEventTypeFn({ data: input }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: eventTypesKeys.all });
-        },
+    // Own capabilities decide which rows get management controls; the
+    // server checks again on every mutation.
+    const { data: account } = useQuery({
+        ...accountQueries.info(),
+        enabled: isLoggedIn,
     });
-
-    const handleDelete = (id: string) => {
-        if (confirm("Are you sure you want to delete this event type?")) {
-            deleteEventType.mutate({ id });
-        }
-    };
-
-    const isLoggedIn = !!session?.user;
+    const canManage = (et: { slug: string; space: { slug: string } | null }) =>
+        !!account &&
+        capabilitiesGrant(account, {
+            eventTypeSlug: et.slug,
+            spaceSlug: et.space?.slug,
+        });
+    // Global types need admin or a global permission, space-specific ones a
+    // permission for that space; anyone with any permission may get to create
+    const canCreate =
+        !!account && (account.isAdmin || account.permissions.length > 0);
 
     return (
         <>
@@ -64,7 +78,7 @@ function EventTypesPage() {
                     </p>
                 </div>
 
-                {isLoggedIn && (
+                {canCreate && (
                     <>
                         <Button onClick={() => setOpen(true)}>
                             Create Event Type
@@ -124,36 +138,51 @@ function EventTypesPage() {
                                     )}
                                 </div>
                             </div>
-                            {isLoggedIn && (
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={() => {
-                                            setEditingType({
-                                                id: et.id,
-                                                slug: et.slug,
-                                                name: et.name,
-                                                description: et.description,
-                                                color: et.color,
-                                                isInternal: et.isInternal,
-                                                defaultDurationMinutes:
-                                                    et.defaultDurationMinutes,
-                                                spaceId: et.spaceId,
-                                            });
-                                            setEditOpen(true);
-                                        }}
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleDelete(et.id)}
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        Delete
-                                    </Button>
-                                </div>
+                            {canManage(et) && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            aria-label={`Actions for ${et.name}`}
+                                            size="icon"
+                                            variant="ghost"
+                                        >
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                setEditingType({
+                                                    id: et.id,
+                                                    slug: et.slug,
+                                                    name: et.name,
+                                                    description: et.description,
+                                                    color: et.color,
+                                                    isInternal: et.isInternal,
+                                                    defaultDurationMinutes:
+                                                        et.defaultDurationMinutes,
+                                                    spaceId: et.spaceId,
+                                                });
+                                                setEditOpen(true);
+                                            }}
+                                        >
+                                            Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() =>
+                                                setDeleting({
+                                                    id: et.id,
+                                                    slug: et.slug,
+                                                    name: et.name,
+                                                })
+                                            }
+                                            variant="destructive"
+                                        >
+                                            Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )}
                         </div>
                     ))}
@@ -161,12 +190,19 @@ function EventTypesPage() {
                     {eventTypes?.length === 0 && (
                         <p className="text-muted-foreground">
                             No event types yet.{" "}
-                            {isLoggedIn && "Create one to get started."}
+                            {canCreate && "Create one to get started."}
                         </p>
                     )}
                 </div>
             )}
 
+            <DeleteEventTypeDialog
+                eventType={deleting}
+                onOpenChange={(open) => {
+                    if (!open) setDeleting(null);
+                }}
+                open={deleting !== null}
+            />
             <EditEventTypeDialog
                 eventType={editingType}
                 onOpenChange={(open) => {

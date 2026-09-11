@@ -172,7 +172,7 @@ export const event = createTable(
             .references(() => space.id, { onDelete: "cascade" }),
         eventTypeId: uuid("event_type_id")
             .notNull()
-            .references(() => eventType.id, { onDelete: "restrict" }),
+            .references(() => eventType.id, { onDelete: "cascade" }),
         createdByActorId: uuid("created_by_actor_id").references(
             () => actor.id,
             {

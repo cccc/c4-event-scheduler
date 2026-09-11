@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { EventImpactItems, impactTotal } from "@/components/delete-impact";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -32,8 +33,9 @@ type DeleteSpaceDialogProps = {
 
 /**
  * Deleting a space takes every event in it along, so the confirmation asks
- * the user to type back both the slug and the number of events that will be
- * lost; the numbers come from the server, not from the list.
+ * the user to type back both the slug and the total of items that will be
+ * lost (single events + series + overridden occurrences); the numbers come
+ * from the server, not from the list.
  */
 export function DeleteSpaceDialog({
     open,
@@ -48,6 +50,7 @@ export function DeleteSpaceDialog({
         ...spacesQueries.deleteImpact(space?.id ?? ""),
         enabled: open && !!space,
     });
+    const total = impact ? impactTotal(impact) : null;
 
     // Start from empty fields every time the dialog opens
     useEffect(() => {
@@ -77,8 +80,7 @@ export function DeleteSpaceDialog({
     });
 
     const slugMatches = !!space && slugInput === space.slug;
-    const countMatches =
-        !!impact && countInput.trim() === String(impact.events);
+    const countMatches = total !== null && countInput.trim() === String(total);
     const canDelete =
         slugMatches && countMatches && !deleteSpace.isPending && !!space;
 
@@ -101,14 +103,10 @@ export function DeleteSpaceDialog({
                         }}
                     >
                         <ul className="list-disc space-y-1 pl-5 text-sm">
-                            <li>
-                                <strong>
-                                    {impact ? impact.events : "…"}{" "}
-                                    {impact?.events === 1 ? "event" : "events"}
-                                </strong>{" "}
-                                (each series counts once), including all their
-                                occurrences and overrides
-                            </li>
+                            <EventImpactItems
+                                impact={impact}
+                                loaded={!!impact}
+                            />
                             <li>
                                 <strong>
                                     {impact ? impact.eventTypes : "…"}{" "}
@@ -145,14 +143,17 @@ export function DeleteSpaceDialog({
 
                         <div className="space-y-2">
                             <Label htmlFor="delete-space-count">
-                                Type the number of events that will be deleted
+                                Type the total of single events, series and
+                                overridden occurrences that will be deleted
                             </Label>
                             <Input
                                 autoComplete="off"
                                 id="delete-space-count"
                                 inputMode="numeric"
                                 onChange={(e) => setCountInput(e.target.value)}
-                                placeholder={impact ? "0" : "loading…"}
+                                placeholder={
+                                    total === null ? "loading…" : String(total)
+                                }
                                 value={countInput}
                             />
                         </div>

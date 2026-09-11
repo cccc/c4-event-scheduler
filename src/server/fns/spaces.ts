@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
 import { event, eventType, space } from "@/server/db/schema";
+import { eventImpactBySpace, sumImpact } from "@/server/event-impact";
 import { notFound } from "@/server/fn-errors";
 import { assertCan } from "@/server/permissions";
 
@@ -107,9 +108,9 @@ export const update = createServerFn({ method: "POST" })
     });
 
 /**
- * What deleting a space takes with it (events cascade, space-specific event
- * types cascade). Shown in the delete confirmation so the numbers the user
- * has to type back are the real ones.
+ * What deleting a space takes with it (events with their overrides cascade,
+ * space-specific event types cascade). Shown in the delete confirmation so
+ * the numbers the user has to type back are the real ones.
  */
 export const getDeleteImpact = createServerFn({ method: "GET" })
     .middleware([authed])
@@ -121,15 +122,14 @@ export const getDeleteImpact = createServerFn({ method: "GET" })
         if (!existing) throw notFound("Space not found");
         assertCan(context.actor, "manage:spaces", { spaceSlug: existing.slug });
 
-        const [events] = await context.db
-            .select({ n: count() })
-            .from(event)
-            .where(eq(event.spaceId, data.id));
+        const impact = sumImpact(
+            await eventImpactBySpace(eq(event.spaceId, data.id)),
+        );
         const [eventTypes] = await context.db
             .select({ n: count() })
             .from(eventType)
             .where(eq(eventType.spaceId, data.id));
-        return { events: events?.n ?? 0, eventTypes: eventTypes?.n ?? 0 };
+        return { ...impact, eventTypes: eventTypes?.n ?? 0 };
     });
 
 // `delete` is a reserved word, hence deleteSpace
