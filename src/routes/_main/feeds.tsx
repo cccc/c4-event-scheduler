@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { SubscribeMenu } from "@/components/subscribe-menu";
+import { type FeedAccess, SubscribeMenu } from "@/components/subscribe-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { eventTypesQueries } from "@/lib/queries/event-types";
@@ -11,11 +11,11 @@ export const Route = createFileRoute("/_main/feeds")({
     component: FeedsPage,
 });
 
-/** Marks feeds that only contain events once an API key is supplied. */
+/** Marks feeds that only contain events once a feed token is supplied. */
 function InternalFeedBadge() {
     return (
         <Badge className="ml-2 align-middle" variant="outline">
-            Internal, API key required
+            Internal, token required
         </Badge>
     );
 }
@@ -23,12 +23,16 @@ function InternalFeedBadge() {
 function FeedRow({
     name,
     url,
-    internal,
+    access,
+    badge = access === "internal",
     compact,
 }: {
     name: string;
     url: string;
-    internal: boolean;
+    /** What the feed contains with and without a token; drives the menu */
+    access: FeedAccess;
+    /** Whether to show the Internal tag (a section heading may carry it instead) */
+    badge?: boolean;
     compact?: boolean;
 }) {
     return (
@@ -42,7 +46,7 @@ function FeedRow({
             <div>
                 <div className={compact ? "text-sm" : "font-medium"}>
                     {name}
-                    {internal && <InternalFeedBadge />}
+                    {badge && <InternalFeedBadge />}
                 </div>
                 <code
                     className={
@@ -54,7 +58,7 @@ function FeedRow({
                     {url}
                 </code>
             </div>
-            <SubscribeMenu compact={compact} url={url} />
+            <SubscribeMenu access={access} compact={compact} url={url} />
         </div>
     );
 }
@@ -67,43 +71,26 @@ function ApiKeyNote() {
             <AlertDescription className="space-y-2">
                 <p>
                     Feeds are public by default: internal event types, private
-                    spaces and drafts are left out. Supply an API key and the
-                    same feeds include internal event types and private spaces
-                    (drafts never appear). Feeds tagged <em>Internal</em> below
-                    are empty without a key. You can create a personal key under{" "}
+                    spaces and drafts are left out. The Subscribe menus below
+                    also offer every feed <em>including internal events</em>.
+                    Those links carry your personal feed token (shown under{" "}
                     <Link className="underline" to="/account">
                         Account
                     </Link>
-                    .
+                    ), which only works for feeds; treat such links like a
+                    password. Drafts never appear. Feeds tagged{" "}
+                    <em>Internal</em> only exist with a token.
                 </p>
                 <p>
-                    The Subscribe menus offer a <code>webcal:</code> link that
-                    opens your calendar app directly, and the plain URL. The key
-                    can be passed in any of these ways:
+                    Each menu offers a <code>webcal:</code> link that opens your
+                    calendar app directly, and the plain URL. A feed URL with an
+                    invalid token returns an error instead of silently falling
+                    back to the public events.
                 </p>
-                <ul className="list-disc space-y-1 pl-5">
-                    <li>
-                        Query parameter, for calendar apps that cannot send
-                        headers: <code>?key=c4k_…</code>. Leave off the{" "}
-                        <code>#fingerprint</code> suffix or encode the{" "}
-                        <code>#</code> as <code>%23</code>, otherwise the URL is
-                        cut off there. Treat such a URL as a secret.
-                    </li>
-                    <li>
-                        <code>X-Api-Key</code> header.
-                    </li>
-                    <li>
-                        <code>Authorization: Bearer c4k_…</code> header.
-                    </li>
-                    <li>
-                        HTTP Basic auth with the username <code>apikey</code>{" "}
-                        and the key as the password, for clients that only offer
-                        a username and password field.
-                    </li>
-                </ul>
-                <p>
-                    A feed URL with an invalid key returns an error instead of
-                    silently falling back to the public events.
+                <p className="text-muted-foreground">
+                    Integrations that already use the REST API can alternatively
+                    authenticate feeds with their API key; see the API
+                    documentation.
                 </p>
             </AlertDescription>
         </Alert>
@@ -136,12 +123,8 @@ function FeedsPage() {
                 <section>
                     <h2 className="mb-4 font-semibold text-xl">All Events</h2>
                     <FeedRow
-                        internal={false}
-                        name={
-                            isLoggedIn
-                                ? "All events (internal ones with an API key)"
-                                : "All public events"
-                        }
+                        access="mixed"
+                        name="All events"
                         url={`${appUrl}/api/cal/all.ics`}
                     />
                 </section>
@@ -158,7 +141,9 @@ function FeedsPage() {
                             ?.filter((et) => et.spaceId === null)
                             .map((et) => (
                                 <FeedRow
-                                    internal={et.isInternal}
+                                    access={
+                                        et.isInternal ? "internal" : "mixed"
+                                    }
                                     key={et.id}
                                     name={et.name}
                                     url={`${appUrl}/api/cal/all/${et.slug}.ics`}
@@ -172,7 +157,7 @@ function FeedsPage() {
                     <div className="space-y-2">
                         {spaces?.map((space) => (
                             <FeedRow
-                                internal={!space.isPublic}
+                                access={space.isPublic ? "mixed" : "internal"}
                                 key={space.id}
                                 name={space.name}
                                 url={`${appUrl}/api/cal/${space.slug}.ics`}
@@ -214,8 +199,14 @@ function FeedsPage() {
                                     <div className="space-y-2 pl-4">
                                         {eventTypes?.map((et) => (
                                             <FeedRow
+                                                access={
+                                                    !space.isPublic ||
+                                                    et.isInternal
+                                                        ? "internal"
+                                                        : "public"
+                                                }
+                                                badge={et.isInternal}
                                                 compact
-                                                internal={et.isInternal}
                                                 key={et.id}
                                                 name={et.name}
                                                 url={`${appUrl}/api/cal/${space.slug}/${et.slug}.ics`}

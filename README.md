@@ -127,6 +127,15 @@ A feed URL with an invalid key returns 401 instead of silently falling back to
 the public subset. Note that keys in URLs can end up in proxy logs; treat such
 feed URLs as secrets. Draft events never appear in feeds.
 
+### Feed tokens
+
+Signed-in users get a personal feed token (created on demand, shown under
+**Account -> Feed token**). Appended as `?key=c4f_...`, it makes the feeds
+include internal event types and private spaces, exactly like an API key would, but it
+is honoured by the feed routes only, never by the REST API. Regenerating it invalidates
+every subscription built with the old one. Like feed URLs with keys, treat such links
+as secrets.
+
 ### API keys
 
 There are two kinds of keys, both usable for the REST API and the feeds:

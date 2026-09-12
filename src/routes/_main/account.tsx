@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { PersonalApiKeysCard } from "@/components/account/api-keys-card";
+import { FeedTokenCard } from "@/components/account/feed-token-card";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -239,6 +240,10 @@ function AccountPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                <div className="md:col-span-2">
+                    <FeedTokenCard />
+                </div>
 
                 <div className="md:col-span-2">
                     <PersonalApiKeysCard owner={info} />

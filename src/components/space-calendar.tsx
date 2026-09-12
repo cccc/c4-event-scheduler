@@ -123,6 +123,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 </div>
                 <div className="flex items-center gap-2">
                     <SubscribeMenu
+                        access={space.isPublic ? "mixed" : "internal"}
                         url={`${appUrl}/api/cal/${space.slug}.ics`}
                     />
                     {isLoggedIn && (

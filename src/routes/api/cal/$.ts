@@ -12,6 +12,7 @@ import {
 } from "@/server/api-key-auth";
 import { db } from "@/server/db";
 import { event, eventType, space } from "@/server/db/schema";
+import { getFeedTokenUserFromRequest, isFeedToken } from "@/server/feed-token";
 
 // ============================================================================
 // Helpers
@@ -129,21 +130,32 @@ async function GET(splat: string | undefined, request: Request) {
     const tz = env.APP_TIMEZONE;
 
     // Feeds are public by default. A valid API key (Authorization header, or
-    // "?key=" since calendar clients cannot send headers) additionally
-    // unlocks internal event types and non-public spaces, matching what any
-    // authenticated identity sees elsewhere. Drafts stay hidden regardless.
-    // A key that is present but invalid is an error, not an anonymous feed;
-    // silently serving the public subset would hide the misconfiguration.
-    const keyProvided = hasApiKeyCredentials(request, {
-        allowQueryParam: true,
-    });
-    const apiKeyRecord = keyProvided
-        ? await getApiKeyFromRequest(request, { allowQueryParam: true })
-        : null;
-    if (keyProvided && !apiKeyRecord) {
-        return new Response("Invalid API key", { status: 401 });
+    // "?key=" since calendar clients cannot send headers) or a per-user feed
+    // token ("?key=c4f_...", feeds only) additionally unlocks internal event
+    // types and non-public spaces, matching what any authenticated identity
+    // sees elsewhere. Drafts stay hidden regardless.
+    // A credential that is present but invalid is an error, not an anonymous
+    // feed; silently serving the public subset would hide the misconfiguration.
+    let authenticated = false;
+    const rawQueryKey = new URL(request.url).searchParams.get("key");
+    if (rawQueryKey !== null && isFeedToken(rawQueryKey)) {
+        const owner = await getFeedTokenUserFromRequest(request);
+        if (!owner) {
+            return new Response("Invalid feed token", { status: 401 });
+        }
+        authenticated = true;
+    } else {
+        const keyProvided = hasApiKeyCredentials(request, {
+            allowQueryParam: true,
+        });
+        const apiKeyRecord = keyProvided
+            ? await getApiKeyFromRequest(request, { allowQueryParam: true })
+            : null;
+        if (keyProvided && !apiKeyRecord) {
+            return new Response("Invalid API key", { status: 401 });
+        }
+        authenticated = apiKeyRecord !== null;
     }
-    const authenticated = apiKeyRecord !== null;
 
     // Parse the path: all.ics, {space}.ics, {space}/{eventType}.ics or
     // all/{eventType}.ics (the type across every visible space)

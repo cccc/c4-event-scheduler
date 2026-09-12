@@ -423,6 +423,16 @@ export const apiKeySecret = createTable("api_key_secret", {
     keyHash: text("key_hash").notNull().unique(),
 });
 
+// Per-user secret that unlocks internal events in the iCal feeds only (never
+// the REST API); stored as is so the account page can hand it out again
+export const feedToken = createTable("feed_token", {
+    userId: text("user_id")
+        .primaryKey()
+        .references(() => user.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const apiKeySecretRelations = relations(apiKeySecret, ({ one }) => ({
     apiKey: one(apiKey, {
         fields: [apiKeySecret.apiKeyId],

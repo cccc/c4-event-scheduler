@@ -144,6 +144,15 @@ function EventTypesPage() {
                         const feedUrl = et.space
                             ? `${appUrl}/api/cal/${et.space.slug}/${et.slug}.ics`
                             : `${appUrl}/api/cal/all/${et.slug}.ics`;
+                        // A public type in a public space hides nothing; a
+                        // global public type still gains private-space events
+                        // with a token; internal or private = token only
+                        const feedAccess =
+                            et.isInternal || (et.space && !et.space.isPublic)
+                                ? "internal"
+                                : et.space
+                                  ? "public"
+                                  : "mixed";
                         const next = upcoming?.[et.id] ?? [];
                         return (
                             <Card key={et.id}>
@@ -314,7 +323,10 @@ function EventTypesPage() {
                                     </div>
                                 </CardContent>
                                 <CardFooter className="gap-2">
-                                    <SubscribeMenu url={feedUrl} />
+                                    <SubscribeMenu
+                                        access={feedAccess}
+                                        url={feedUrl}
+                                    />
                                     {et.space && (
                                         <Button
                                             asChild
