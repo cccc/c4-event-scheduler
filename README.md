@@ -109,6 +109,10 @@ docker run -p 3000:3000 \
 - `GET /api/cal/all.ics` — All public events
 - `GET /api/cal/{space}.ics` — Events for a specific space
 - `GET /api/cal/{space}/{event-type}.ics` — Filtered by event type
+- `GET /api/cal/all/{event-type}.ics` — One event type across all public spaces
+
+The Subscribe menus on the site offer each feed as a `webcal:` link (opens the
+calendar app on iOS, macOS, Outlook and Thunderbird) and as the plain URL.
 
 Feeds are public and contain only public spaces and non-internal event types.
 An API key (see below) unlocks internal event types and non-public

@@ -145,7 +145,8 @@ async function GET(splat: string | undefined, request: Request) {
     }
     const authenticated = apiKeyRecord !== null;
 
-    // Parse the path: all.ics, {space}.ics, or {space}/{eventType}.ics
+    // Parse the path: all.ics, {space}.ics, {space}/{eventType}.ics or
+    // all/{eventType}.ics (the type across every visible space)
     if (!path || path.length === 0) {
         return new Response("Not Found", { status: 404 });
     }
@@ -166,6 +167,10 @@ async function GET(splat: string | undefined, request: Request) {
     } else if (path.length === 1) {
         // Space feed: {space}.ics
         spaceSlug = slug;
+    } else if (path.length === 2 && path[0] === "all") {
+        // Event type across all visible spaces: all/{eventType}.ics
+        calendarName = "All Events";
+        eventTypeSlug = slug;
     } else if (path.length === 2) {
         // Space + event type feed: {space}/{eventType}.ics
         spaceSlug = path[0] ?? "";

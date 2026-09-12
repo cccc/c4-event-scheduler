@@ -1,21 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 
+import { SubscribeMenu } from "@/components/subscribe-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 export const Route = createFileRoute("/_main/feeds")({
     component: FeedsPage,
 });
-
-function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-}
 
 /** Marks feeds that only contain events once an API key is supplied. */
 function InternalFeedBadge() {
@@ -60,13 +54,7 @@ function FeedRow({
                     {url}
                 </code>
             </div>
-            <Button
-                onClick={() => copyToClipboard(url)}
-                size="sm"
-                variant={compact ? "ghost" : "outline"}
-            >
-                {compact ? "Copy" : "Copy URL"}
-            </Button>
+            <SubscribeMenu compact={compact} url={url} />
         </div>
     );
 }
@@ -88,7 +76,11 @@ function ApiKeyNote() {
                     </Link>
                     .
                 </p>
-                <p>The key can be passed in any of these ways:</p>
+                <p>
+                    The Subscribe menus offer a <code>webcal:</code> link that
+                    opens your calendar app directly, and the plain URL. The key
+                    can be passed in any of these ways:
+                </p>
                 <ul className="list-disc space-y-1 pl-5">
                     <li>
                         Query parameter, for calendar apps that cannot send
@@ -152,6 +144,27 @@ function FeedsPage() {
                         }
                         url={`${appUrl}/api/cal/all.ics`}
                     />
+                </section>
+
+                <section>
+                    <h2 className="mb-4 font-semibold text-xl">
+                        By Event Type
+                    </h2>
+                    <p className="mb-4 text-muted-foreground text-sm">
+                        One event type across every space.
+                    </p>
+                    <div className="space-y-2">
+                        {eventTypes
+                            ?.filter((et) => et.spaceId === null)
+                            .map((et) => (
+                                <FeedRow
+                                    internal={et.isInternal}
+                                    key={et.id}
+                                    name={et.name}
+                                    url={`${appUrl}/api/cal/all/${et.slug}.ics`}
+                                />
+                            ))}
+                    </div>
                 </section>
 
                 <section>
