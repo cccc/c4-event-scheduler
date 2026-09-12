@@ -152,6 +152,26 @@
 	background-color: var(--accent);
 }
 
+/* Today's date number as a solid pill (month view) and the same for the
+   weekday header of today's column (week view) */
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number,
+.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.75rem;
+	height: 1.75rem;
+	padding-inline: 0.5rem;
+	border-radius: 9999px;
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+	font-weight: 600;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+	margin: 2px;
+}
+
 .fc .fc-daygrid-event-harness {
 	margin: 3px;
 
