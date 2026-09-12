@@ -177,21 +177,21 @@ export function CreateSeriesForm({
 
                 <form.AppField name="recurrenceConfig">
                     {(field) => (
-                        <field.RecurrencePickerField startDate={selectedDate} />
+                        <field.RecurrencePickerField startDate={selectedDate}>
+                            <form.AppField name="frequencyLabel">
+                                {(labelField) => (
+                                    <labelField.TextField
+                                        description="Human-readable version of the rule, shown on the website"
+                                        label="Display Label"
+                                        placeholder="e.g., Jeden Donnerstag (~19 Uhr)"
+                                    />
+                                )}
+                            </form.AppField>
+                        </field.RecurrencePickerField>
                     )}
                 </form.AppField>
 
                 <EventStatusGroup fields={eventStatusFields} form={form} />
-
-                <form.AppField name="frequencyLabel">
-                    {(field) => (
-                        <field.TextField
-                            description="Human-readable frequency shown on the website"
-                            label="Display Label (for website widget)"
-                            placeholder="e.g., Jeden Donnerstag (~19 Uhr)"
-                        />
-                    )}
-                </form.AppField>
 
                 <div className="flex gap-2 pt-2">
                     <Button onClick={onClose} type="button" variant="outline">

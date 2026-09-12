@@ -477,6 +477,7 @@ const editSeriesFromDateSchema = z.object({
     status: icalStatusSchema.optional(),
     isDraft: z.boolean().optional(),
     rrule: z.string().optional(), // New RRULE (if changing recurrence pattern)
+    frequencyLabel: z.string().max(255).optional().nullable(), // null clears it
 });
 
 // Edit a series from a specific point - creates a new series for future occurrences
@@ -498,6 +499,11 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
 
         const { eventId, splitDate, ...updates } = data;
         const tz = env.APP_TIMEZONE;
+        // Unlike the other fields the label can be cleared (null)
+        const frequencyLabel =
+            updates.frequencyLabel === undefined
+                ? evt.frequencyLabel
+                : updates.frequencyLabel;
 
         if (!evt.rrule) {
             throw badRequest("Cannot split a non-recurring event");
@@ -531,6 +537,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
                     url: updates.url ?? evt.url,
                     location: updates.location ?? evt.location,
                     status: updates.status ?? evt.status,
+                    frequencyLabel,
                     sequence: evt.sequence + 1,
                     updatedAt: new Date(),
                     updatedByActorId: context.actor.actorId ?? null,
@@ -612,6 +619,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
                 allDay: evt.allDay,
                 rrule: updates.rrule ?? evt.rrule,
                 recurrenceEndDate: evt.recurrenceEndDate,
+                frequencyLabel,
                 exdates: newExdates.length > 0 ? newExdates : null,
                 status: updates.status ?? evt.status,
                 isDraft: updates.isDraft ?? evt.isDraft,

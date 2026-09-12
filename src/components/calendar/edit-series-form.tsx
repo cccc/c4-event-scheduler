@@ -77,6 +77,7 @@ const seriesFormSchema = z.object({
     ...eventStatusShape,
     ...seriesScheduleShape,
     recurrenceConfig: z.custom<RecurrenceConfig>().nullable(),
+    frequencyLabel: z.string().max(255),
 });
 
 type EditTab = "occurrence" | "fromHere" | "whole";
@@ -133,6 +134,8 @@ function seriesInitialValues(
         recurrenceConfig: occurrence.rrule
             ? parseRRuleToConfig(occurrence.rrule)
             : null,
+        // Occurrences do not carry the label; filled in once the series loads
+        frequencyLabel: "",
     };
 }
 
@@ -298,6 +301,7 @@ export function EditSeriesForm({
                     isDraft: value.isDraft,
                     rrule,
                     recurrenceEndDate,
+                    frequencyLabel: value.frequencyLabel || null,
                 });
             } else {
                 editSeriesFromDate.mutate({
@@ -313,6 +317,7 @@ export function EditSeriesForm({
                     status: value.status,
                     isDraft: value.isDraft,
                     rrule,
+                    frequencyLabel: value.frequencyLabel || null,
                 });
             }
         },
@@ -340,6 +345,14 @@ export function EditSeriesForm({
         seriesForm.reset(seriesInitialValues(occurrence, tz));
         setEditTab(initialTab ?? "occurrence");
     }, [occurrence, initialTab, tz, seriesForm.reset]);
+
+    // The display label only exists on the series record
+    const seriesLabel = eventData?.frequencyLabel;
+    useEffect(() => {
+        if (seriesLabel !== undefined) {
+            seriesForm.setFieldValue("frequencyLabel", seriesLabel ?? "");
+        }
+    }, [seriesLabel, seriesForm.setFieldValue]);
 
     // When switching to "Whole Series" mode, reset seriesFirstDate to the actual series
     // start date (not the clicked occurrence's date). When switching to "From Here",
@@ -544,7 +557,17 @@ export function EditSeriesForm({
                                     {(field) => (
                                         <field.RecurrencePickerField
                                             startDate={occurrence.dtstart}
-                                        />
+                                        >
+                                            <seriesForm.AppField name="frequencyLabel">
+                                                {(labelField) => (
+                                                    <labelField.TextField
+                                                        description="Human-readable version of the rule, shown on the website"
+                                                        label="Display Label"
+                                                        placeholder="e.g., Jeden Donnerstag (~19 Uhr)"
+                                                    />
+                                                )}
+                                            </seriesForm.AppField>
+                                        </field.RecurrencePickerField>
                                     )}
                                 </seriesForm.AppField>
                             )}

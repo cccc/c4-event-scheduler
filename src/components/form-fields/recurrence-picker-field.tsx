@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
     getRecurrenceSummary,
     type RecurrenceConfig,
@@ -7,10 +9,13 @@ import { useFieldContext } from "@/hooks/form";
 
 type RecurrencePickerFieldProps = {
     startDate: Date | null;
+    /** Extra fields that belong with the rule, rendered below the summary */
+    children?: ReactNode;
 };
 
 export function RecurrencePickerField({
     startDate,
+    children,
 }: RecurrencePickerFieldProps) {
     const field = useFieldContext<RecurrenceConfig | null>();
     return (
@@ -26,6 +31,7 @@ export function RecurrencePickerField({
                     {getRecurrenceSummary(field.state.value)}
                 </p>
             )}
+            {children && <div className="mt-4 border-t pt-4">{children}</div>}
         </div>
     );
 }
