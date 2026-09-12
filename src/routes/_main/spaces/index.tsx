@@ -17,7 +17,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { capabilitiesGrant } from "@/lib/permissions-core";
@@ -79,13 +78,16 @@ function SpacesPage() {
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {spaces?.map((space) => (
-                        <div className="relative" key={space.id}>
+                        <div
+                            className="flex flex-col rounded-lg border"
+                            key={space.id}
+                        >
                             <Link
-                                className="block h-full rounded-lg border p-4 transition-colors hover:bg-accent"
+                                className="block flex-1 rounded-t-lg p-4 transition-colors hover:bg-accent"
                                 params={{ slug: space.slug }}
                                 to="/spaces/$slug"
                             >
-                                <h2 className="mb-1 pr-8 font-semibold">
+                                <h2 className="mb-1 font-semibold">
                                     {space.name}
                                 </h2>
                                 {space.description && (
@@ -108,12 +110,37 @@ function SpacesPage() {
                                 </div>
                             </Link>
                             {canManage(space.slug) && (
-                                // Outside the link so the menu does not navigate
-                                <div className="absolute top-2 right-2">
+                                <div className="flex items-center gap-2 border-t px-4 py-2">
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link
+                                            params={{ slug: space.slug }}
+                                            to="/spaces/$slug"
+                                        >
+                                            View
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        className="ml-auto"
+                                        onClick={() =>
+                                            setEditing({
+                                                id: space.id,
+                                                slug: space.slug,
+                                                name: space.name,
+                                                description: space.description,
+                                                isPublic: space.isPublic,
+                                                isDefault: space.isDefault,
+                                            })
+                                        }
+                                        size="sm"
+                                        variant="outline"
+                                    >
+                                        Edit
+                                    </Button>
+                                    {/* Destructive action kept one step away */}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                aria-label={`Actions for ${space.name}`}
+                                                aria-label={`More actions for ${space.name}`}
                                                 size="icon"
                                                 variant="ghost"
                                             >
@@ -121,24 +148,6 @@ function SpacesPage() {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                onClick={() =>
-                                                    setEditing({
-                                                        id: space.id,
-                                                        slug: space.slug,
-                                                        name: space.name,
-                                                        description:
-                                                            space.description,
-                                                        isPublic:
-                                                            space.isPublic,
-                                                        isDefault:
-                                                            space.isDefault,
-                                                    })
-                                                }
-                                            >
-                                                Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 onClick={() =>
                                                     setDeleting({
