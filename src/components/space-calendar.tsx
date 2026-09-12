@@ -11,6 +11,7 @@ import luxon3Plugin from "@fullcalendar/luxon3";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
@@ -18,6 +19,7 @@ import { effectiveEnd } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import type { Space } from "@/components/calendar/types";
+import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
 import { eventTypesQueries } from "@/lib/queries/event-types";
@@ -27,6 +29,8 @@ import { authClient } from "@/server/better-auth/client";
 
 export function SpaceCalendar({ space }: { space: Space }) {
     const tz = useAppTimezone();
+    // Absolute URL for the feed, so the subscribe menu can offer a webcal: link
+    const { appUrl } = useRouteContext({ from: "__root__" });
     const calendarRef = useRef<FullCalendar>(null);
     const { openCreate, openDetails } = useCalendarDialogStore();
 
@@ -116,16 +120,17 @@ export function SpaceCalendar({ space }: { space: Space }) {
                             {space.description}
                         </p>
                     )}
-                    <a
-                        className="mt-2 inline-block text-muted-foreground text-sm hover:underline"
-                        href={`/api/cal/${space.slug}.ics`}
-                    >
-                        Subscribe (iCal)
-                    </a>
                 </div>
-                {isLoggedIn && (
-                    <Button onClick={() => openCreate()}>Create Event</Button>
-                )}
+                <div className="flex items-center gap-2">
+                    <SubscribeMenu
+                        url={`${appUrl}/api/cal/${space.slug}.ics`}
+                    />
+                    {isLoggedIn && (
+                        <Button onClick={() => openCreate()}>
+                            Create Event
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="rounded-lg border bg-card p-4">
