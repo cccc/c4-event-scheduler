@@ -369,6 +369,7 @@ function EventTypesPage() {
                     if (!open) setEditingType(null);
                 }}
                 open={editOpen}
+                spaces={spaces ?? []}
             />
         </>
     );

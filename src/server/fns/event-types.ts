@@ -1,5 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, eq, isNotNull, isNull, or, type SQL } from "drizzle-orm";
+import {
+    and,
+    count,
+    eq,
+    isNotNull,
+    isNull,
+    ne,
+    or,
+    type SQL,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { authed, withActor } from "@/server/auth-middleware";
@@ -15,7 +24,7 @@ import {
     eventImpactBySpace,
     sumImpact,
 } from "@/server/event-impact";
-import { notFound } from "@/server/fn-errors";
+import { badRequest, notFound } from "@/server/fn-errors";
 import { expandOccurrences } from "@/server/occurrences";
 import { assertCan } from "@/server/permissions";
 
@@ -263,6 +272,8 @@ export const create = createServerFn({ method: "POST" })
 
 const updateSchema = z.object({
     id: z.string().uuid(),
+    // null = global; a space id limits the type to that space
+    spaceId: z.string().uuid().nullable().optional(),
     name: z.string().min(1).max(255).optional(),
     description: z.string().optional(),
     color: z.string().max(20).optional(),
@@ -289,6 +300,37 @@ export const update = createServerFn({ method: "POST" })
             eventTypeSlug: existing.slug,
             spaceSlug: existing.space?.slug,
         });
+
+        // Moving between global and a space (or to another space): events of
+        // this type must all live in the target space, and the actor needs
+        // the permission the target scope requires (like create)
+        if (data.spaceId !== undefined && data.spaceId !== existing.spaceId) {
+            if (data.spaceId === null) {
+                assertCan(context.actor, "manage:event-types");
+            } else {
+                const target = await context.db.query.space.findFirst({
+                    where: eq(space.id, data.spaceId),
+                });
+                if (!target) throw notFound("Space not found");
+                assertCan(context.actor, "manage:event-types", {
+                    spaceSlug: target.slug,
+                });
+                const [elsewhere] = await context.db
+                    .select({ n: count() })
+                    .from(event)
+                    .where(
+                        and(
+                            eq(event.eventTypeId, data.id),
+                            ne(event.spaceId, data.spaceId),
+                        ),
+                    );
+                if ((elsewhere?.n ?? 0) > 0) {
+                    throw badRequest(
+                        "Events of this type exist in other spaces; it cannot be limited to this space",
+                    );
+                }
+            }
+        }
 
         const { id, ...updates } = data;
         const [result] = await context.db
