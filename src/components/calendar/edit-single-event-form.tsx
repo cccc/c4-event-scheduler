@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
 
 import { useAppTimezone } from "@/components/timezone-provider";
 import { useAppForm } from "@/hooks/form";
+import { eventTypesQueries } from "@/lib/queries/event-types";
 import {
     deleteEvent as deleteEventFn,
     update as updateEventFn,
@@ -27,6 +29,10 @@ import {
     eventTimeFields,
 } from "./form-groups/event-time-group";
 import {
+    EventTypeGroup,
+    eventTypeFields,
+} from "./form-groups/event-type-group";
+import {
     eventBasicsShape,
     eventStatusShape,
     eventTimeShape,
@@ -36,6 +42,7 @@ import type { Occurrence } from "./types";
 import { useEventMutation } from "./use-event-mutation";
 
 const formSchema = z.object({
+    eventTypeId: z.string().min(1, "Event type is required"),
     ...eventBasicsShape,
     ...eventTimeShape,
     ...eventStatusShape,
@@ -46,6 +53,7 @@ function initialValues(
     tz: string,
 ): z.infer<typeof formSchema> {
     return {
+        eventTypeId: occurrence.eventType?.id ?? "",
         summary: occurrence.summary,
         description: occurrence.description ?? "",
         url: occurrence.url ?? "",
@@ -73,6 +81,10 @@ export function EditSingleEventForm({
     const tz = useAppTimezone();
     const updateEvent = useEventMutation(updateEventFn, onClose);
     const deleteEvent = useEventMutation(deleteEventFn, onClose);
+    // Types usable in this space: global ones plus the space's own
+    const { data: eventTypes = [] } = useQuery(
+        eventTypesQueries.list({ spaceId: occurrence.space.id }),
+    );
 
     const form = useAppForm({
         defaultValues: initialValues(occurrence, tz),
@@ -90,6 +102,7 @@ export function EditSingleEventForm({
 
             updateEvent.mutate({
                 id: occurrence.eventId,
+                eventTypeId: value.eventTypeId,
                 summary: value.summary,
                 description: value.description || undefined,
                 url: value.url || undefined,
@@ -122,18 +135,31 @@ export function EditSingleEventForm({
     return (
         <form.AppForm>
             <form.Form className="space-y-4">
+                <EventTypeGroup
+                    eventTypes={eventTypes}
+                    fields={eventTypeFields}
+                    form={form}
+                />
                 <EventBasicsGroup
                     fields={eventBasicsFields}
                     form={form}
                     titleRequired
                 />
-                <EventTimeGroup
-                    endHint={openEndHint(occurrence.eventType)}
-                    fields={eventTimeFields}
-                    form={form}
-                    idPrefix="edit-single"
-                    startRequired
-                />
+                <form.Subscribe selector={(state) => state.values.eventTypeId}>
+                    {(eventTypeId) => (
+                        <EventTimeGroup
+                            endHint={openEndHint(
+                                eventTypes.find(
+                                    (et) => et.id === eventTypeId,
+                                ) ?? occurrence.eventType,
+                            )}
+                            fields={eventTimeFields}
+                            form={form}
+                            idPrefix="edit-single"
+                            startRequired
+                        />
+                    )}
+                </form.Subscribe>
                 <EventStatusGroup fields={eventStatusFields} form={form} />
 
                 <EditActions

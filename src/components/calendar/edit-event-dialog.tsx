@@ -5,15 +5,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 
 import { EditSeriesForm } from "./edit-series-form";
 import { EditSingleEventForm } from "./edit-single-event-form";
-import {
-    INTERNAL_EVENT_TYPE_NOTE,
-    InternalBadge,
-} from "./form-groups/event-type-group";
 
 export function EditEventDialog() {
     const store = useCalendarDialogStore();
@@ -38,28 +33,6 @@ export function EditEventDialog() {
                         </DialogDescription>
                     )}
                 </DialogHeader>
-
-                {/* Event Type (read-only) */}
-                <div>
-                    <Label>Event Type</Label>
-                    <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
-                        {occurrence.eventType?.color && (
-                            <span
-                                className="h-3 w-3 rounded-full"
-                                style={{
-                                    backgroundColor: occurrence.eventType.color,
-                                }}
-                            />
-                        )}
-                        {occurrence.eventType?.name ?? "Unknown"}
-                        {occurrence.isInternal && <InternalBadge />}
-                    </div>
-                    {occurrence.isInternal && (
-                        <p className="mt-1 text-muted-foreground text-xs">
-                            {INTERNAL_EVENT_TYPE_NOTE}
-                        </p>
-                    )}
-                </div>
 
                 {occurrence.isRecurring ? (
                     <EditSeriesForm

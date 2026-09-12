@@ -10,6 +10,7 @@ import {
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppForm } from "@/hooks/form";
+import { eventTypesQueries } from "@/lib/queries/event-types";
 import { eventsQueries } from "@/lib/queries/events";
 import {
     deleteEvent as deleteEventFn,
@@ -44,6 +45,10 @@ import {
     eventTimeFields,
 } from "./form-groups/event-time-group";
 import {
+    EventTypeGroup,
+    eventTypeFields,
+} from "./form-groups/event-type-group";
+import {
     eventBasicsShape,
     eventStatusShape,
     optionalEventBasicsShape,
@@ -67,6 +72,7 @@ const occurrenceFormSchema = z.object({
 });
 
 const seriesFormSchema = z.object({
+    eventTypeId: z.string().min(1, "Event type is required"),
     ...eventBasicsShape,
     ...eventStatusShape,
     ...seriesScheduleShape,
@@ -108,6 +114,7 @@ function seriesInitialValues(
     tz: string,
 ): z.infer<typeof seriesFormSchema> {
     return {
+        eventTypeId: occurrence.eventType?.id ?? "",
         summary: occurrence.summary,
         description: occurrence.description ?? "",
         url: occurrence.url ?? "",
@@ -182,6 +189,11 @@ export function EditSeriesForm({
         startMs: seriesStart.getTime(),
         endMs: seriesEnd?.getTime() ?? null,
     };
+
+    // Types usable in this space: global ones plus the space's own
+    const { data: eventTypes = [] } = useQuery(
+        eventTypesQueries.list({ spaceId: occurrence.space.id }),
+    );
 
     const updateEvent = useEventMutation(updateEventFn, onClose);
     const upsertOverride = useEventMutation(upsertOverrideFn, onClose);
@@ -275,6 +287,7 @@ export function EditSeriesForm({
             if (editTab === "whole") {
                 updateEvent.mutate({
                     id: occurrence.eventId,
+                    eventTypeId: value.eventTypeId,
                     summary: value.summary,
                     description: value.description || undefined,
                     url: value.url || undefined,
@@ -290,6 +303,7 @@ export function EditSeriesForm({
                 editSeriesFromDate.mutate({
                     eventId: occurrence.eventId,
                     splitDate: occurrence.dtstart,
+                    eventTypeId: value.eventTypeId,
                     summary: value.summary,
                     description: value.description || undefined,
                     url: value.url || undefined,
@@ -488,24 +502,42 @@ export function EditSeriesForm({
                                     : "Changes apply to the entire series, including all past and future occurrences."}
                             </p>
 
+                            <EventTypeGroup
+                                eventTypes={eventTypes}
+                                fields={eventTypeFields}
+                                form={seriesForm}
+                            />
+
                             <EventBasicsGroup
                                 fields={eventBasicsFields}
                                 form={seriesForm}
                                 titleRequired
                             />
 
-                            <SeriesScheduleGroup
-                                endHint={openEndHint(occurrence.eventType)}
-                                fields={seriesScheduleFields}
-                                firstDateDescription={
-                                    editTab === "fromHere"
-                                        ? "New series starts from this date"
-                                        : "Change to adjust when series starts"
-                                }
-                                firstDateDisabled={editTab === "fromHere"}
-                                form={seriesForm}
-                                idPrefix="edit-series"
-                            />
+                            <seriesForm.Subscribe
+                                selector={(state) => state.values.eventTypeId}
+                            >
+                                {(eventTypeId) => (
+                                    <SeriesScheduleGroup
+                                        endHint={openEndHint(
+                                            eventTypes.find(
+                                                (et) => et.id === eventTypeId,
+                                            ) ?? occurrence.eventType,
+                                        )}
+                                        fields={seriesScheduleFields}
+                                        firstDateDescription={
+                                            editTab === "fromHere"
+                                                ? "New series starts from this date"
+                                                : "Change to adjust when series starts"
+                                        }
+                                        firstDateDisabled={
+                                            editTab === "fromHere"
+                                        }
+                                        form={seriesForm}
+                                        idPrefix="edit-series"
+                                    />
+                                )}
+                            </seriesForm.Subscribe>
 
                             {seriesForm.state.values.recurrenceConfig && (
                                 <seriesForm.AppField name="recurrenceConfig">

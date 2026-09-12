@@ -5,6 +5,7 @@ import { z } from "zod";
 import { env } from "@/env";
 import { expandRruleInTimezone, formatOccurrenceDate } from "@/lib/rrule-utils";
 import { authed, withActor } from "@/server/auth-middleware";
+import type { db } from "@/server/db";
 import {
     event,
     eventType,
@@ -13,7 +14,7 @@ import {
 } from "@/server/db/schema";
 import { badRequest, notFound } from "@/server/fn-errors";
 import { expandOccurrences } from "@/server/occurrences";
-import { assertCan } from "@/server/permissions";
+import { type Actor, assertCan } from "@/server/permissions";
 
 // iCal STATUS values (shared by events and occurrence overrides)
 const icalStatusSchema = z.enum(["tentative", "confirmed", "cancelled"]);
@@ -171,6 +172,34 @@ const updateSchema = z.object({
     isDraft: z.boolean().optional(),
 });
 
+/**
+ * Changing an event's type: the new type must be usable in the event's
+ * space (global or the space's own) and the actor needs permission for the
+ * new type as well. No-op when the type is unchanged or not given.
+ */
+async function assertTypeChangeAllowed(
+    context: { db: typeof db; actor: Actor },
+    existing: { eventTypeId: string; spaceId: string; space: { slug: string } },
+    eventTypeId: string | undefined,
+) {
+    if (eventTypeId === undefined || eventTypeId === existing.eventTypeId) {
+        return;
+    }
+    const newType = await context.db.query.eventType.findFirst({
+        where: eq(eventType.id, eventTypeId),
+    });
+    if (
+        !newType ||
+        (newType.spaceId !== null && newType.spaceId !== existing.spaceId)
+    ) {
+        throw badRequest("Event type not available in this space");
+    }
+    assertCan(context.actor, "manage:events", {
+        spaceSlug: existing.space.slug,
+        eventTypeSlug: newType.slug,
+    });
+}
+
 export const update = createServerFn({ method: "POST" })
     .middleware([authed])
     .validator(updateSchema)
@@ -184,6 +213,8 @@ export const update = createServerFn({ method: "POST" })
             spaceSlug: existingEvent.space.slug,
             eventTypeSlug: existingEvent.eventType.slug,
         });
+
+        await assertTypeChangeAllowed(context, existingEvent, data.eventTypeId);
 
         const { id, rrule, ...updates } = data;
         const [result] = await context.db
@@ -436,6 +467,7 @@ const editSeriesFromDateSchema = z.object({
     eventId: z.uuid(),
     splitDate: z.date(), // Date from which to split
     // New values for future occurrences (null = keep same)
+    eventTypeId: z.uuid().optional(),
     summary: z.string().min(1).max(255).optional(),
     description: z.string().optional(),
     url: z.url().max(1000).optional(),
@@ -462,6 +494,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
             spaceSlug: evt.space.slug,
             eventTypeSlug: evt.eventType.slug,
         });
+        await assertTypeChangeAllowed(context, evt, data.eventTypeId);
 
         const { eventId, splitDate, ...updates } = data;
         const tz = env.APP_TIMEZONE;
@@ -492,6 +525,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
             const [result] = await context.db
                 .update(event)
                 .set({
+                    eventTypeId: updates.eventTypeId ?? evt.eventTypeId,
                     summary: updates.summary ?? evt.summary,
                     description: updates.description ?? evt.description,
                     url: updates.url ?? evt.url,
@@ -565,7 +599,7 @@ export const editSeriesFromDate = createServerFn({ method: "POST" })
             .insert(event)
             .values({
                 spaceId: evt.spaceId,
-                eventTypeId: evt.eventTypeId,
+                eventTypeId: updates.eventTypeId ?? evt.eventTypeId,
                 createdByActorId: context.actor.actorId ?? null,
                 updatedByActorId: context.actor.actorId ?? null,
                 summary: updates.summary ?? evt.summary,
