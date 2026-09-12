@@ -16,6 +16,7 @@ import {
     sumImpact,
 } from "@/server/event-impact";
 import { notFound } from "@/server/fn-errors";
+import { expandOccurrences } from "@/server/occurrences";
 import { assertCan } from "@/server/permissions";
 
 // Slug pattern: lowercase alphanumeric and hyphens, no colons or slashes
@@ -125,6 +126,67 @@ export const list = createServerFn({ method: "GET" })
             : withUsage
                   .filter((row) => row.usage.singles + row.usage.series > 0)
                   .map((row) => ({ ...row, usage: null }));
+    });
+
+const upcomingSchema = z
+    .object({
+        months: z.number().int().min(1).max(24).default(6),
+        perType: z.number().int().min(1).max(5).default(2),
+    })
+    .optional();
+
+export type UpcomingOccurrence = {
+    id: string;
+    eventId: string;
+    occurrenceDate: string;
+    summary: string;
+    dtstart: Date;
+    dtend: Date | null;
+    status: "tentative" | "confirmed" | "cancelled";
+    isDraft: boolean;
+    spaceSlug: string;
+    spaceName: string;
+};
+
+/**
+ * The next few occurrences of every event type (visibility rules of the
+ * caller apply), keyed by event type id, for the event types page.
+ */
+export const upcoming = createServerFn({ method: "GET" })
+    .middleware([withActor])
+    .validator(upcomingSchema)
+    .handler(async ({ data, context }) => {
+        const months = data?.months ?? 6;
+        const perType = data?.perType ?? 2;
+        const start = new Date();
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + months);
+
+        // Sorted by start already
+        const occurrences = await expandOccurrences(
+            context.db,
+            { start, end },
+            !!context.session?.user,
+        );
+        const byType: Record<string, UpcomingOccurrence[]> = {};
+        for (const occ of occurrences) {
+            const list = byType[occ.eventType.id] ?? [];
+            byType[occ.eventType.id] = list;
+            if (list.length >= perType) continue;
+            list.push({
+                id: occ.id,
+                eventId: occ.eventId,
+                occurrenceDate: occ.occurrenceDate,
+                summary: occ.summary,
+                dtstart: occ.dtstart,
+                dtend: occ.dtend,
+                status: occ.status,
+                isDraft: occ.isDraft,
+                spaceSlug: occ.space.slug,
+                spaceName: occ.space.name,
+            });
+        }
+        return byType;
     });
 
 export const getBySlug = createServerFn({ method: "GET" })

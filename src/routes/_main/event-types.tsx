@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { useState } from "react";
 
@@ -10,7 +10,18 @@ import {
     DeleteEventTypeDialog,
 } from "@/components/event-types/delete-event-type-dialog";
 import { EditEventTypeDialog } from "@/components/event-types/edit-event-type-dialog";
+import { SubscribeMenu } from "@/components/subscribe-menu";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -22,10 +33,33 @@ import { capabilitiesGrant } from "@/lib/permissions-core";
 import { accountQueries } from "@/lib/queries/account";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_main/event-types")({
     component: EventTypesPage,
 });
+
+const UPCOMING_MONTHS = 6;
+
+/** "Di., 16.09., 19:00" in the app timezone */
+function formatUpcoming(date: Date, tz: string): string {
+    return date.toLocaleString("de-DE", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+    });
+}
+
+/** 120 -> "2 h", 90 -> "1 h 30 min", 45 -> "45 min" */
+function formatDuration(minutes: number): string {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m} min`;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
 
 function EventTypesPage() {
     const [open, setOpen] = useState(false);
@@ -42,11 +76,14 @@ function EventTypesPage() {
     } | null>(null);
 
     const [deleting, setDeleting] = useState<DeleteEventType | null>(null);
-    const { session } = Route.useRouteContext();
+    const { session, appUrl, timezone: tz } = Route.useRouteContext();
     const isLoggedIn = !!session?.user;
 
     const { data: eventTypes, isLoading } = useQuery(
         eventTypesQueries.list({}),
+    );
+    const { data: upcoming } = useQuery(
+        eventTypesQueries.upcoming({ months: UPCOMING_MONTHS, perType: 2 }),
     );
     const { data: spaces } = useQuery(
         spacesQueries.list({ includePrivate: true }),
@@ -100,104 +137,202 @@ function EventTypesPage() {
             {isLoading ? (
                 <p>Loading...</p>
             ) : (
-                <div className="space-y-2">
-                    {eventTypes?.map((et) => (
-                        <div
-                            className="flex items-center justify-between rounded-lg border p-4"
-                            key={et.id}
-                        >
-                            <div className="flex items-center gap-3">
-                                {et.color && (
-                                    <span
-                                        className="h-4 w-4 rounded-full"
-                                        style={{ backgroundColor: et.color }}
-                                    />
-                                )}
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-medium">
-                                            {et.name}
-                                        </span>
+                <div className="grid gap-4 md:grid-cols-2">
+                    {eventTypes?.map((et) => {
+                        // Space-specific types have one feed; global ones get
+                        // the cross-space feed
+                        const feedUrl = et.space
+                            ? `${appUrl}/api/cal/${et.space.slug}/${et.slug}.ics`
+                            : `${appUrl}/api/cal/all/${et.slug}.ics`;
+                        const next = upcoming?.[et.id] ?? [];
+                        return (
+                            <Card key={et.id}>
+                                <CardHeader>
+                                    <CardTitle className="flex flex-wrap items-center gap-2">
+                                        {et.color && (
+                                            <span
+                                                className="h-3 w-3 shrink-0 rounded-full"
+                                                style={{
+                                                    backgroundColor: et.color,
+                                                }}
+                                            />
+                                        )}
+                                        {et.name}
                                         {et.spaceId ? (
-                                            <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground text-xs">
+                                            <span className="rounded bg-muted px-1.5 py-0.5 font-normal text-muted-foreground text-xs">
                                                 {et.space?.name ?? "Space"}
                                             </span>
                                         ) : (
-                                            <span className="rounded bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
+                                            <span className="rounded bg-primary px-1.5 py-0.5 font-normal text-primary-foreground text-xs">
                                                 Global
                                             </span>
                                         )}
                                         {et.isInternal && (
-                                            <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                            <span className="rounded bg-yellow-100 px-1.5 py-0.5 font-normal text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                                                 Internal
                                             </span>
                                         )}
-                                    </div>
-                                    <div className="text-muted-foreground text-sm">
-                                        /{et.slug}
-                                    </div>
-                                    {et.usage && (
-                                        <div className="text-muted-foreground text-sm">
-                                            {describeUsage(et.usage) ?? (
-                                                <em>no events</em>
-                                            )}
-                                        </div>
-                                    )}
+                                    </CardTitle>
                                     {et.description && (
-                                        <div className="mt-1 text-muted-foreground text-sm">
+                                        <CardDescription>
                                             {et.description}
-                                        </div>
+                                        </CardDescription>
                                     )}
-                                </div>
-                            </div>
-                            {canManage(et) && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                    {canManage(et) && (
+                                        <CardAction>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        aria-label={`Actions for ${et.name}`}
+                                                        size="icon"
+                                                        variant="ghost"
+                                                    >
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            setEditingType({
+                                                                id: et.id,
+                                                                slug: et.slug,
+                                                                name: et.name,
+                                                                description:
+                                                                    et.description,
+                                                                color: et.color,
+                                                                isInternal:
+                                                                    et.isInternal,
+                                                                defaultDurationMinutes:
+                                                                    et.defaultDurationMinutes,
+                                                                spaceId:
+                                                                    et.spaceId,
+                                                            });
+                                                            setEditOpen(true);
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setDeleting({
+                                                                id: et.id,
+                                                                slug: et.slug,
+                                                                name: et.name,
+                                                            })
+                                                        }
+                                                        variant="destructive"
+                                                    >
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </CardAction>
+                                    )}
+                                </CardHeader>
+                                {/* flex-1 pins the footer to the card bottom so the grid row lines up */}
+                                <CardContent className="flex-1 space-y-3">
+                                    <div>
+                                        <div className="mb-1 font-medium text-sm">
+                                            Upcoming
+                                        </div>
+                                        {next.length === 0 ? (
+                                            <p className="text-muted-foreground text-sm">
+                                                No events in the next{" "}
+                                                {UPCOMING_MONTHS} months.
+                                            </p>
+                                        ) : (
+                                            <ul className="space-y-1 text-sm">
+                                                {next.map((occ) => (
+                                                    <li
+                                                        className="flex flex-wrap items-baseline gap-x-2"
+                                                        key={occ.id}
+                                                    >
+                                                        <span className="text-muted-foreground tabular-nums">
+                                                            {formatUpcoming(
+                                                                occ.dtstart,
+                                                                tz,
+                                                            )}
+                                                        </span>
+                                                        <Link
+                                                            className={cn(
+                                                                "font-medium hover:underline",
+                                                                occ.status ===
+                                                                    "cancelled" &&
+                                                                    "line-through opacity-60",
+                                                            )}
+                                                            params={{
+                                                                slug: occ.spaceSlug,
+                                                            }}
+                                                            to="/spaces/$slug"
+                                                        >
+                                                            {occ.summary}
+                                                        </Link>
+                                                        <span className="text-muted-foreground">
+                                                            in {occ.spaceName}
+                                                        </span>
+                                                        {occ.status ===
+                                                            "cancelled" && (
+                                                            <Badge variant="outline">
+                                                                Cancelled
+                                                            </Badge>
+                                                        )}
+                                                        {occ.status ===
+                                                            "tentative" && (
+                                                            <Badge variant="outline">
+                                                                Tentative
+                                                            </Badge>
+                                                        )}
+                                                        {occ.isDraft && (
+                                                            <Badge variant="outline">
+                                                                Draft
+                                                            </Badge>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                    <div className="text-muted-foreground text-xs">
+                                        /{et.slug}
+                                        {et.defaultDurationMinutes && (
+                                            <>
+                                                {" · "}usually{" "}
+                                                {formatDuration(
+                                                    et.defaultDurationMinutes,
+                                                )}
+                                            </>
+                                        )}
+                                        {et.usage && (
+                                            <>
+                                                {" · "}
+                                                {describeUsage(et.usage) ?? (
+                                                    <em>no events</em>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="gap-2">
+                                    <SubscribeMenu url={feedUrl} />
+                                    {et.space && (
                                         <Button
-                                            aria-label={`Actions for ${et.name}`}
-                                            size="icon"
+                                            asChild
+                                            size="sm"
                                             variant="ghost"
                                         >
-                                            <MoreVertical className="h-4 w-4" />
+                                            <Link
+                                                params={{ slug: et.space.slug }}
+                                                to="/spaces/$slug"
+                                            >
+                                                Open calendar
+                                            </Link>
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            onClick={() => {
-                                                setEditingType({
-                                                    id: et.id,
-                                                    slug: et.slug,
-                                                    name: et.name,
-                                                    description: et.description,
-                                                    color: et.color,
-                                                    isInternal: et.isInternal,
-                                                    defaultDurationMinutes:
-                                                        et.defaultDurationMinutes,
-                                                    spaceId: et.spaceId,
-                                                });
-                                                setEditOpen(true);
-                                            }}
-                                        >
-                                            Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            onClick={() =>
-                                                setDeleting({
-                                                    id: et.id,
-                                                    slug: et.slug,
-                                                    name: et.name,
-                                                })
-                                            }
-                                            variant="destructive"
-                                        >
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
-                        </div>
-                    ))}
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        );
+                    })}
 
                     {eventTypes?.length === 0 && (
                         <p className="text-muted-foreground">

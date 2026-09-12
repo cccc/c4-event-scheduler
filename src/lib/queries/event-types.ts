@@ -5,7 +5,10 @@ import {
     getBySpace,
     getDeleteImpact,
     list,
+    upcoming,
 } from "@/server/fns/event-types";
+
+type UpcomingInput = { months?: number; perType?: number } | undefined;
 
 type ListInput = { globalOnly?: boolean; spaceId?: string } | undefined;
 
@@ -18,6 +21,8 @@ export const eventTypesKeys = {
         [...eventTypesKeys.all, "getBySpace", spaceId] as const,
     deleteImpact: (id: string) =>
         [...eventTypesKeys.all, "deleteImpact", id] as const,
+    upcoming: (input: UpcomingInput) =>
+        [...eventTypesKeys.all, "upcoming", input] as const,
 };
 
 export const eventTypesQueries = {
@@ -40,5 +45,10 @@ export const eventTypesQueries = {
         queryOptions({
             queryKey: eventTypesKeys.deleteImpact(id),
             queryFn: () => getDeleteImpact({ data: { id } }),
+        }),
+    upcoming: (input?: UpcomingInput) =>
+        queryOptions({
+            queryKey: eventTypesKeys.upcoming(input),
+            queryFn: () => upcoming({ data: input }),
         }),
 };
