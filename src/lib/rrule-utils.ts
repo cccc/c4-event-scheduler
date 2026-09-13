@@ -59,6 +59,10 @@ function wallClockToUtc(d: Date, tz: string): Date {
  *   3. Reads each result's UTC fields back as wall-clock in `tz` to recover
  *      the real UTC instant (2024-04-02T18:00Z fake → 2024-04-02T16:00Z real,
  *      i.e. 18:00 CEST).
+ *
+ * Note: the result always starts at the series' first occurrence, even when
+ * `rangeStart` is later; `rangeStart` only widens the query. Callers filter
+ * the range themselves (an override may move an earlier occurrence into it).
  */
 export function expandRruleInTimezone(
     rruleStr: string,

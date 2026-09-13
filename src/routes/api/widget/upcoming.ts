@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 
 import { env } from "@/env";
@@ -37,6 +38,29 @@ function formatDate(date: Date, locale = "de-DE"): string {
         hour: "2-digit",
         minute: "2-digit",
     });
+}
+
+function startOfDay(d: Date, tz: string): Date {
+    return fromZonedTime(
+        `${formatInTimeZone(d, tz, "yyyy-MM-dd")}T00:00:00`,
+        tz,
+    );
+}
+
+function endOfDay(d: Date, tz: string): Date {
+    return fromZonedTime(
+        `${formatInTimeZone(d, tz, "yyyy-MM-dd")}T23:59:59.999`,
+        tz,
+    );
+}
+
+/**
+ * An occurrence stays listed until it is over: past its end time, or past
+ * the end of its day (app timezone) when it has no end time. So an event
+ * that has already started still shows up.
+ */
+function isOver(start: Date, end: Date | null, now: Date, tz: string) {
+    return (end ?? endOfDay(start, tz)) <= now;
 }
 
 async function GET(request: Request) {
@@ -92,14 +116,21 @@ async function GET(request: Request) {
     rangeEnd.setMonth(rangeEnd.getMonth() + months);
 
     // Pre-filter at the DB level: only fetch events whose active range
-    // intersects [now, rangeEnd]
+    // intersects [now, rangeEnd]; isOver() decides precisely below
     conditions.push(
         or(
-            // Single events: dtstart must be within the range
+            // Single events: not over yet (still running, or today without
+            // an end time) and starting within the range
             and(
                 isNull(event.rrule),
-                gte(event.dtstart, now),
                 lte(event.dtstart, rangeEnd),
+                or(
+                    gte(event.dtend, now),
+                    and(
+                        isNull(event.dtend),
+                        gte(event.dtstart, startOfDay(now, tz)),
+                    ),
+                ),
             ),
             // Recurring events: series must overlap the range
             and(
@@ -133,8 +164,8 @@ async function GET(request: Request) {
         const exdatesSet = new Set(evt.exdates ?? []);
 
         if (!evt.rrule) {
-            // Single event - only include if in the future and within range
-            if (evt.dtstart >= now && evt.dtstart <= rangeEnd) {
+            // Single event - only include if not over yet and within range
+            if (evt.dtstart <= rangeEnd) {
                 const occDate = formatOccurrenceDate(evt.dtstart, tz);
                 const override = evt.overrides.find(
                     (o) => o.occurrenceDate === occDate,
@@ -143,6 +174,15 @@ async function GET(request: Request) {
                 const isInternal = evt.eventType?.isInternal ?? false;
 
                 if (isInternal) continue;
+                if (
+                    isOver(
+                        override?.dtstart ?? evt.dtstart,
+                        override?.dtend ?? evt.dtend,
+                        now,
+                        tz,
+                    )
+                )
+                    continue;
 
                 const isCancelled = status === "cancelled";
 
@@ -180,7 +220,9 @@ async function GET(request: Request) {
                       )
                     : rangeEnd;
 
-                // Get upcoming occurrences with DST-aware expansion
+                // DST-aware expansion; the helper expands from the series
+                // start regardless of the range start, past occurrences are
+                // skipped in the loop below
                 const nextDates = expandRruleInTimezone(
                     evt.rrule,
                     evt.dtstart,
@@ -189,6 +231,9 @@ async function GET(request: Request) {
                     tz,
                 );
                 if (nextDates.length === 0) continue;
+                const durationMs = evt.dtend
+                    ? evt.dtend.getTime() - evt.dtstart.getTime()
+                    : 0;
 
                 // Find first valid occurrence (skip exdates/internal) and check if it's cancelled
                 let firstValidDate: Date | null = null;
@@ -206,6 +251,13 @@ async function GET(request: Request) {
                         (o) => o.occurrenceDate === occDate,
                     );
                     const status = override?.status ?? evt.status;
+                    const start = override?.dtstart ?? date;
+                    const end =
+                        override?.dtend ??
+                        (durationMs > 0
+                            ? new Date(start.getTime() + durationMs)
+                            : null);
+                    if (isOver(start, end, now, tz)) continue;
 
                     if (!firstValidDate) {
                         firstValidDate = date;
