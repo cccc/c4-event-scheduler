@@ -80,6 +80,14 @@ export const getById = createServerFn({ method: "GET" })
         });
 
         if (result && !context.session?.user) {
+            // Same visibility rules as the occurrence expansion
+            if (
+                result.isDraft ||
+                result.eventType.isInternal ||
+                !result.space.isPublic
+            ) {
+                return null;
+            }
             result.createdByActor = null;
             result.updatedByActor = null;
             result.createdByActorId = null;
