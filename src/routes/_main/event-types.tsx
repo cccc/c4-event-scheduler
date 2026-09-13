@@ -273,6 +273,10 @@ function EventTypesPage() {
                                                             params={{
                                                                 slug: occ.spaceSlug,
                                                             }}
+                                                            search={{
+                                                                date: occ.occurrenceDate,
+                                                                event: occ.eventId,
+                                                            }}
                                                             to="/spaces/$slug"
                                                         >
                                                             {occ.summary}

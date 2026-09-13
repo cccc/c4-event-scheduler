@@ -18,7 +18,7 @@ type UpcomingEvent = {
     spaceName: string;
     spaceSlug: string;
     eventTypeName: string;
-    calendarUrl: string;
+    calendarUrl: string; // Deep link opening this occurrence in the calendar
     // Cancellation info
     isCancelled: boolean; // Is the immediate next occurrence cancelled?
     cancelledDate: string | null; // Date that was cancelled
@@ -158,7 +158,8 @@ async function GET(request: Request) {
     const upcomingEvents: UpcomingEvent[] = [];
 
     for (const evt of events) {
-        const calendarUrl = `${env.APP_URL}/spaces/${evt.space.slug}`;
+        const calendarUrl = (occDate: string) =>
+            `${env.APP_URL}/spaces/${evt.space.slug}?date=${occDate}&event=${evt.id}`;
 
         // Parse exdates for recurring events
         const exdatesSet = new Set(evt.exdates ?? []);
@@ -200,7 +201,7 @@ async function GET(request: Request) {
                     spaceName: evt.space.name,
                     spaceSlug: evt.space.slug,
                     eventTypeName: evt.eventType.name,
-                    calendarUrl,
+                    calendarUrl: calendarUrl(occDate),
                     isCancelled,
                     cancelledDate: null,
                     cancelledDateLabel: null,
@@ -296,7 +297,12 @@ async function GET(request: Request) {
                     spaceName: evt.space.name,
                     spaceSlug: evt.space.slug,
                     eventTypeName: evt.eventType.name,
-                    calendarUrl,
+                    calendarUrl: calendarUrl(
+                        formatOccurrenceDate(
+                            nextNonCancelledDate ?? firstValidDate,
+                            tz,
+                        ),
+                    ),
                     isCancelled,
                     cancelledDate: isCancelled
                         ? firstValidDate.toISOString()

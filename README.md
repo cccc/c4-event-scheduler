@@ -9,6 +9,7 @@ A multi-space event calendar application with recurring events, iCal feeds, and 
 - Event statuses: confirmed, tentative, pending (draft), cancelled
 - iCal feed endpoints for calendar subscriptions
 - Widget API for embedding upcoming events (JSON or HTML)
+- Deep links to a date or a single occurrence: `/spaces/{space}?date=YYYY-MM-DD` opens the calendar on that date, adding `&event={event id}` also opens that occurrence's details (without `date`, the event's first occurrence). The details dialog has a "Copy link" button
 - Claim-based permissions via OIDC provider
 - Admin-managed local (email/password) accounts alongside SSO, with a self-service account page
 
@@ -164,6 +165,8 @@ There are two kinds of keys, both usable for the REST API and the feeds:
 | `months`  | 6       | Future range (1-24)    |
 | `format`  | json    | `json` or `html`       |
 | `locale`  | de-DE   | Date formatting locale |
+
+Events that have started but not ended yet (or, without an end time, whose day is not over) stay listed. Each event's `calendarUrl` is a deep link that opens the occurrence in the calendar.
 
 ## Environment Variables
 

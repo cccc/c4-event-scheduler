@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import {
     CalendarDays,
     Clock,
     ExternalLink,
     FileText,
     Info,
+    Link2,
     MapPin,
     Repeat,
     Tag,
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { RRule } from "rrule";
+import { toast } from "sonner";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,7 @@ import {
 } from "@/server/fns/events";
 import { effectiveEnd } from "./date-utils";
 import type { EventStatus } from "./types";
+import { spaceRoute } from "./use-calendar-deep-link";
 
 type EventDetailsDialogProps = {
     canEdit: boolean;
@@ -104,6 +108,34 @@ function describeOverride(
     if (override.description) changes.push("description changed");
     if (override.url) changes.push("URL changed");
     return changes.length > 0 ? changes.join(", ") : "modified";
+}
+
+/** Copies a deep link to this occurrence (calendar on its date, details open) */
+function CopyLinkButton({
+    eventId,
+    occurrenceDate,
+}: {
+    eventId: string;
+    occurrenceDate: string;
+}) {
+    const { appUrl } = useRouteContext({ from: "__root__" });
+    const { slug } = spaceRoute.useParams();
+    const copy = async () => {
+        const params = new URLSearchParams({
+            date: occurrenceDate,
+            event: eventId,
+        });
+        await navigator.clipboard.writeText(
+            `${appUrl}/spaces/${slug}?${params}`,
+        );
+        toast.success("Link copied");
+    };
+    return (
+        <Button className="mr-auto" onClick={copy} variant="ghost">
+            <Link2 />
+            Copy link
+        </Button>
+    );
 }
 
 function getStatusBadge(status: EventStatus, isDraft: boolean) {
@@ -288,6 +320,10 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
 
             {/* Actions */}
             <div className="flex justify-end gap-2 border-t pt-4">
+                <CopyLinkButton
+                    eventId={occurrence.eventId}
+                    occurrenceDate={occurrence.occurrenceDate}
+                />
                 <Button onClick={() => store.close()} variant="outline">
                     Close
                 </Button>
@@ -665,6 +701,10 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                             eventId={occurrence.eventId}
                         />
                         <div className="flex justify-end gap-2 border-t pt-4">
+                            <CopyLinkButton
+                                eventId={occurrence.eventId}
+                                occurrenceDate={occurrence.occurrenceDate}
+                            />
                             <Button
                                 onClick={() => store.close()}
                                 variant="outline"

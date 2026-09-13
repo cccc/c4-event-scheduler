@@ -12,13 +12,19 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
+import { addMonths } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
 import { effectiveEnd } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
-import type { Space } from "@/components/calendar/types";
+import type { Occurrence, Space } from "@/components/calendar/types";
+import {
+    useCalendarDeepLink,
+    useLinkedDate,
+} from "@/components/calendar/use-calendar-deep-link";
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
@@ -27,6 +33,40 @@ import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { authClient } from "@/server/better-auth/client";
 
+/**
+ * The month of `base` plus the following one, in the app timezone, as the
+ * initial fetch range (datesSet replaces it with the exact visible range)
+ */
+function initialRange(base: Date, tz: string): { start: Date; end: Date } {
+    const first = fromZonedTime(
+        `${formatInTimeZone(base, tz, "yyyy-MM")}-01T00:00:00`,
+        tz,
+    );
+    return { start: first, end: addMonths(first, 2) };
+}
+
+function toCalendarEvent(occ: Occurrence): EventInput {
+    return {
+        id: occ.id,
+        title: occ.summary,
+        start: occ.dtstart,
+        end: effectiveEnd(occ) ?? undefined,
+        allDay: occ.allDay,
+        classNames: [
+            `event-${occ.status}`,
+            ...(occ.isDraft ? ["event-draft"] : []),
+            ...(occ.isInternal ? ["event-internal"] : []),
+        ],
+        extendedProps: {
+            status: occ.status,
+            eventId: occ.eventId,
+            description: occ.description,
+            url: occ.url,
+            color: occ.color,
+        },
+    };
+}
+
 export function SpaceCalendar({ space }: { space: Space }) {
     const tz = useAppTimezone();
     // Absolute URL for the feed, so the subscribe menu can offer a webcal: link
@@ -34,14 +74,11 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const calendarRef = useRef<FullCalendar>(null);
     const { openCreate, openDetails } = useCalendarDialogStore();
 
-    // Track the visible date range for fetching events
-    const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(
-        () => {
-            const now = new Date();
-            const start = new Date(now.getFullYear(), now.getMonth(), 1);
-            const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-            return { start, end };
-        },
+    // Track the visible date range for fetching events; a deep-linked date
+    // seeds it so the first fetch already covers that month
+    const linkedDate = useLinkedDate();
+    const [dateRange, setDateRange] = useState(() =>
+        initialRange(linkedDate ?? new Date(), tz),
     );
 
     const { data: session } = authClient.useSession();
@@ -57,30 +94,12 @@ export function SpaceCalendar({ space }: { space: Space }) {
         }),
     );
 
-    // Convert occurrences to FullCalendar events
-    const calendarEvents: EventInput[] = useMemo(() => {
-        if (!occurrences) return [];
+    useCalendarDeepLink({ calendarRef, linkedDate, dateRange, occurrences });
 
-        return occurrences.map((occ) => ({
-            id: occ.id,
-            title: occ.summary,
-            start: occ.dtstart,
-            end: effectiveEnd(occ) ?? undefined,
-            allDay: occ.allDay,
-            classNames: [
-                `event-${occ.status}`,
-                ...(occ.isDraft ? ["event-draft"] : []),
-                ...(occ.isInternal ? ["event-internal"] : []),
-            ],
-            extendedProps: {
-                status: occ.status,
-                eventId: occ.eventId,
-                description: occ.description,
-                url: occ.url,
-                color: occ.color,
-            },
-        }));
-    }, [occurrences]);
+    const calendarEvents = useMemo(
+        () => occurrences?.map(toCalendarEvent) ?? [],
+        [occurrences],
+    );
 
     const isLoggedIn = !!session?.user;
 
@@ -155,6 +174,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
                         right: "dayGridMonth,timeGridWeek,listMonth",
                     }}
                     height="auto"
+                    initialDate={linkedDate ?? undefined}
                     initialView="dayGridMonth"
                     nowIndicator
                     plugins={[
