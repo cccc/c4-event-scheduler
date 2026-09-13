@@ -62,6 +62,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <html lang="en" suppressHydrationWarning>
             <head>
                 <HeadContent />
+                {/* Reveals .noscript-only content (see globals.css). Only a
+                    <style> may live in here: script blockers re-inject
+                    noscript content with its nesting flattened */}
+                <noscript>
+                    <style>{".noscript-only { display: contents; }"}</style>
+                </noscript>
             </head>
             <body>
                 <ThemeProvider

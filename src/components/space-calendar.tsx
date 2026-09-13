@@ -14,8 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { addMonths } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { CalendarSkeleton } from "@/components/calendar/calendar-skeleton";
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
 import { effectiveEnd } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
@@ -28,9 +29,11 @@ import {
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
+import { cn } from "@/lib/utils";
 import { authClient } from "@/server/better-auth/client";
 
 /**
@@ -71,6 +74,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const tz = useAppTimezone();
     // Absolute URL for the feed, so the subscribe menu can offer a webcal: link
     const { appUrl } = useRouteContext({ from: "__root__" });
+    const feedUrl = `${appUrl}/api/cal/${space.slug}.ics`;
     const calendarRef = useRef<FullCalendar>(null);
     const { openCreate, openDetails } = useCalendarDialogStore();
 
@@ -86,7 +90,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
 
     // Fetch all occurrences for the visible date range (no status filter = all events)
-    const { data: occurrences } = useQuery(
+    const { data: occurrences, isFetching } = useQuery(
         eventsQueries.getOccurrences({
             spaceId: space.id,
             start: dateRange.start,
@@ -102,6 +106,18 @@ export function SpaceCalendar({ space }: { space: Space }) {
     );
 
     const isLoggedIn = !!session?.user;
+    // FullCalendar renders nothing on the server; show a skeleton until then
+    const hydrated = useHydrated();
+    // Loading state for range fetches, delayed so quick ones do not flicker
+    const [showLoading, setShowLoading] = useState(false);
+    useEffect(() => {
+        if (!isFetching) {
+            setShowLoading(false);
+            return;
+        }
+        const timer = setTimeout(() => setShowLoading(true), 300);
+        return () => clearTimeout(timer);
+    }, [isFetching]);
 
     const handleEventDidMount = useCallback((info: EventMountArg) => {
         const color = info.event.extendedProps.color;
@@ -143,7 +159,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 <div className="flex items-center gap-2">
                     <SubscribeMenu
                         access={space.isPublic ? "mixed" : "internal"}
-                        url={`${appUrl}/api/cal/${space.slug}.ics`}
+                        url={feedUrl}
                     />
                     {isLoggedIn && (
                         <Button onClick={() => openCreate()}>
@@ -153,41 +169,59 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 </div>
             </div>
 
-            <div className="rounded-lg border bg-card p-4">
-                <FullCalendar
-                    dateClick={isLoggedIn ? handleDateClick : undefined}
-                    datesSet={handleDatesSet}
-                    editable={false}
-                    eventClick={handleEventClick}
-                    eventDidMount={handleEventDidMount}
-                    events={calendarEvents}
-                    eventTimeFormat={{
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        meridiem: false,
-                        hour12: false,
-                    }}
-                    firstDay={1}
-                    headerToolbar={{
-                        left: "prev,next today",
-                        center: "title",
-                        right: "dayGridMonth,timeGridWeek,listMonth",
-                    }}
-                    height="auto"
-                    initialDate={linkedDate ?? undefined}
-                    initialView="dayGridMonth"
-                    nowIndicator
-                    plugins={[
-                        luxon3Plugin,
-                        dayGridPlugin,
-                        timeGridPlugin,
-                        listPlugin,
-                        interactionPlugin,
-                    ]}
-                    ref={calendarRef}
-                    selectable={isLoggedIn}
-                    timeZone={tz}
-                />
+            <div className="relative rounded-lg border bg-card p-4">
+                {!hydrated && <CalendarSkeleton feedUrl={feedUrl} />}
+                {showLoading && (
+                    <div
+                        aria-live="polite"
+                        className="absolute right-4 bottom-4 z-10 rounded-md border bg-card px-3 py-1.5 text-muted-foreground text-sm shadow-md"
+                    >
+                        Loading events...
+                    </div>
+                )}
+                {hydrated && (
+                    <div
+                        className={cn(
+                            "transition-opacity",
+                            showLoading && "opacity-60",
+                        )}
+                    >
+                        <FullCalendar
+                            dateClick={isLoggedIn ? handleDateClick : undefined}
+                            datesSet={handleDatesSet}
+                            editable={false}
+                            eventClick={handleEventClick}
+                            eventDidMount={handleEventDidMount}
+                            events={calendarEvents}
+                            eventTimeFormat={{
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                meridiem: false,
+                                hour12: false,
+                            }}
+                            firstDay={1}
+                            headerToolbar={{
+                                left: "prev,next today",
+                                center: "title",
+                                right: "dayGridMonth,timeGridWeek,listMonth",
+                            }}
+                            height="auto"
+                            initialDate={linkedDate ?? undefined}
+                            initialView="dayGridMonth"
+                            nowIndicator
+                            plugins={[
+                                luxon3Plugin,
+                                dayGridPlugin,
+                                timeGridPlugin,
+                                listPlugin,
+                                interactionPlugin,
+                            ]}
+                            ref={calendarRef}
+                            selectable={isLoggedIn}
+                            timeZone={tz}
+                        />
+                    </div>
+                )}
             </div>
 
             <CreateEventDialog eventTypes={eventTypes ?? []} space={space} />

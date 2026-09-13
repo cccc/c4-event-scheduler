@@ -288,3 +288,11 @@
 	text-decoration: line-through;
 	opacity: 0.5;
 }
+
+/* Content for visitors without JavaScript. Hidden by default; the
+   <noscript><style> in the root shell switches it to display: contents, so
+   the children keep their own layout. Use the class on a wrapper, not on an
+   element whose display matters. */
+.noscript-only {
+    display: none;
+}
