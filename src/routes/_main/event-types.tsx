@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { useState } from "react";
@@ -35,11 +35,27 @@ import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
 import { cn } from "@/lib/utils";
 
+const UPCOMING_MONTHS = 6;
+
 export const Route = createFileRoute("/_main/event-types")({
+    // Prefetch so the page renders on the server; the components read the
+    // same queries with useSuspenseQuery
+    loader: async ({ context }) => {
+        await Promise.all([
+            context.queryClient.ensureQueryData(eventTypesQueries.list({})),
+            context.queryClient.ensureQueryData(
+                eventTypesQueries.upcoming({
+                    months: UPCOMING_MONTHS,
+                    perType: 2,
+                }),
+            ),
+            context.queryClient.ensureQueryData(
+                spacesQueries.list({ includePrivate: true }),
+            ),
+        ]);
+    },
     component: EventTypesPage,
 });
-
-const UPCOMING_MONTHS = 6;
 
 /** "Di., 16.09., 19:00" in the app timezone */
 function formatUpcoming(date: Date, tz: string): string {
@@ -79,13 +95,11 @@ function EventTypesPage() {
     const { session, appUrl, timezone: tz } = Route.useRouteContext();
     const isLoggedIn = !!session?.user;
 
-    const { data: eventTypes, isLoading } = useQuery(
-        eventTypesQueries.list({}),
-    );
-    const { data: upcoming } = useQuery(
+    const { data: eventTypes } = useSuspenseQuery(eventTypesQueries.list({}));
+    const { data: upcoming } = useSuspenseQuery(
         eventTypesQueries.upcoming({ months: UPCOMING_MONTHS, perType: 2 }),
     );
-    const { data: spaces } = useQuery(
+    const { data: spaces } = useSuspenseQuery(
         spacesQueries.list({ includePrivate: true }),
     );
     // Own capabilities decide which rows get management controls; the
@@ -128,236 +142,227 @@ function EventTypesPage() {
                         <CreateEventTypeDialog
                             onOpenChange={setOpen}
                             open={open}
-                            spaces={spaces ?? []}
+                            spaces={spaces}
                         />
                     </>
                 )}
             </div>
 
-            {isLoading ? (
-                <p>Loading...</p>
-            ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                    {eventTypes?.map((et) => {
-                        // Space-specific types have one feed; global ones get
-                        // the cross-space feed
-                        const feedUrl = et.space
-                            ? `${appUrl}/api/cal/${et.space.slug}/${et.slug}.ics`
-                            : `${appUrl}/api/cal/all/${et.slug}.ics`;
-                        // A public type in a public space hides nothing; a
-                        // global public type still gains private-space events
-                        // with a token; internal or private = token only
-                        const feedAccess =
-                            et.isInternal || (et.space && !et.space.isPublic)
-                                ? "internal"
-                                : et.space
-                                  ? "public"
-                                  : "mixed";
-                        const next = upcoming?.[et.id] ?? [];
-                        return (
-                            <Card key={et.id}>
-                                <CardHeader>
-                                    <CardTitle className="flex flex-wrap items-center gap-2">
-                                        {et.color && (
-                                            <span
-                                                className="h-3 w-3 shrink-0 rounded-full"
-                                                style={{
-                                                    backgroundColor: et.color,
-                                                }}
-                                            />
-                                        )}
-                                        {et.name}
-                                        {et.spaceId ? (
-                                            <span className="rounded bg-muted px-1.5 py-0.5 font-normal text-muted-foreground text-xs">
-                                                {et.space?.name ?? "Space"}
-                                            </span>
-                                        ) : (
-                                            <span className="rounded bg-primary px-1.5 py-0.5 font-normal text-primary-foreground text-xs">
-                                                Global
-                                            </span>
-                                        )}
-                                        {et.isInternal && (
-                                            <span className="rounded bg-yellow-100 px-1.5 py-0.5 font-normal text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                                Internal
-                                            </span>
-                                        )}
-                                    </CardTitle>
-                                    {et.description && (
-                                        <CardDescription>
-                                            {et.description}
-                                        </CardDescription>
+            <div className="grid gap-4 md:grid-cols-2">
+                {eventTypes.map((et) => {
+                    // Space-specific types have one feed; global ones get
+                    // the cross-space feed
+                    const feedUrl = et.space
+                        ? `${appUrl}/api/cal/${et.space.slug}/${et.slug}.ics`
+                        : `${appUrl}/api/cal/all/${et.slug}.ics`;
+                    // A public type in a public space hides nothing; a
+                    // global public type still gains private-space events
+                    // with a token; internal or private = token only
+                    const feedAccess =
+                        et.isInternal || (et.space && !et.space.isPublic)
+                            ? "internal"
+                            : et.space
+                              ? "public"
+                              : "mixed";
+                    const next = upcoming[et.id] ?? [];
+                    return (
+                        <Card key={et.id}>
+                            <CardHeader>
+                                <CardTitle className="flex flex-wrap items-center gap-2">
+                                    {et.color && (
+                                        <span
+                                            className="h-3 w-3 shrink-0 rounded-full"
+                                            style={{
+                                                backgroundColor: et.color,
+                                            }}
+                                        />
                                     )}
-                                    {canManage(et) && (
-                                        <CardAction>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        aria-label={`Actions for ${et.name}`}
-                                                        size="icon"
-                                                        variant="ghost"
-                                                    >
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onClick={() => {
-                                                            setEditingType({
-                                                                id: et.id,
-                                                                slug: et.slug,
-                                                                name: et.name,
-                                                                description:
-                                                                    et.description,
-                                                                color: et.color,
-                                                                isInternal:
-                                                                    et.isInternal,
-                                                                defaultDurationMinutes:
-                                                                    et.defaultDurationMinutes,
-                                                                spaceId:
-                                                                    et.spaceId,
-                                                            });
-                                                            setEditOpen(true);
+                                    {et.name}
+                                    {et.spaceId ? (
+                                        <span className="rounded bg-muted px-1.5 py-0.5 font-normal text-muted-foreground text-xs">
+                                            {et.space?.name ?? "Space"}
+                                        </span>
+                                    ) : (
+                                        <span className="rounded bg-primary px-1.5 py-0.5 font-normal text-primary-foreground text-xs">
+                                            Global
+                                        </span>
+                                    )}
+                                    {et.isInternal && (
+                                        <span className="rounded bg-yellow-100 px-1.5 py-0.5 font-normal text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                            Internal
+                                        </span>
+                                    )}
+                                </CardTitle>
+                                {et.description && (
+                                    <CardDescription>
+                                        {et.description}
+                                    </CardDescription>
+                                )}
+                                {canManage(et) && (
+                                    <CardAction>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    aria-label={`Actions for ${et.name}`}
+                                                    size="icon"
+                                                    variant="ghost"
+                                                >
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    onClick={() => {
+                                                        setEditingType({
+                                                            id: et.id,
+                                                            slug: et.slug,
+                                                            name: et.name,
+                                                            description:
+                                                                et.description,
+                                                            color: et.color,
+                                                            isInternal:
+                                                                et.isInternal,
+                                                            defaultDurationMinutes:
+                                                                et.defaultDurationMinutes,
+                                                            spaceId: et.spaceId,
+                                                        });
+                                                        setEditOpen(true);
+                                                    }}
+                                                >
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    onClick={() =>
+                                                        setDeleting({
+                                                            id: et.id,
+                                                            slug: et.slug,
+                                                            name: et.name,
+                                                        })
+                                                    }
+                                                    variant="destructive"
+                                                >
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </CardAction>
+                                )}
+                            </CardHeader>
+                            {/* flex-1 pins the footer to the card bottom so the grid row lines up */}
+                            <CardContent className="flex-1 space-y-3">
+                                <div>
+                                    <div className="mb-1 font-medium text-sm">
+                                        Upcoming
+                                    </div>
+                                    {next.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm">
+                                            No events in the next{" "}
+                                            {UPCOMING_MONTHS} months.
+                                        </p>
+                                    ) : (
+                                        <ul className="space-y-1 text-sm">
+                                            {next.map((occ) => (
+                                                <li
+                                                    className="flex flex-wrap items-baseline gap-x-2"
+                                                    key={occ.id}
+                                                >
+                                                    <span className="text-muted-foreground tabular-nums">
+                                                        {formatUpcoming(
+                                                            occ.dtstart,
+                                                            tz,
+                                                        )}
+                                                    </span>
+                                                    <Link
+                                                        className={cn(
+                                                            "font-medium hover:underline",
+                                                            occ.status ===
+                                                                "cancelled" &&
+                                                                "line-through opacity-60",
+                                                        )}
+                                                        params={{
+                                                            slug: occ.spaceSlug,
                                                         }}
+                                                        search={{
+                                                            date: occ.occurrenceDate,
+                                                            event: occ.eventId,
+                                                        }}
+                                                        to="/spaces/$slug"
                                                     >
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setDeleting({
-                                                                id: et.id,
-                                                                slug: et.slug,
-                                                                name: et.name,
-                                                            })
-                                                        }
-                                                        variant="destructive"
-                                                    >
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </CardAction>
+                                                        {occ.summary}
+                                                    </Link>
+                                                    <span className="text-muted-foreground">
+                                                        in {occ.spaceName}
+                                                    </span>
+                                                    {occ.status ===
+                                                        "cancelled" && (
+                                                        <Badge variant="outline">
+                                                            Cancelled
+                                                        </Badge>
+                                                    )}
+                                                    {occ.status ===
+                                                        "tentative" && (
+                                                        <Badge variant="outline">
+                                                            Tentative
+                                                        </Badge>
+                                                    )}
+                                                    {occ.isDraft && (
+                                                        <Badge variant="outline">
+                                                            Draft
+                                                        </Badge>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     )}
-                                </CardHeader>
-                                {/* flex-1 pins the footer to the card bottom so the grid row lines up */}
-                                <CardContent className="flex-1 space-y-3">
-                                    <div>
-                                        <div className="mb-1 font-medium text-sm">
-                                            Upcoming
-                                        </div>
-                                        {next.length === 0 ? (
-                                            <p className="text-muted-foreground text-sm">
-                                                No events in the next{" "}
-                                                {UPCOMING_MONTHS} months.
-                                            </p>
-                                        ) : (
-                                            <ul className="space-y-1 text-sm">
-                                                {next.map((occ) => (
-                                                    <li
-                                                        className="flex flex-wrap items-baseline gap-x-2"
-                                                        key={occ.id}
-                                                    >
-                                                        <span className="text-muted-foreground tabular-nums">
-                                                            {formatUpcoming(
-                                                                occ.dtstart,
-                                                                tz,
-                                                            )}
-                                                        </span>
-                                                        <Link
-                                                            className={cn(
-                                                                "font-medium hover:underline",
-                                                                occ.status ===
-                                                                    "cancelled" &&
-                                                                    "line-through opacity-60",
-                                                            )}
-                                                            params={{
-                                                                slug: occ.spaceSlug,
-                                                            }}
-                                                            search={{
-                                                                date: occ.occurrenceDate,
-                                                                event: occ.eventId,
-                                                            }}
-                                                            to="/spaces/$slug"
-                                                        >
-                                                            {occ.summary}
-                                                        </Link>
-                                                        <span className="text-muted-foreground">
-                                                            in {occ.spaceName}
-                                                        </span>
-                                                        {occ.status ===
-                                                            "cancelled" && (
-                                                            <Badge variant="outline">
-                                                                Cancelled
-                                                            </Badge>
-                                                        )}
-                                                        {occ.status ===
-                                                            "tentative" && (
-                                                            <Badge variant="outline">
-                                                                Tentative
-                                                            </Badge>
-                                                        )}
-                                                        {occ.isDraft && (
-                                                            <Badge variant="outline">
-                                                                Draft
-                                                            </Badge>
-                                                        )}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                    <div className="text-muted-foreground text-xs">
-                                        /{et.slug}
-                                        {et.defaultDurationMinutes && (
-                                            <>
-                                                {" · "}usually{" "}
-                                                {formatDuration(
-                                                    et.defaultDurationMinutes,
-                                                )}
-                                            </>
-                                        )}
-                                        {et.usage && (
-                                            <>
-                                                {" · "}
-                                                {describeUsage(et.usage) ?? (
-                                                    <em>no events</em>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="gap-2">
-                                    <SubscribeMenu
-                                        access={feedAccess}
-                                        url={feedUrl}
-                                    />
-                                    {et.space && (
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            variant="ghost"
+                                </div>
+                                <div className="text-muted-foreground text-xs">
+                                    /{et.slug}
+                                    {et.defaultDurationMinutes && (
+                                        <>
+                                            {" · "}usually{" "}
+                                            {formatDuration(
+                                                et.defaultDurationMinutes,
+                                            )}
+                                        </>
+                                    )}
+                                    {et.usage && (
+                                        <>
+                                            {" · "}
+                                            {describeUsage(et.usage) ?? (
+                                                <em>no events</em>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </CardContent>
+                            <CardFooter className="gap-2">
+                                <SubscribeMenu
+                                    access={feedAccess}
+                                    url={feedUrl}
+                                />
+                                {et.space && (
+                                    <Button asChild size="sm" variant="ghost">
+                                        <Link
+                                            params={{ slug: et.space.slug }}
+                                            to="/spaces/$slug"
                                         >
-                                            <Link
-                                                params={{ slug: et.space.slug }}
-                                                to="/spaces/$slug"
-                                            >
-                                                Open calendar
-                                            </Link>
-                                        </Button>
-                                    )}
-                                </CardFooter>
-                            </Card>
-                        );
-                    })}
+                                            Open calendar
+                                        </Link>
+                                    </Button>
+                                )}
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
 
-                    {eventTypes?.length === 0 && (
-                        <p className="text-muted-foreground">
-                            No event types yet.{" "}
-                            {canCreate && "Create one to get started."}
-                        </p>
-                    )}
-                </div>
-            )}
+                {eventTypes.length === 0 && (
+                    <p className="text-muted-foreground">
+                        No event types yet.{" "}
+                        {canCreate && "Create one to get started."}
+                    </p>
+                )}
+            </div>
 
             <DeleteEventTypeDialog
                 eventType={deleting}
@@ -373,7 +378,7 @@ function EventTypesPage() {
                     if (!open) setEditingType(null);
                 }}
                 open={editOpen}
-                spaces={spaces ?? []}
+                spaces={spaces}
             />
         </>
     );
