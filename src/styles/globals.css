@@ -171,19 +171,21 @@
 	);
 }
 
-/* Text treatment per status (applies in the list view too) */
-.event-tentative > * {
-	opacity: 0.8;
+/* Text treatment per status, on the event element itself so it reaches the
+   text through any wrapper (the list view's inner wrapper is display:
+   contents, which cannot carry opacity or a decoration) */
+.event-tentative {
+	color: color-mix(in srgb, currentColor 80%, transparent);
 }
 
-.event-draft > * {
+.event-draft {
 	font-style: italic;
-	opacity: 0.6;
+	color: color-mix(in srgb, currentColor 60%, transparent);
 }
 
-.event-cancelled > * {
+.event-cancelled {
 	text-decoration: line-through;
-	opacity: 0.5;
+	color: color-mix(in srgb, currentColor 50%, transparent);
 }
 
 /* Content for visitors without JavaScript. Hidden by default; the

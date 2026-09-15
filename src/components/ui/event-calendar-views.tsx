@@ -8,6 +8,8 @@
 //   - today's date number and today's column header are a solid pill (todayPillClass)
 //   - block events are bordered and tinted instead of solid, with foreground text
 //   - time axis labels are muted
+//   - event text matches our month view: text-sm, bold title, regular time,
+//     a bit more padding (row, column and list events)
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import FullCalendar, { type CalendarOptions } from "@fullcalendar/react";
@@ -79,9 +81,9 @@ const dayRowCommonClasses: CalendarOptions = {
             ],
             info.isEnd && ["rounded-e-sm", info.isNarrow ? "me-px" : "me-0.5"],
         ),
-    rowEventInnerClass: "py-px gap-0.5",
+    rowEventInnerClass: "py-0.5 gap-1", // c4: was py-px gap-0.5
     rowEventTimeClass: "px-px",
-    rowEventTitleClass: "px-px",
+    rowEventTitleClass: "px-px font-semibold", // c4: bold title
 
     /* Day Row > More-Link
   ----------------------------------------------------------------------------------------------- */
@@ -149,7 +151,7 @@ export function EventCalendarViews({
                     info.isDragging && !info.isSelected && "opacity-75",
                 )
             }
-            blockEventInnerClass="text-foreground print:text-black" // c4: text on a tint, not on a fill
+            blockEventInnerClass="text-inherit print:text-black" // c4: text on a tint, not on a fill; inherits so the event-* status colors apply
             blockEventTimeClass="whitespace-nowrap overflow-hidden shrink-1"
             blockEventTitleClass="whitespace-nowrap overflow-hidden shrink-100"
             /* Row Event
@@ -184,11 +186,11 @@ export function EventCalendarViews({
             }
             rowEventInnerClass={(info) =>
                 cn(
-                    "flex flex-row items-center",
-                    info.isNarrow ? xxsTextClass : "text-xs",
+                    "flex flex-row items-baseline px-1", // c4: was items-center, no padding
+                    info.isNarrow ? xxsTextClass : "text-sm", // c4: was text-xs
                 )
             }
-            rowEventTimeClass="font-bold"
+            rowEventTimeClass="font-normal" // c4: was font-bold (the title is bold instead)
             /* Column Event
       ----------------------------------------------------------------------------------------- */
 
@@ -222,18 +224,23 @@ export function EventCalendarViews({
             columnEventInnerClass={(info) =>
                 cn(
                     "flex",
+                    // c4: more padding than upstream (p-0.5 / px-0.5)
                     info.isShort
-                        ? "p-0.5 flex-row items-center gap-1"
-                        : "px-0.5 flex-col",
+                        ? "p-1 flex-row items-baseline gap-1"
+                        : "px-1.5 flex-col",
                 )
             }
             columnEventTimeClass={(info) =>
-                cn(!info.isShort && "pt-0.5", xxsTextClass)
+                cn(
+                    !info.isShort && "pt-1", // c4: was pt-0.5
+                    info.isNarrow ? xxsTextClass : "text-sm", // c4: was xxs always
+                )
             }
             columnEventTitleClass={(info) =>
                 cn(
                     !info.isShort && "py-0.5",
-                    info.isShort || info.isNarrow ? xxsTextClass : "text-xs",
+                    "font-semibold", // c4: bold title
+                    info.isShort || info.isNarrow ? xxsTextClass : "text-sm", // c4: was text-xs
                 )
             }
             /* More-Link
@@ -428,7 +435,7 @@ export function EventCalendarViews({
                         "-order-1 shrink-0 w-1/2 max-w-50 whitespace-nowrap overflow-hidden text-ellipsis text-sm",
                     listItemEventTitleClass: (info) =>
                         cn(
-                            "grow min-w-0 whitespace-nowrap overflow-hidden text-sm",
+                            "grow min-w-0 whitespace-nowrap overflow-hidden text-sm font-semibold", // c4: bold title
                             info.event.url && "group-hover:underline",
                         ),
 
