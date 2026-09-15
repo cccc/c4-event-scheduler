@@ -10,6 +10,9 @@
 //   - time axis labels are muted
 //   - event text matches our month view: text-sm, bold title, regular time,
 //     a bit more padding (row, column and list events)
+//   - continuation bars get the event-cut* classes (globals.css): borders
+//     dissolve toward the open side
+//   - 2px borders on column and row events, like the month view's bars
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import FullCalendar, { type CalendarOptions } from "@fullcalendar/react";
@@ -159,9 +162,15 @@ export function EventCalendarViews({
 
             rowEventClass={(info) =>
                 cn(
-                    "mb-px border-y",
-                    info.isStart && "border-s",
-                    info.isEnd && "border-e",
+                    "mb-px border-y-2", // c4: was border-y
+                    info.isStart && "border-s-2", // c4: was border-s
+                    info.isEnd && "border-e-2", // c4: was border-e
+                    // c4: open cut side (blockEventClass sets border-2 and
+                    // rounded on all sides), dissolving borders toward it
+                    !info.isStart &&
+                        "border-s-0 rounded-s-none event-cut-start",
+                    !info.isEnd && "border-e-0 rounded-e-none event-cut-end",
+                    (!info.isStart || !info.isEnd) && "event-cut",
                 )
             }
             rowEventBeforeClass={(info) =>
@@ -196,9 +205,14 @@ export function EventCalendarViews({
 
             columnEventClass={(info) =>
                 cn(
-                    "border-x ring ring-background",
-                    info.isStart && "border-t rounded-t-sm",
-                    info.isEnd && "mb-px border-b rounded-b-sm",
+                    "border-x-2 ring ring-background", // c4: was border-x
+                    info.isStart && "border-t-2 rounded-t-sm", // c4: was border-t
+                    info.isEnd && "mb-px border-b-2 rounded-b-sm", // c4: was border-b
+                    // c4: open cut side (blockEventClass sets border-2 and
+                    // rounded on all sides), dissolving borders toward it
+                    !info.isStart && "border-t-0 rounded-t-none event-cut-top",
+                    !info.isEnd && "border-b-0 rounded-b-none event-cut-bottom",
+                    (!info.isStart || !info.isEnd) && "event-cut",
                 )
             }
             columnEventBeforeClass={(info) =>

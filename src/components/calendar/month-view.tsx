@@ -134,8 +134,13 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
             aria-label={`${time ? `${time} ` : ""}${occ.summary}`}
             className={cn(
                 "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
+                // Continuations: no border on the open side, the other
+                // borders dissolve toward it (event-cut* in globals.css)
                 isStart ? "ms-1" : "rounded-s-none border-s-0",
                 isEnd ? "me-1" : "rounded-e-none border-e-0",
+                (!isStart || !isEnd) && "event-cut",
+                !isStart && "event-cut-start",
+                !isEnd && "event-cut-end",
                 `event-${occ.status}`,
                 occ.isDraft && "event-draft",
                 occ.isInternal && "event-internal",

@@ -188,6 +188,96 @@
 	color: color-mix(in srgb, currentColor 50%, transparent);
 }
 
+/* Event bars cut at the edge of what is shown (a multi-day event continuing
+   into the next week, an event running past the bottom of the week grid).
+   The open side keeps no border; the two borders running toward it dissolve
+   from solid into dashes over the last 28px. Done with a mask that punches
+   the dash gaps into the 2px border strips next to the open edge, so the
+   border itself (and its solid/dashed/dotted status style) stays as it is.
+   The base layer reaches 6px beyond the border box so the focus outline is
+   not masked away. */
+.event-cut {
+	/* What the strips remove from the border next to each open side (the
+	   opaque parts of these images): dash gaps by default */
+	--cut-src-start: repeating-linear-gradient(
+		to right,
+		transparent 0 4px,
+		black 4px 7px
+	);
+	--cut-src-end: var(--cut-src-start);
+	--cut-src-top: repeating-linear-gradient(
+		to bottom,
+		transparent 0 4px,
+		black 4px 7px
+	);
+	--cut-src-bottom: var(--cut-src-top);
+	/* Gap strips per cut side, enabled by the event-cut-* classes */
+	--cut-start: none;
+	--cut-end: none;
+	--cut-top: none;
+	--cut-bottom: none;
+	mask-image:
+		linear-gradient(black, black),
+		var(--cut-start),
+		var(--cut-start),
+		var(--cut-end),
+		var(--cut-end),
+		var(--cut-top),
+		var(--cut-top),
+		var(--cut-bottom),
+		var(--cut-bottom);
+	mask-size:
+		calc(100% + 12px) calc(100% + 12px),
+		28px 2px,
+		28px 2px,
+		28px 2px,
+		28px 2px,
+		2px 28px,
+		2px 28px,
+		2px 28px,
+		2px 28px;
+	mask-position:
+		-6px -6px,
+		left top,
+		left bottom,
+		right top,
+		right bottom,
+		left top,
+		right top,
+		left bottom,
+		right bottom;
+	mask-repeat: no-repeat;
+	mask-clip: no-clip;
+	/* base minus the union of the gap strips */
+	mask-composite: subtract, add, add, add, add, add, add, add, add;
+}
+
+.event-cut-start {
+	--cut-start: var(--cut-src-start);
+}
+
+.event-cut-end {
+	--cut-end: var(--cut-src-end);
+}
+
+.event-cut-top {
+	--cut-top: var(--cut-src-top);
+}
+
+.event-cut-bottom {
+	--cut-bottom: var(--cut-src-bottom);
+}
+
+/* Dashed and dotted borders (tentative, draft) would clash with dash gaps
+   on top of their own pattern; their borders fade out toward the open side
+   instead */
+.event-cut:is(.event-tentative, .event-draft) {
+	--cut-src-start: linear-gradient(to left, transparent, black);
+	--cut-src-end: linear-gradient(to right, transparent, black);
+	--cut-src-top: linear-gradient(to top, transparent, black);
+	--cut-src-bottom: linear-gradient(to bottom, transparent, black);
+}
+
 /* Content for visitors without JavaScript. Hidden by default; the
    <noscript><style> in the root shell switches it to display: contents, so
    the children keep their own layout. Use the class on a wrapper, not on an
