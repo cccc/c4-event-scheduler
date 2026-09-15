@@ -23,6 +23,10 @@ import {
     MonthViewContext,
     type MonthViewContextValue,
 } from "@/components/calendar/month-view";
+import {
+    DEFAULT_TIME_WINDOW,
+    timeWindowFor,
+} from "@/components/calendar/time-window";
 import type { Occurrence, Space } from "@/components/calendar/types";
 import {
     useCalendarDeepLink,
@@ -94,6 +98,9 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const [dateRange, setDateRange] = useState(() =>
         initialCalendarRange(linkedDate ?? new Date(), tz),
     );
+    // The days the current view shows (the fetched range can be larger: the
+    // week view extends it by a day when its hours run past midnight)
+    const [visibleRange, setVisibleRange] = useState(dateRange);
 
     const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
 
@@ -116,6 +123,15 @@ export function SpaceCalendar({ space }: { space: Space }) {
         () => new Map(occurrences?.map((o) => [o.id, o])),
         [occurrences],
     );
+    // The week view shows only the hours its days' events need. Computed from
+    // the visible days only and kept while a range loads, so the window and
+    // the fetched range cannot feed back into each other
+    const [timeWindow, setTimeWindow] = useState(DEFAULT_TIME_WINDOW);
+    useEffect(() => {
+        if (occurrences) {
+            setTimeWindow(timeWindowFor(occurrences, visibleRange, tz));
+        }
+    }, [occurrences, visibleRange, tz]);
 
     // Loading state for range fetches, delayed so quick ones do not flicker
     const [showLoading, setShowLoading] = useState(false);
@@ -130,6 +146,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
     const handleDatesSet = useCallback((info: DatesSetInfo) => {
         setDateRange({ start: info.start, end: info.end });
+        setVisibleRange({
+            start: info.view.currentStart,
+            end: info.view.currentEnd,
+        });
     }, []);
 
     const handleDateClick = (info: DateClickInfo) => {
@@ -240,6 +260,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
                             initialDate={linkedDate ?? undefined}
                             nowIndicator
                             selectable={isLoggedIn}
+                            // Overlapping events side by side, not on top of each other
+                            slotEventOverlap={false}
+                            slotMaxTime={timeWindow.slotMaxTime}
+                            slotMinTime={timeWindow.slotMinTime}
                             timeZone={tz}
                             views={VIEW_OPTIONS}
                         />
