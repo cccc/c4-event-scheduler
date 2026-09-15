@@ -186,6 +186,30 @@
 	opacity: 0.5;
 }
 
+/* Server render of the month grid. FullCalendar only sizes the week rows
+   (inline flex-basis) and positions the events (inline top, until then
+   visibility:hidden) after measuring in the browser, so the server HTML
+   would first paint as a collapsed grid without events. These rules emulate
+   its layout until it has taken over: they key off the inline styles it
+   sets, so each stops applying as soon as it does. The server serializes
+   the placeholder values without a space ("flex-basis:0",
+   "visibility:hidden"); the browser-side style property gets real values
+   and a space. ssr-day-row is set via the dayGrid view options in
+   space-calendar.tsx; 1.35 is FullCalendar's default aspectRatio. */
+[role="rowgroup"]:has(> .ssr-day-row[style="flex-basis:0"]) {
+	aspect-ratio: 1.35;
+}
+
+.ssr-day-row[style="flex-basis:0"] {
+	flex: 1 1 0;
+}
+
+[role="gridcell"] [style*="visibility:hidden"] {
+	visibility: visible !important;
+	position: static !important;
+	width: auto !important;
+}
+
 /* Content for visitors without JavaScript. Hidden by default; the
    <noscript><style> in the root shell switches it to display: contents, so
    the children keep their own layout. Use the class on a wrapper, not on an

@@ -2,7 +2,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { initialCalendarRange } from "@/components/calendar/date-utils";
+import { parseSearchDate } from "@/components/calendar/use-calendar-deep-link";
 import { SpaceCalendar } from "@/components/space-calendar";
+import { eventsQueries } from "@/lib/queries/events";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 // Deep links: ?date=YYYY-MM-DD opens the calendar on that date, ?event=<id>
@@ -21,11 +24,19 @@ export type SpaceSearch = z.infer<typeof searchSchema>;
 export const Route = createFileRoute("/_main/spaces/$slug")({
     validateSearch: (search: Record<string, unknown>) =>
         searchSchema.parse(search),
-    loader: async ({ context, params }) => {
+    loaderDeps: ({ search }) => ({ date: search.date }),
+    loader: async ({ context, params, deps }) => {
         const space = await context.queryClient.ensureQueryData(
             spacesQueries.getBySlug(params.slug),
         );
         if (!space) throw notFound();
+        // Prefetch the occurrences the calendar shows first, so the server
+        // render already contains the events (same range as SpaceCalendar)
+        const base = parseSearchDate(deps.date, context.timezone) ?? new Date();
+        const range = initialCalendarRange(base, context.timezone);
+        await context.queryClient.ensureQueryData(
+            eventsQueries.getOccurrences({ spaceId: space.id, ...range }),
+        );
     },
     component: SpaceDetailPage,
 });

@@ -7,13 +7,14 @@ import {
 } from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
-import { addMonths } from "date-fns";
-import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { formatInTimeZone } from "date-fns-tz";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { CalendarSkeleton } from "@/components/calendar/calendar-skeleton";
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
-import { effectiveEnd } from "@/components/calendar/date-utils";
+import {
+    effectiveEnd,
+    initialCalendarRange,
+} from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
@@ -25,26 +26,16 @@ import {
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { cn } from "@/lib/utils";
-import { authClient } from "@/server/better-auth/client";
 
 const VIEWS = ["dayGridMonth", "timeGridWeek", "listMonth"];
 
-/**
- * The month of `base` plus the following one, in the app timezone, as the
- * initial fetch range (datesSet replaces it with the exact visible range)
- */
-function initialRange(base: Date, tz: string): { start: Date; end: Date } {
-    const first = fromZonedTime(
-        `${formatInTimeZone(base, tz, "yyyy-MM")}-01T00:00:00`,
-        tz,
-    );
-    return { start: first, end: addMonths(first, 2) };
-}
+// Marks the month grid's week rows for the server-render layout rules in
+// globals.css (merged over the view options of event-calendar-views.tsx)
+const VIEW_OPTIONS = { dayGrid: { dayRowClass: "ssr-day-row" } };
 
 // Status and visibility classes are styled in globals.css (event-* rules)
 function toCalendarEvent(occ: Occurrence): EventInput {
@@ -72,20 +63,21 @@ function toCalendarEvent(occ: Occurrence): EventInput {
 
 export function SpaceCalendar({ space }: { space: Space }) {
     const tz = useAppTimezone();
-    // Absolute URL for the feed, so the subscribe menu can offer a webcal: link
-    const { appUrl } = useRouteContext({ from: "__root__" });
+    // The session comes from the root context so the server render and the
+    // hydration render agree; appUrl makes the feed URL absolute (webcal:)
+    const { appUrl, session } = useRouteContext({ from: "__root__" });
+    const isLoggedIn = !!session?.user;
     const feedUrl = `${appUrl}/api/cal/${space.slug}.ics`;
     const controller = useCalendarController();
     const { openCreate, openDetails } = useCalendarDialogStore();
 
-    // Track the visible date range for fetching events; a deep-linked date
-    // seeds it so the first fetch already covers that month
+    // Track the visible date range for fetching events. The initial range
+    // (seeded by a deep-linked date) is the one the route loader prefetched,
+    // so the first render already has its occurrences
     const linkedDate = useLinkedDate();
     const [dateRange, setDateRange] = useState(() =>
-        initialRange(linkedDate ?? new Date(), tz),
+        initialCalendarRange(linkedDate ?? new Date(), tz),
     );
-
-    const { data: session } = authClient.useSession();
 
     const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
 
@@ -105,9 +97,6 @@ export function SpaceCalendar({ space }: { space: Space }) {
         [occurrences],
     );
 
-    const isLoggedIn = !!session?.user;
-    // FullCalendar renders nothing on the server; show a skeleton until then
-    const hydrated = useHydrated();
     // Loading state for range fetches, delayed so quick ones do not flicker
     const [showLoading, setShowLoading] = useState(false);
     useEffect(() => {
@@ -162,8 +151,20 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 </div>
             </div>
 
+            {/* The server render shows this month with its events; moving
+                around needs JavaScript */}
+            <div className="noscript-only">
+                <p className="mb-4 rounded-lg border bg-card px-4 py-3 text-muted-foreground text-sm">
+                    Browsing other months and event details needs JavaScript.
+                    Without it,{" "}
+                    <a className="underline" href={feedUrl}>
+                        subscribe to the iCal feed
+                    </a>{" "}
+                    instead.
+                </p>
+            </div>
+
             <div className="relative rounded-lg border bg-card p-4">
-                {!hydrated && <CalendarSkeleton feedUrl={feedUrl} />}
                 {showLoading && (
                     <div
                         aria-live="polite"
@@ -172,38 +173,44 @@ export function SpaceCalendar({ space }: { space: Space }) {
                         Loading events...
                     </div>
                 )}
-                {hydrated && (
-                    <div
-                        className={cn(
-                            "transition-opacity",
-                            showLoading && "opacity-60",
+                <div
+                    className={cn(
+                        "transition-opacity",
+                        showLoading && "opacity-60",
+                    )}
+                >
+                    <EventCalendar
+                        availableViews={VIEWS}
+                        controller={controller}
+                        dateClick={isLoggedIn ? handleDateClick : undefined}
+                        datesSet={handleDatesSet}
+                        editable={false}
+                        eventClick={handleEventClick}
+                        // Every event as a bordered block, timed ones included
+                        eventDisplay="block"
+                        events={calendarEvents}
+                        eventTimeFormat={{
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            meridiem: false,
+                            hour12: false,
+                        }}
+                        // Toolbar title for the server render (the calendar
+                        // reports its own once mounted)
+                        fallbackTitle={formatInTimeZone(
+                            dateRange.start,
+                            tz,
+                            "MMMM yyyy",
                         )}
-                    >
-                        <EventCalendar
-                            availableViews={VIEWS}
-                            controller={controller}
-                            dateClick={isLoggedIn ? handleDateClick : undefined}
-                            datesSet={handleDatesSet}
-                            editable={false}
-                            eventClick={handleEventClick}
-                            // Every event as a bordered block, timed ones included
-                            eventDisplay="block"
-                            events={calendarEvents}
-                            eventTimeFormat={{
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                meridiem: false,
-                                hour12: false,
-                            }}
-                            firstDay={1}
-                            height="auto"
-                            initialDate={linkedDate ?? undefined}
-                            nowIndicator
-                            selectable={isLoggedIn}
-                            timeZone={tz}
-                        />
-                    </div>
-                )}
+                        firstDay={1}
+                        height="auto"
+                        initialDate={linkedDate ?? undefined}
+                        nowIndicator
+                        selectable={isLoggedIn}
+                        timeZone={tz}
+                        views={VIEW_OPTIONS}
+                    />
+                </div>
             </div>
 
             <CreateEventDialog eventTypes={eventTypes ?? []} space={space} />

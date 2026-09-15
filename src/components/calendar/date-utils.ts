@@ -1,3 +1,4 @@
+import { addMonths } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 // All helpers take the app timezone as a parameter rather than reading it
@@ -73,4 +74,21 @@ export function formatDurationMinutes(minutes: number): string {
 // so that series UNTIL dates include all occurrences on that day.
 export function parseDateAsEndOfDayInTz(dateStr: string, tz: string): Date {
     return fromZonedTime(`${dateStr}T23:59:59`, tz);
+}
+
+/**
+ * The month of `base` plus the following one, in the app timezone: the range
+ * the space calendar fetches before FullCalendar reports its exact visible
+ * range. The route loader and the component must compute the same range so
+ * the loader's prefetch is what the component reads.
+ */
+export function initialCalendarRange(
+    base: Date,
+    tz: string,
+): { start: Date; end: Date } {
+    const first = fromZonedTime(
+        `${formatInTimeZone(base, tz, "yyyy-MM")}-01T00:00:00`,
+        tz,
+    );
+    return { start: first, end: addMonths(first, 2) };
 }

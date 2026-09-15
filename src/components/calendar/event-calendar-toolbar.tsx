@@ -5,6 +5,8 @@
 // off here so the structure stays diffable against upstream).
 // Local changes, each marked with a `c4:` comment:
 //   - addButton.click typed as a React MouseEventHandler instead of a DOM MouseEvent callback cast with `as any`
+//   - `fallbackTitle` prop and static button texts for the server render, where
+//     the controller has no calendar yet (its state is only set after mount)
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import type { CalendarController } from "@fullcalendar/react";
@@ -17,10 +19,24 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+// c4: shown until the controller is connected to the mounted calendar (the
+// server render and the first client render); replaced by the calendar's
+// own texts right after mount
+const FALLBACK_TEXT: Record<string, string> = {
+    today: "Today",
+    dayGridMonth: "Month",
+    timeGridWeek: "Week",
+    timeGridDay: "Day",
+    listWeek: "List",
+    listMonth: "List",
+    multiMonthYear: "Year",
+};
+
 export interface EventCalendarToolbarProps {
     className?: string;
     controller: CalendarController;
     availableViews: string[];
+    fallbackTitle?: string; // c4: title for the server render
     addButton?: {
         isPrimary?: boolean;
         text?: string;
@@ -33,9 +49,11 @@ export function EventCalendarToolbar({
     className,
     controller,
     availableViews,
+    fallbackTitle, // c4
     addButton,
 }: EventCalendarToolbarProps) {
     const buttons = controller.getButtonState();
+    const text = (key: string) => buttons[key]?.text || FALLBACK_TEXT[key]; // c4
 
     return (
         <div
@@ -58,7 +76,7 @@ export function EventCalendarToolbar({
                     aria-label={buttons.today.hint}
                     variant="outline"
                 >
-                    {buttons.today.text}
+                    {text("today")}
                 </Button>
                 <div className="flex items-center">
                     <Button
@@ -80,7 +98,9 @@ export function EventCalendarToolbar({
                         <EventCalendarNextIcon />
                     </Button>
                 </div>
-                <div className="text-xl">{controller.view?.title}</div>
+                <div className="text-xl">
+                    {controller.view?.title ?? fallbackTitle}
+                </div>
             </div>
             <Tabs value={controller.view?.type ?? availableViews[0]}>
                 <TabsList>
@@ -91,7 +111,7 @@ export function EventCalendarToolbar({
                             onClick={() => controller.changeView(availableView)}
                             aria-label={buttons[availableView]?.hint}
                         >
-                            {buttons[availableView]?.text}
+                            {text(availableView)}
                         </TabsTrigger>
                     ))}
                 </TabsList>

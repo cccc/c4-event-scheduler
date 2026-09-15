@@ -7,6 +7,7 @@
 //   - optional `controller` prop (external useCalendarController) for navigation from outside
 //   - multi-month plugin and view removed
 //   - addButton.click typed as a React MouseEventHandler (drops the `as any` in the toolbar)
+//   - `fallbackTitle` prop passed to the toolbar for the server render
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import {
@@ -51,6 +52,7 @@ export interface EventCalendarProps
     // c4: optional external controller (useCalendarController), so the page
     // can navigate the calendar (deep links); falls back to an internal one
     controller?: CalendarController;
+    fallbackTitle?: string; // c4: toolbar title until the calendar has mounted
     addButton?: {
         isPrimary?: boolean;
         text?: string;
@@ -64,6 +66,7 @@ export function EventCalendar({
     addButton,
     className,
     controller: userController, // c4
+    fallbackTitle, // c4
     height,
     contentHeight,
     direction,
@@ -89,6 +92,7 @@ export function EventCalendar({
                 className={!hasBorderX ? "px-3" : undefined}
                 controller={controller}
                 availableViews={availableViews}
+                fallbackTitle={fallbackTitle} // c4
                 addButton={addButton}
             />
             <div className="grow min-h-0">

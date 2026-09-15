@@ -23,7 +23,10 @@ export const spaceRoute = getRouteApi("/_main/spaces/$slug");
  * client, while the calendar displays and reports its ranges in the app
  * timezone.
  */
-function parseSearchDate(date: string | undefined, tz: string): Date | null {
+export function parseSearchDate(
+    date: string | undefined,
+    tz: string,
+): Date | null {
     if (!date) return null;
     const parsed = fromZonedTime(`${date}T00:00:00`, tz);
     return isValid(parsed) ? parsed : null;
