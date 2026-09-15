@@ -76,11 +76,16 @@ export async function expandOccurrences(
     // intersects the visible window (like an iCal client would)
     conditions.push(
         or(
-            // Single events: dtstart must be within the range
+            // Single events: the event overlaps the range (a multi-day event
+            // that started before the range still shows its remaining days);
+            // open-end events count by their start
             and(
                 isNull(event.rrule),
-                gte(event.dtstart, data.start),
                 lte(event.dtstart, data.end),
+                or(
+                    gte(event.dtend, data.start),
+                    and(isNull(event.dtend), gte(event.dtstart, data.start)),
+                ),
             ),
             // Recurring events: series must overlap the range
             and(
@@ -130,9 +135,10 @@ export async function expandOccurrences(
             // Hide internal events from anonymous users
             if (isInternal && !isLoggedIn) continue;
 
-            // Check if within date range
+            // Keep it if it overlaps the range (overrides may have moved it)
             const start = override?.dtstart ?? evt.dtstart;
-            if (start < data.start || start > data.end) continue;
+            const end = override?.dtend ?? evt.dtend ?? start;
+            if (start > data.end || end < data.start) continue;
 
             occurrences.push({
                 id: `${evt.id}:${occDate}`,
@@ -202,8 +208,10 @@ export async function expandOccurrences(
                             ? new Date(date.getTime() + durationMs)
                             : null);
 
-                    // Check if within requested date range
-                    if (start < data.start || start > data.end) continue;
+                    // Keep it if it overlaps the requested range
+                    if (start > data.end || (end ?? start) < data.start) {
+                        continue;
+                    }
 
                     occurrences.push({
                         id: `${evt.id}:${occDate}`,
