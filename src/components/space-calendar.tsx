@@ -80,13 +80,16 @@ export function spaceCalendarInitialQuery(opts: {
 }
 
 // Status and visibility classes are styled in globals.css (event-* rules)
-function toCalendarEvent(occ: Occurrence): EventInput {
+function toCalendarEvent(occ: Occurrence, href: string): EventInput {
     return {
         id: occ.id,
         title: occ.summary,
         start: occ.dtstart,
         end: effectiveEnd(occ) ?? undefined,
         allDay: occ.allDay,
+        // FullCalendar renders events with a url as links: the occurrence's
+        // deep link (eventClick keeps plain clicks in the dialog)
+        url: href,
         // Sets --fc-event-color on the element; falls back to eventColor
         color: occ.color ?? undefined,
         className: cn(
@@ -138,9 +141,23 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
     useCalendarDeepLink({ controller, linkedDate, dateRange, occurrences });
 
+    // Deep link of an occurrence (see the route's search schema); the same
+    // link the details dialog copies
+    const occurrenceHref = useCallback(
+        (occ: Occurrence) =>
+            router.buildLocation({
+                to: "/spaces/$slug",
+                params: { slug: space.slug },
+                search: { date: occ.occurrenceDate, event: occ.eventId },
+            }).href,
+        [router, space.slug],
+    );
     const calendarEvents = useMemo(
-        () => occurrences?.map(toCalendarEvent) ?? [],
-        [occurrences],
+        () =>
+            occurrences?.map((occ) =>
+                toCalendarEvent(occ, occurrenceHref(occ)),
+            ) ?? [],
+        [occurrences, occurrenceHref],
     );
     const occurrenceById = useMemo(
         () => new Map(occurrences?.map((o) => [o.id, o])),
@@ -182,6 +199,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
     const handleEventClick = useCallback(
         (info: EventClickInfo) => {
+            const e = info.jsEvent;
+            // Modified clicks follow the event's link (new tab etc.)
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
             const occ = occurrenceById.get(info.event.id);
             if (occ) {
                 openDetails(occ);
@@ -237,8 +258,16 @@ export function SpaceCalendar({ space }: { space: Space }) {
             canCreate: isLoggedIn,
             onDayClick: openCreate,
             onEventClick: openDetails,
+            occurrenceHref,
         }),
-        [tz, occurrenceById, isLoggedIn, openCreate, openDetails],
+        [
+            tz,
+            occurrenceById,
+            isLoggedIn,
+            openCreate,
+            openDetails,
+            occurrenceHref,
+        ],
     );
 
     return (

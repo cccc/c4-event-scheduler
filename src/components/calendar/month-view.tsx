@@ -37,6 +37,8 @@ export type MonthViewContextValue = {
     /** Receives the clicked day's midnight in the app timezone */
     onDayClick: (date: Date) => void;
     onEventClick: (occurrence: Occurrence) => void;
+    /** The occurrence's deep link; bars are links so they work without JS */
+    occurrenceHref: (occurrence: Occurrence) => string;
 };
 
 // Filled by SpaceCalendar; FullCalendar renders the view inside the same
@@ -123,14 +125,16 @@ function layoutWeek(
 }
 
 function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
-    const { onEventClick } = useMonthViewContext();
+    const { onEventClick, occurrenceHref } = useMonthViewContext();
     const { occurrence: occ, isStart, isEnd } = segment;
     const time =
         !occ.allDay && isStart
             ? formatInTimeZone(occ.dtstart, tz, "HH:mm")
             : null;
     return (
-        <button
+        // A link to the occurrence's deep link (its details without
+        // JavaScript); with scripts a plain click opens the dialog instead
+        <a
             aria-label={`${time ? `${time} ` : ""}${occ.summary}`}
             className={cn(
                 "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
@@ -145,7 +149,20 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
                 occ.isDraft && "event-draft",
                 occ.isInternal && "event-internal",
             )}
-            onClick={() => onEventClick(occ)}
+            href={occurrenceHref(occ)}
+            onClick={(e) => {
+                if (
+                    e.button !== 0 ||
+                    e.metaKey ||
+                    e.ctrlKey ||
+                    e.shiftKey ||
+                    e.altKey
+                ) {
+                    return;
+                }
+                e.preventDefault();
+                onEventClick(occ);
+            }}
             style={{
                 gridColumn: `${segment.column} / span ${segment.span}`,
                 gridRow: segment.lane + 2,
@@ -157,7 +174,7 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
         >
             {time && <span className="shrink-0">{time}</span>}
             <span className="truncate font-semibold">{occ.summary}</span>
-        </button>
+        </a>
     );
 }
 
