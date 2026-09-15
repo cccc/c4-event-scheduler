@@ -53,7 +53,12 @@ export function EventCalendarToolbar({
     addButton,
 }: EventCalendarToolbarProps) {
     const buttons = controller.getButtonState();
-    const text = (key: string) => buttons[key]?.text || FALLBACK_TEXT[key]; // c4
+    const text = (
+        key: string, // c4
+    ) =>
+        buttons[key]?.text ||
+        FALLBACK_TEXT[key] ||
+        key.charAt(0).toUpperCase() + key.slice(1);
 
     return (
         <div

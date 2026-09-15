@@ -18,6 +18,11 @@ import {
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
+import {
+    MonthView,
+    MonthViewContext,
+    type MonthViewContextValue,
+} from "@/components/calendar/month-view";
 import type { Occurrence, Space } from "@/components/calendar/types";
 import {
     useCalendarDeepLink,
@@ -31,11 +36,22 @@ import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { cn } from "@/lib/utils";
 
-const VIEWS = ["dayGridMonth", "timeGridWeek", "listMonth"];
+const VIEWS = ["month", "timeGridWeek", "listMonth"];
 
-// Marks the month grid's week rows for the server-render layout rules in
-// globals.css (merged over the view options of event-calendar-views.tsx)
-const VIEW_OPTIONS = { dayGrid: { dayRowClass: "ssr-day-row" } };
+// Our own month view (CSS grid, server-renderable): the day grid plugin's
+// month definition with our component. A plugin's own view types keep their
+// component, so this is a new type on the same base. Week and list views
+// are FullCalendar's
+const VIEW_OPTIONS = {
+    month: {
+        type: "dayGrid",
+        duration: { months: 1 },
+        // Only the weeks the month touches, not always six
+        fixedWeekCount: false,
+        component: MonthView,
+    },
+};
+const BUTTONS = { month: { text: "Month", hint: "Month view" } };
 
 // Status and visibility classes are styled in globals.css (event-* rules)
 function toCalendarEvent(occ: Occurrence): EventInput {
@@ -96,6 +112,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
         () => occurrences?.map(toCalendarEvent) ?? [],
         [occurrences],
     );
+    const occurrenceById = useMemo(
+        () => new Map(occurrences?.map((o) => [o.id, o])),
+        [occurrences],
+    );
 
     // Loading state for range fetches, delayed so quick ones do not flicker
     const [showLoading, setShowLoading] = useState(false);
@@ -119,12 +139,23 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
     const handleEventClick = useCallback(
         (info: EventClickInfo) => {
-            const occ = occurrences?.find((o) => o.id === info.event.id);
+            const occ = occurrenceById.get(info.event.id);
             if (occ) {
                 openDetails(occ);
             }
         },
-        [occurrences, openDetails],
+        [occurrenceById, openDetails],
+    );
+
+    const monthViewContext = useMemo<MonthViewContextValue>(
+        () => ({
+            tz,
+            occurrences: occurrenceById,
+            canCreate: isLoggedIn,
+            onDayClick: openCreate,
+            onEventClick: openDetails,
+        }),
+        [tz, occurrenceById, isLoggedIn, openCreate, openDetails],
     );
 
     return (
@@ -173,44 +204,47 @@ export function SpaceCalendar({ space }: { space: Space }) {
                         Loading events...
                     </div>
                 )}
-                <div
-                    className={cn(
-                        "transition-opacity",
-                        showLoading && "opacity-60",
-                    )}
-                >
-                    <EventCalendar
-                        availableViews={VIEWS}
-                        controller={controller}
-                        dateClick={isLoggedIn ? handleDateClick : undefined}
-                        datesSet={handleDatesSet}
-                        editable={false}
-                        eventClick={handleEventClick}
-                        // Every event as a bordered block, timed ones included
-                        eventDisplay="block"
-                        events={calendarEvents}
-                        eventTimeFormat={{
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            meridiem: false,
-                            hour12: false,
-                        }}
-                        // Toolbar title for the server render (the calendar
-                        // reports its own once mounted)
-                        fallbackTitle={formatInTimeZone(
-                            dateRange.start,
-                            tz,
-                            "MMMM yyyy",
+                <MonthViewContext.Provider value={monthViewContext}>
+                    <div
+                        className={cn(
+                            "transition-opacity",
+                            showLoading && "opacity-60",
                         )}
-                        firstDay={1}
-                        height="auto"
-                        initialDate={linkedDate ?? undefined}
-                        nowIndicator
-                        selectable={isLoggedIn}
-                        timeZone={tz}
-                        views={VIEW_OPTIONS}
-                    />
-                </div>
+                    >
+                        <EventCalendar
+                            availableViews={VIEWS}
+                            buttons={BUTTONS}
+                            controller={controller}
+                            dateClick={isLoggedIn ? handleDateClick : undefined}
+                            datesSet={handleDatesSet}
+                            editable={false}
+                            eventClick={handleEventClick}
+                            // Every event as a bordered block, timed ones included
+                            eventDisplay="block"
+                            events={calendarEvents}
+                            eventTimeFormat={{
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                meridiem: false,
+                                hour12: false,
+                            }}
+                            // Toolbar title for the server render (the calendar
+                            // reports its own once mounted)
+                            fallbackTitle={formatInTimeZone(
+                                dateRange.start,
+                                tz,
+                                "MMMM yyyy",
+                            )}
+                            firstDay={1}
+                            height="auto"
+                            initialDate={linkedDate ?? undefined}
+                            nowIndicator
+                            selectable={isLoggedIn}
+                            timeZone={tz}
+                            views={VIEW_OPTIONS}
+                        />
+                    </div>
+                </MonthViewContext.Provider>
             </div>
 
             <CreateEventDialog eventTypes={eventTypes ?? []} space={space} />
