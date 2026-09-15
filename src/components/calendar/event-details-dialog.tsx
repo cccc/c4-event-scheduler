@@ -59,6 +59,20 @@ function formatTime(date: Date, tz: string): string {
     });
 }
 
+// One compact, locale-formatted line for an occurrence that ends on a
+// later day, e.g. "Sa., 12. Sept. 2026, 12:00 – Mo., 14. Sept. 2026, 14:00"
+function formatDateTimeRange(start: Date, end: Date, tz: string): string {
+    return new Intl.DateTimeFormat("de-DE", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+    }).formatRange(start, end);
+}
+
 function formatDateTime(date: Date, tz: string): string {
     return date.toLocaleString("de-DE", {
         day: "numeric",
@@ -187,6 +201,13 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
     if (!occurrence) return null;
 
     const displayEnd = effectiveEnd(occurrence);
+    // An end on a later day (in the app timezone) gets its own date line;
+    // start and end clock times alone would read as one day. An end exactly
+    // at the following midnight still counts as the same day (18:00 - 00:00)
+    const endsOnLaterDay =
+        !!displayEnd &&
+        formatDate(new Date(displayEnd.getTime() - 1), tz) !==
+            formatDate(occurrence.dtstart, tz);
     const displayLocation = occurrence.location ?? occurrence.space.name;
     const showSpaceSeparately =
         occurrence.location && occurrence.location !== occurrence.space.name;
@@ -198,17 +219,33 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
                 <div className="flex items-start gap-3">
                     <CalendarDays className="mt-0.5 h-5 w-5 text-muted-foreground" />
                     <div>
-                        <div className="font-medium">
-                            {formatDate(occurrence.dtstart, tz)}
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground text-sm">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>
-                                {formatTime(occurrence.dtstart, tz)}
-                                {displayEnd &&
-                                    ` – ${formatTime(displayEnd, tz)}`}
-                            </span>
-                        </div>
+                        {displayEnd && endsOnLaterDay ? (
+                            <div className="font-medium">
+                                {occurrence.allDay
+                                    ? `${formatDate(occurrence.dtstart, tz)} – ${formatDate(displayEnd, tz)}`
+                                    : formatDateTimeRange(
+                                          occurrence.dtstart,
+                                          displayEnd,
+                                          tz,
+                                      )}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="font-medium">
+                                    {formatDate(occurrence.dtstart, tz)}
+                                </div>
+                                {!occurrence.allDay && (
+                                    <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        <span>
+                                            {formatTime(occurrence.dtstart, tz)}
+                                            {displayEnd &&
+                                                ` – ${formatTime(displayEnd, tz)}`}
+                                        </span>
+                                    </div>
+                                )}
+                            </>
+                        )}
                         {occurrence.isRecurring && (
                             <div className="mt-1 text-muted-foreground text-sm">
                                 Part of a recurring series
