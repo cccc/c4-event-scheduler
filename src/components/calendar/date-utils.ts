@@ -76,19 +76,36 @@ export function parseDateAsEndOfDayInTz(dateStr: string, tz: string): Date {
     return fromZonedTime(`${dateStr}T23:59:59`, tz);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Monday on or before (`before`) / on or after the given wall-clock date
+function weekBoundary(day: string, before: boolean): string {
+    const d = new Date(`${day}T00:00:00Z`);
+    const weekday = (d.getUTCDay() + 6) % 7; // Monday = 0
+    const shift = before ? -weekday : (7 - weekday) % 7;
+    return new Date(d.getTime() + shift * DAY_MS).toISOString().slice(0, 10);
+}
+
 /**
- * The month of `base` plus the following one, in the app timezone: the range
- * the space calendar fetches before FullCalendar reports its exact visible
- * range. The route loader and the component must compute the same range so
- * the loader's prefetch is what the component reads.
+ * The days the month grid shows for `base`'s month: whole weeks (Monday
+ * first) from the week of the 1st to the week of the last day, as an
+ * exclusive range of app-timezone midnights. This is what the space
+ * calendar fetches before FullCalendar reports its visible range, and it
+ * equals that range, so the loader's prefetch is what the month view reads.
  */
 export function initialCalendarRange(
     base: Date,
     tz: string,
 ): { start: Date; end: Date } {
-    const first = fromZonedTime(
-        `${formatInTimeZone(base, tz, "yyyy-MM")}-01T00:00:00`,
-        tz,
+    const monthKey = formatInTimeZone(base, tz, "yyyy-MM");
+    const first = `${monthKey}-01`;
+    const nextFirst = formatInTimeZone(
+        addMonths(new Date(`${first}T00:00:00Z`), 1),
+        "UTC",
+        "yyyy-MM-dd",
     );
-    return { start: first, end: addMonths(first, 2) };
+    return {
+        start: fromZonedTime(`${weekBoundary(first, true)}T00:00:00`, tz),
+        end: fromZonedTime(`${weekBoundary(nextFirst, false)}T00:00:00`, tz),
+    };
 }
