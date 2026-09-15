@@ -135,10 +135,16 @@ export async function expandOccurrences(
             // Hide internal events from anonymous users
             if (isInternal && !isLoggedIn) continue;
 
-            // Keep it if it overlaps the range (overrides may have moved it)
+            // Keep it if it overlaps the range (overrides may have moved it).
+            // An inherited end keeps the event's duration from the moved
+            // start, so the occurrence cannot end before it begins
             const start = override?.dtstart ?? evt.dtstart;
-            const end = override?.dtend ?? evt.dtend ?? start;
-            if (start > data.end || end < data.start) continue;
+            const end =
+                override?.dtend ??
+                (durationMs > 0
+                    ? new Date(start.getTime() + durationMs)
+                    : null);
+            if (start > data.end || (end ?? start) < data.start) continue;
 
             occurrences.push({
                 id: `${evt.id}:${occDate}`,
@@ -149,7 +155,7 @@ export async function expandOccurrences(
                 url: override?.url ?? evt.url,
                 location: override?.location ?? evt.location,
                 dtstart: start,
-                dtend: override?.dtend ?? evt.dtend ?? null,
+                dtend: end,
                 allDay: evt.allDay,
                 isOverridden: !!override,
                 isDraft: evt.isDraft,
@@ -200,12 +206,13 @@ export async function expandOccurrences(
                     // Hide internal events from anonymous users
                     if (isInternal && !isLoggedIn) continue;
 
-                    // Calculate actual start/end times
+                    // Actual start/end: an inherited end keeps the series'
+                    // duration from the (possibly moved) start
                     const start = override?.dtstart ?? date;
                     const end =
                         override?.dtend ??
                         (durationMs > 0
-                            ? new Date(date.getTime() + durationMs)
+                            ? new Date(start.getTime() + durationMs)
                             : null);
 
                     // Keep it if it overlaps the requested range

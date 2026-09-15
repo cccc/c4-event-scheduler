@@ -291,12 +291,15 @@ async function GET(splat: string | undefined, request: Request) {
             );
             const status = override?.status ?? evt.status;
 
+            // An inherited end keeps the event's duration from a moved start
             const effectiveStart = override?.dtstart ?? evt.dtstart;
+            const durationMs = evt.dtend
+                ? evt.dtend.getTime() - evt.dtstart.getTime()
+                : defaultDurationMs;
             const effectiveEnd =
                 override?.dtend ??
-                evt.dtend ??
-                (defaultDurationMs
-                    ? new Date(effectiveStart.getTime() + defaultDurationMs)
+                (durationMs
+                    ? new Date(effectiveStart.getTime() + durationMs)
                     : undefined);
 
             const icalEvent = calendar.createEvent({

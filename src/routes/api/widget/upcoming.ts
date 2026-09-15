@@ -175,15 +175,18 @@ async function GET(request: Request) {
                 const isInternal = evt.eventType?.isInternal ?? false;
 
                 if (isInternal) continue;
-                if (
-                    isOver(
-                        override?.dtstart ?? evt.dtstart,
-                        override?.dtend ?? evt.dtend,
-                        now,
-                        tz,
-                    )
-                )
-                    continue;
+                // An inherited end keeps the event's duration from a moved start
+                const start = override?.dtstart ?? evt.dtstart;
+                const end =
+                    override?.dtend ??
+                    (evt.dtend
+                        ? new Date(
+                              start.getTime() +
+                                  evt.dtend.getTime() -
+                                  evt.dtstart.getTime(),
+                          )
+                        : null);
+                if (isOver(start, end, now, tz)) continue;
 
                 const isCancelled = status === "cancelled";
 
@@ -192,11 +195,8 @@ async function GET(request: Request) {
                     summary: override?.summary ?? evt.summary,
                     description: override?.description ?? evt.description,
                     url: override?.url ?? evt.url,
-                    date: evt.dtstart.toISOString(),
-                    dateLabel: formatDate(
-                        override?.dtstart ?? evt.dtstart,
-                        locale,
-                    ),
+                    date: start.toISOString(),
+                    dateLabel: formatDate(start, locale),
                     isRecurring: false,
                     spaceName: evt.space.name,
                     spaceSlug: evt.space.slug,
