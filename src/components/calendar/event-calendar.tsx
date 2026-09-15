@@ -7,7 +7,7 @@
 //   - optional `controller` prop (external useCalendarController) for navigation from outside
 //   - multi-month plugin and view removed
 //   - addButton.click typed as a React MouseEventHandler (drops the `as any` in the toolbar)
-//   - `fallbackTitle` prop passed to the toolbar for the server render
+//   - `fallbackTitle` and `toolbarLinks` props passed to the toolbar
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import {
@@ -21,7 +21,10 @@ import listPlugin from "@fullcalendar/react/list";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import type { MouseEventHandler } from "react"; // c4
 import { EventCalendarCloseIcon } from "@/components/calendar/event-calendar-icons";
-import { EventCalendarToolbar } from "@/components/calendar/event-calendar-toolbar";
+import {
+    EventCalendarToolbar,
+    type EventCalendarToolbarProps,
+} from "@/components/calendar/event-calendar-toolbar";
 import { EventCalendarViews } from "@/components/ui/event-calendar-views";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +56,7 @@ export interface EventCalendarProps
     // can navigate the calendar (deep links); falls back to an internal one
     controller?: CalendarController;
     fallbackTitle?: string; // c4: toolbar title until the calendar has mounted
+    toolbarLinks?: EventCalendarToolbarProps["toolbarLinks"]; // c4: link navigation
     addButton?: {
         isPrimary?: boolean;
         text?: string;
@@ -67,6 +71,7 @@ export function EventCalendar({
     className,
     controller: userController, // c4
     fallbackTitle, // c4
+    toolbarLinks, // c4
     height,
     contentHeight,
     direction,
@@ -93,6 +98,7 @@ export function EventCalendar({
                 controller={controller}
                 availableViews={availableViews}
                 fallbackTitle={fallbackTitle} // c4
+                toolbarLinks={toolbarLinks} // c4
                 addButton={addButton}
             />
             <div className="grow min-h-0">

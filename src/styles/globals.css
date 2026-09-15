@@ -285,3 +285,6 @@
 .noscript-only {
     display: none;
 }
+
+/* The counterpart, `script-only`, marks controls that only work with
+   JavaScript; the same <noscript><style> hides them. No rule needed here. */

@@ -7,6 +7,10 @@
 //   - addButton.click typed as a React MouseEventHandler instead of a DOM MouseEvent callback cast with `as any`
 //   - `fallbackTitle` prop and static button texts for the server render, where
 //     the controller has no calendar yet (its state is only set after mount)
+//   - optional `toolbarLinks`: today/prev/next as real links (work without
+//     JavaScript, the caller handles client-side navigation in onClick)
+//   - the view switcher is `script-only` (views other than the first need
+//     JavaScript)
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import type { CalendarController } from "@fullcalendar/react";
@@ -32,11 +36,18 @@ const FALLBACK_TEXT: Record<string, string> = {
     multiMonthYear: "Year",
 };
 
+// c4
+export type NavLink = {
+    href: string;
+    onClick?: MouseEventHandler<HTMLAnchorElement>;
+};
+
 export interface EventCalendarToolbarProps {
     className?: string;
     controller: CalendarController;
     availableViews: string[];
     fallbackTitle?: string; // c4: title for the server render
+    toolbarLinks?: { today: NavLink; prev: NavLink; next: NavLink }; // c4
     addButton?: {
         isPrimary?: boolean;
         text?: string;
@@ -50,6 +61,7 @@ export function EventCalendarToolbar({
     controller,
     availableViews,
     fallbackTitle, // c4
+    toolbarLinks, // c4
     addButton,
 }: EventCalendarToolbarProps) {
     const buttons = controller.getButtonState();
@@ -76,38 +88,90 @@ export function EventCalendarToolbar({
                         {addButton.text}
                     </Button>
                 )}
-                <Button
-                    onClick={() => controller.today()}
-                    aria-label={buttons.today.hint}
-                    variant="outline"
-                >
-                    {text("today")}
-                </Button>
+                {/* c4: as links when toolbarLinks is given */}
+                {toolbarLinks ? (
+                    <Button
+                        asChild
+                        aria-label={buttons.today?.hint || text("today")}
+                        variant="outline"
+                    >
+                        <a
+                            href={toolbarLinks.today.href}
+                            onClick={toolbarLinks.today.onClick}
+                        >
+                            {text("today")}
+                        </a>
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={() => controller.today()}
+                        aria-label={buttons.today.hint}
+                        variant="outline"
+                    >
+                        {text("today")}
+                    </Button>
+                )}
                 <div className="flex items-center">
-                    <Button
-                        onClick={() => controller.prev()}
-                        disabled={buttons.prev.isDisabled}
-                        aria-label={buttons.prev.hint}
-                        variant="ghost"
-                        size="icon"
-                    >
-                        <EventCalendarPrevIcon />
-                    </Button>
-                    <Button
-                        onClick={() => controller.next()}
-                        disabled={buttons.next.isDisabled}
-                        aria-label={buttons.next.hint}
-                        variant="ghost"
-                        size="icon"
-                    >
-                        <EventCalendarNextIcon />
-                    </Button>
+                    {toolbarLinks ? (
+                        <>
+                            <Button
+                                asChild
+                                aria-label={buttons.prev?.hint || "Previous"}
+                                variant="ghost"
+                                size="icon"
+                            >
+                                <a
+                                    href={toolbarLinks.prev.href}
+                                    onClick={toolbarLinks.prev.onClick}
+                                >
+                                    <EventCalendarPrevIcon />
+                                </a>
+                            </Button>
+                            <Button
+                                asChild
+                                aria-label={buttons.next?.hint || "Next"}
+                                variant="ghost"
+                                size="icon"
+                            >
+                                <a
+                                    href={toolbarLinks.next.href}
+                                    onClick={toolbarLinks.next.onClick}
+                                >
+                                    <EventCalendarNextIcon />
+                                </a>
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                onClick={() => controller.prev()}
+                                disabled={buttons.prev.isDisabled}
+                                aria-label={buttons.prev.hint}
+                                variant="ghost"
+                                size="icon"
+                            >
+                                <EventCalendarPrevIcon />
+                            </Button>
+                            <Button
+                                onClick={() => controller.next()}
+                                disabled={buttons.next.isDisabled}
+                                aria-label={buttons.next.hint}
+                                variant="ghost"
+                                size="icon"
+                            >
+                                <EventCalendarNextIcon />
+                            </Button>
+                        </>
+                    )}
                 </div>
                 <div className="text-xl">
                     {controller.view?.title ?? fallbackTitle}
                 </div>
             </div>
-            <Tabs value={controller.view?.type ?? availableViews[0]}>
+            <Tabs
+                value={controller.view?.type ?? availableViews[0]}
+                className="script-only" // c4: needs JavaScript
+            >
                 <TabsList>
                     {availableViews.map((availableView) => (
                         <TabsTrigger

@@ -10,11 +10,17 @@ import { spacesQueries } from "@/lib/queries/spaces";
 
 // Deep links: ?date=YYYY-MM-DD opens the calendar on that date, ?event=<id>
 // additionally opens that event's occurrence on the date (or its first
-// occurrence when no date is given)
+// occurrence when no date is given). ?month=YYYY-MM shows that month: the
+// toolbar's links for visitors without JavaScript (scripted clients navigate
+// through the calendar and leave the URL alone)
 const searchSchema = z.object({
     date: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    month: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
         .optional(),
     event: z.uuid().optional(),
 });
@@ -24,7 +30,7 @@ export type SpaceSearch = z.infer<typeof searchSchema>;
 export const Route = createFileRoute("/_main/spaces/$slug")({
     validateSearch: (search: Record<string, unknown>) =>
         searchSchema.parse(search),
-    loaderDeps: ({ search }) => ({ date: search.date }),
+    loaderDeps: ({ search }) => ({ date: search.date, month: search.month }),
     loader: async ({ context, params, deps }) => {
         const space = await context.queryClient.ensureQueryData(
             spacesQueries.getBySlug(params.slug),
@@ -32,7 +38,9 @@ export const Route = createFileRoute("/_main/spaces/$slug")({
         if (!space) throw notFound();
         // Prefetch the occurrences the calendar shows first, so the server
         // render already contains the events (same range as SpaceCalendar)
-        const base = parseSearchDate(deps.date, context.timezone) ?? new Date();
+        const base =
+            parseSearchDate(deps.date, deps.month, context.timezone) ??
+            new Date();
         const range = initialCalendarRange(base, context.timezone);
         await context.queryClient.ensureQueryData(
             eventsQueries.getOccurrences({ spaceId: space.id, ...range }),

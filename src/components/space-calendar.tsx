@@ -6,7 +6,8 @@ import {
     useCalendarController,
 } from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouteContext } from "@tanstack/react-router";
+import { useRouteContext, useRouter } from "@tanstack/react-router";
+import { addMonths } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -17,6 +18,7 @@ import {
 } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventCalendar } from "@/components/calendar/event-calendar";
+import type { NavLink } from "@/components/calendar/event-calendar-toolbar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import {
     MonthView,
@@ -90,6 +92,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const feedUrl = `${appUrl}/api/cal/${space.slug}.ics`;
     const controller = useCalendarController();
     const { openCreate, openDetails } = useCalendarDialogStore();
+    const router = useRouter();
 
     // Track the visible date range for fetching events. The initial range
     // (seeded by a deep-linked date) is the one the route loader prefetched,
@@ -167,6 +170,46 @@ export function SpaceCalendar({ space }: { space: Space }) {
         [occurrenceById, openDetails],
     );
 
+    // Toolbar navigation: real links to ?month= so it works without
+    // JavaScript (full page load, server-rendered month); with scripts the
+    // click goes to the calendar itself and the URL stays as it is
+    const view = controller.view;
+    const monthKey = formatInTimeZone(
+        view?.currentStart ?? linkedDate ?? new Date(),
+        tz,
+        "yyyy-MM",
+    );
+    const monthLink = (month: string | undefined, go: () => void): NavLink => ({
+        href: router.buildLocation({
+            to: "/spaces/$slug",
+            params: { slug: space.slug },
+            search: month ? { month } : {},
+        }).href,
+        onClick: (e) => {
+            // plain left clicks only; modified clicks open the link itself
+            if (
+                e.button !== 0 ||
+                e.metaKey ||
+                e.ctrlKey ||
+                e.shiftKey ||
+                e.altKey
+            ) {
+                return;
+            }
+            e.preventDefault();
+            go();
+        },
+    });
+    const shiftMonth = (by: number) =>
+        addMonths(new Date(`${monthKey}-01T00:00:00Z`), by)
+            .toISOString()
+            .slice(0, 7);
+    const toolbarLinks = {
+        today: monthLink(undefined, () => controller.today()),
+        prev: monthLink(shiftMonth(-1), () => controller.prev()),
+        next: monthLink(shiftMonth(1), () => controller.next()),
+    };
+
     const monthViewContext = useMemo<MonthViewContextValue>(
         () => ({
             tz,
@@ -206,7 +249,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 around needs JavaScript */}
             <div className="noscript-only">
                 <p className="mb-4 rounded-lg border bg-card px-4 py-3 text-muted-foreground text-sm">
-                    Browsing other months and event details needs JavaScript.
+                    Event details and the week and list views need JavaScript.
                     Without it,{" "}
                     <a className="underline" href={feedUrl}>
                         subscribe to the iCal feed
@@ -248,11 +291,9 @@ export function SpaceCalendar({ space }: { space: Space }) {
                                 meridiem: false,
                                 hour12: false,
                             }}
-                            // Toolbar title for the server render (the calendar
-                            // reports its own once mounted)
                             fallbackTitle={formatInTimeZone(
-                                dateRange.start,
-                                tz,
+                                new Date(`${monthKey}-01T00:00:00Z`),
+                                "UTC",
                                 "MMMM yyyy",
                             )}
                             firstDay={1}
@@ -265,6 +306,9 @@ export function SpaceCalendar({ space }: { space: Space }) {
                             slotMaxTime={timeWindow.slotMaxTime}
                             slotMinTime={timeWindow.slotMinTime}
                             timeZone={tz}
+                            // Toolbar title for the server render (the calendar
+                            // reports its own once mounted)
+                            toolbarLinks={toolbarLinks}
                             views={VIEW_OPTIONS}
                         />
                     </div>

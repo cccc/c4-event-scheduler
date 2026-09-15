@@ -23,10 +23,16 @@ export const spaceRoute = getRouteApi("/_main/spaces/$slug");
  * client, while the calendar displays and reports its ranges in the app
  * timezone.
  */
+/**
+ * The day the calendar should show, as app-timezone midnight: ?date=, else
+ * the first of ?month=, else null (today)
+ */
 export function parseSearchDate(
     date: string | undefined,
+    month: string | undefined,
     tz: string,
 ): Date | null {
+    if (!date && month) date = `${month}-01`;
     if (!date) return null;
     const parsed = fromZonedTime(`${date}T00:00:00`, tz);
     return isValid(parsed) ? parsed : null;
@@ -35,8 +41,8 @@ export function parseSearchDate(
 /** The ?date= of the space route as a Date, memoized per URL value */
 export function useLinkedDate(): Date | null {
     const tz = useAppTimezone();
-    const { date } = spaceRoute.useSearch();
-    return useMemo(() => parseSearchDate(date, tz), [date, tz]);
+    const { date, month } = spaceRoute.useSearch();
+    return useMemo(() => parseSearchDate(date, month, tz), [date, month, tz]);
 }
 
 type DeepLinkArgs = {
