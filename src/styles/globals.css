@@ -128,163 +128,60 @@
 	}
 }
 
-/* FullCalendar theme integration */
-.fc {
-	--fc-border-color: var(--border);
-	--fc-button-bg-color: var(--secondary);
-	--fc-button-border-color: var(--border);
-	--fc-button-text-color: var(--secondary-foreground);
-	--fc-button-hover-bg-color: var(--accent);
-	--fc-button-hover-border-color: var(--border);
-	--fc-button-active-bg-color: var(--accent);
-	--fc-button-active-border-color: var(--primary);
-	--fc-button-active-text-color: var(--primary-foreground);
-	--fc-event-bg-color: var(--primary);
-	--fc-event-border-color: var(--primary);
-	--fc-event-text-color: var(--foreground);
-	--fc-today-bg-color: var(--accent);
-	--fc-page-bg-color: var(--card);
-	--fc-neutral-bg-color: var(--muted);
-	--fc-list-event-hover-bg-color: var(--accent);
-}
-
-.fc .fc-daygrid-day.fc-day-today {
-	background-color: var(--accent);
-}
-
-/* Today's date number as a solid pill (month view) and the same for the
-   weekday header of today's column (week view) */
-.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number,
-.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 1.75rem;
-	height: 1.75rem;
-	padding-inline: 0.5rem;
-	border-radius: 9999px;
-	background-color: var(--primary);
-	color: var(--primary-foreground);
-	font-weight: 600;
-}
-
-.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-	margin: 2px;
-}
-
-.fc .fc-daygrid-event-harness {
-	margin: 3px;
-
-	.fc-event {
-		padding: 3px;
-	}
-
-	.fc-daygrid-event-dot {
-		display: none;
-	}
-}
-
-.fc .fc-timegrid-slot-label {
-	color: var(--muted-foreground);
-}
-
-.fc .fc-scrollgrid {
-	border-color: var(--border);
-}
-
-.fc th {
-	border-color: var(--border);
-}
-
-.fc td {
-	border-color: var(--border);
-}
-
-/* Event status styling — color-mix based, theme-independent */
-
-.fc .fc-event {
-	border-radius: 4px;
-	border-width: 2px;
-}
-
-/* Confirmed: solid border, light tinted background */
-.fc .fc-event.event-confirmed {
-	border-style: solid;
-	border-color: var(--event-color, var(--primary));
-	background-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 20%,
-		transparent
-	);
-}
+/* FullCalendar event styling. The calendar itself is themed through the
+   class-name hooks in components/ui/event-calendar-views.tsx (Tailwind, shadcn
+   tokens); these rules only add the status and visibility variants on top of
+   the base block event there. --fc-event-color is set per event by
+   FullCalendar (the event's color, or the eventColor default). Unlayered on
+   purpose so they win over the utility classes of the base style. */
 
 /* Tentative: dashed border, lighter background */
-.fc .fc-event.event-tentative {
+.event-tentative {
 	border-style: dashed;
-	border-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 70%,
-		transparent
-	);
+	border-color: color-mix(in srgb, var(--fc-event-color) 70%, transparent);
 	background-color: color-mix(
 		in srgb,
-		var(--event-color, var(--primary)) 12%,
+		var(--fc-event-color) 12%,
 		transparent
 	);
 }
 
 /* Draft: dotted border, very light background, italic */
-.fc .fc-event.event-draft {
+.event-draft {
 	border-style: dotted;
-	border-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 50%,
-		transparent
-	);
-	background-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 8%,
-		transparent
-	);
+	border-color: color-mix(in srgb, var(--fc-event-color) 50%, transparent);
+	background-color: color-mix(in srgb, var(--fc-event-color) 8%, transparent);
 }
 
 /* Cancelled: solid faded border, light background, strikethrough */
-.fc .fc-event.event-cancelled {
+.event-cancelled {
 	border-style: solid;
-	border-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 40%,
-		transparent
-	);
-	background-color: color-mix(
-		in srgb,
-		var(--event-color, var(--primary)) 8%,
-		transparent
-	);
+	border-color: color-mix(in srgb, var(--fc-event-color) 40%, transparent);
+	background-color: color-mix(in srgb, var(--fc-event-color) 8%, transparent);
 }
 
 /* Internal: striped overlay (additive, combines with status class) */
-.fc .fc-event.event-internal {
+.event-internal {
 	background-image: repeating-linear-gradient(
 		45deg,
 		transparent,
 		transparent 3px,
-		color-mix(in srgb, var(--event-color, var(--primary)) 12%, transparent) 3px,
-		color-mix(in srgb, var(--event-color, var(--primary)) 12%, transparent) 6px
+		color-mix(in srgb, var(--fc-event-color) 12%, transparent) 3px,
+		color-mix(in srgb, var(--fc-event-color) 12%, transparent) 6px
 	);
 }
 
-/* List view adjustments */
-.fc .event-tentative > * {
+/* Text treatment per status (applies in the list view too) */
+.event-tentative > * {
 	opacity: 0.8;
 }
 
-.fc .event-draft > * {
+.event-draft > * {
 	font-style: italic;
 	opacity: 0.6;
 }
 
-.fc .event-cancelled > * {
+.event-cancelled > * {
 	text-decoration: line-through;
 	opacity: 0.5;
 }
