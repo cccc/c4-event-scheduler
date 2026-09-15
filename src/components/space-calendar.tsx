@@ -1,25 +1,21 @@
-import type {
-    DatesSetArg,
-    EventClickArg,
-    EventInput,
-    EventMountArg,
-} from "@fullcalendar/core";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import listPlugin from "@fullcalendar/list";
-import luxon3Plugin from "@fullcalendar/luxon3";
-import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
+import {
+    type DateClickInfo,
+    type DatesSetInfo,
+    type EventClickInfo,
+    type EventInput,
+    useCalendarController,
+} from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { addMonths } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CalendarSkeleton } from "@/components/calendar/calendar-skeleton";
 import { CreateEventDialog } from "@/components/calendar/create-event-dialog";
 import { effectiveEnd } from "@/components/calendar/date-utils";
 import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
+import { EventCalendar } from "@/components/calendar/event-calendar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import type { Occurrence, Space } from "@/components/calendar/types";
 import {
@@ -36,6 +32,8 @@ import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/server/better-auth/client";
 
+const VIEWS = ["dayGridMonth", "timeGridWeek", "listMonth"];
+
 /**
  * The month of `base` plus the following one, in the app timezone, as the
  * initial fetch range (datesSet replaces it with the exact visible range)
@@ -48,6 +46,7 @@ function initialRange(base: Date, tz: string): { start: Date; end: Date } {
     return { start: first, end: addMonths(first, 2) };
 }
 
+// Status and visibility classes are styled in globals.css (event-* rules)
 function toCalendarEvent(occ: Occurrence): EventInput {
     return {
         id: occ.id,
@@ -55,17 +54,18 @@ function toCalendarEvent(occ: Occurrence): EventInput {
         start: occ.dtstart,
         end: effectiveEnd(occ) ?? undefined,
         allDay: occ.allDay,
-        classNames: [
+        // Sets --fc-event-color on the element; falls back to eventColor
+        color: occ.color ?? undefined,
+        className: cn(
             `event-${occ.status}`,
-            ...(occ.isDraft ? ["event-draft"] : []),
-            ...(occ.isInternal ? ["event-internal"] : []),
-        ],
+            occ.isDraft && "event-draft",
+            occ.isInternal && "event-internal",
+        ),
         extendedProps: {
             status: occ.status,
             eventId: occ.eventId,
             description: occ.description,
             url: occ.url,
-            color: occ.color,
         },
     };
 }
@@ -75,7 +75,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
     // Absolute URL for the feed, so the subscribe menu can offer a webcal: link
     const { appUrl } = useRouteContext({ from: "__root__" });
     const feedUrl = `${appUrl}/api/cal/${space.slug}.ics`;
-    const calendarRef = useRef<FullCalendar>(null);
+    const controller = useCalendarController();
     const { openCreate, openDetails } = useCalendarDialogStore();
 
     // Track the visible date range for fetching events; a deep-linked date
@@ -98,7 +98,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
         }),
     );
 
-    useCalendarDeepLink({ calendarRef, linkedDate, dateRange, occurrences });
+    useCalendarDeepLink({ controller, linkedDate, dateRange, occurrences });
 
     const calendarEvents = useMemo(
         () => occurrences?.map(toCalendarEvent) ?? [],
@@ -119,25 +119,18 @@ export function SpaceCalendar({ space }: { space: Space }) {
         return () => clearTimeout(timer);
     }, [isFetching]);
 
-    const handleEventDidMount = useCallback((info: EventMountArg) => {
-        const color = info.event.extendedProps.color;
-        if (color) {
-            info.el.style.setProperty("--event-color", color);
-        }
+    const handleDatesSet = useCallback((info: DatesSetInfo) => {
+        setDateRange({ start: info.start, end: info.end });
     }, []);
 
-    const handleDatesSet = useCallback((arg: DatesSetArg) => {
-        setDateRange({ start: arg.start, end: arg.end });
-    }, []);
-
-    const handleDateClick = (info: { date: Date }) => {
+    const handleDateClick = (info: DateClickInfo) => {
         if (!isLoggedIn) return;
         openCreate(info.date);
     };
 
     const handleEventClick = useCallback(
-        (arg: EventClickArg) => {
-            const occ = occurrences?.find((o) => o.id === arg.event.id);
+        (info: EventClickInfo) => {
+            const occ = occurrences?.find((o) => o.id === info.event.id);
             if (occ) {
                 openDetails(occ);
             }
@@ -186,12 +179,15 @@ export function SpaceCalendar({ space }: { space: Space }) {
                             showLoading && "opacity-60",
                         )}
                     >
-                        <FullCalendar
+                        <EventCalendar
+                            availableViews={VIEWS}
+                            controller={controller}
                             dateClick={isLoggedIn ? handleDateClick : undefined}
                             datesSet={handleDatesSet}
                             editable={false}
                             eventClick={handleEventClick}
-                            eventDidMount={handleEventDidMount}
+                            // Every event as a bordered block, timed ones included
+                            eventDisplay="block"
                             events={calendarEvents}
                             eventTimeFormat={{
                                 hour: "2-digit",
@@ -200,23 +196,9 @@ export function SpaceCalendar({ space }: { space: Space }) {
                                 hour12: false,
                             }}
                             firstDay={1}
-                            headerToolbar={{
-                                left: "prev,next today",
-                                center: "title",
-                                right: "dayGridMonth,timeGridWeek,listMonth",
-                            }}
                             height="auto"
                             initialDate={linkedDate ?? undefined}
-                            initialView="dayGridMonth"
                             nowIndicator
-                            plugins={[
-                                luxon3Plugin,
-                                dayGridPlugin,
-                                timeGridPlugin,
-                                listPlugin,
-                                interactionPlugin,
-                            ]}
-                            ref={calendarRef}
                             selectable={isLoggedIn}
                             timeZone={tz}
                         />

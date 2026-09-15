@@ -1,9 +1,9 @@
-import type FullCalendar from "@fullcalendar/react";
+import type { CalendarController } from "@fullcalendar/react";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { isValid } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
-import { type RefObject, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { useAppTimezone } from "@/components/timezone-provider";
@@ -37,7 +37,8 @@ export function useLinkedDate(): Date | null {
 }
 
 type DeepLinkArgs = {
-    calendarRef: RefObject<FullCalendar | null>;
+    /** The calendar's controller (useCalendarController), for navigation */
+    controller: CalendarController;
     /** From useLinkedDate(); also seeds the calendar's initial date */
     linkedDate: Date | null;
     /** The range the calendar currently shows and fetches */
@@ -54,7 +55,7 @@ type DeepLinkArgs = {
  * from the URL so a reload stays closed.
  */
 export function useCalendarDeepLink({
-    calendarRef,
+    controller,
     linkedDate,
     dateRange,
     occurrences,
@@ -67,9 +68,9 @@ export function useCalendarDeepLink({
     // Follow ?date= changes after mount (initialDate only applies once)
     useEffect(() => {
         if (linkedDate) {
-            calendarRef.current?.getApi().gotoDate(linkedDate);
+            controller.gotoDate(linkedDate);
         }
-    }, [linkedDate, calendarRef]);
+    }, [linkedDate, controller]);
 
     // ?event= without ?date=: look the event up to find its (first) date
     const { data: linkedEvent } = useQuery({
