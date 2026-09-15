@@ -20,6 +20,7 @@ import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import type { NavLink } from "@/components/calendar/event-calendar-toolbar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
+import { LinkedOccurrenceCard } from "@/components/calendar/linked-occurrence-card";
 import {
     MonthView,
     MonthViewContext,
@@ -31,6 +32,7 @@ import {
 } from "@/components/calendar/time-window";
 import type { Occurrence, Space } from "@/components/calendar/types";
 import {
+    parseSearchDate,
     useCalendarDeepLink,
     useLinkedDate,
 } from "@/components/calendar/use-calendar-deep-link";
@@ -58,6 +60,24 @@ const VIEW_OPTIONS = {
     },
 };
 const BUTTONS = { month: { text: "Month", hint: "Month view" } };
+
+/**
+ * The query the calendar reads first: the occurrences of the month it opens
+ * on (from ?date= / ?month=, else today). The space route's loader ensures
+ * it (TanStack's loader + queryOptions pattern), so the server render has
+ * the events; the component computes the same range for its initial state.
+ */
+export function spaceCalendarInitialQuery(opts: {
+    timezone: string;
+    spaceId: string;
+    search: { date?: string; month?: string };
+}) {
+    const base =
+        parseSearchDate(opts.search.date, opts.search.month, opts.timezone) ??
+        new Date();
+    const range = initialCalendarRange(base, opts.timezone);
+    return eventsQueries.getOccurrences({ spaceId: opts.spaceId, ...range });
+}
 
 // Status and visibility classes are styled in globals.css (event-* rules)
 function toCalendarEvent(occ: Occurrence): EventInput {
@@ -244,6 +264,8 @@ export function SpaceCalendar({ space }: { space: Space }) {
                     )}
                 </div>
             </div>
+
+            <LinkedOccurrenceCard occurrences={occurrenceById} />
 
             {/* The server render shows this month with its events; moving
                 around needs JavaScript */}

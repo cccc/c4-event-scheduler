@@ -34,7 +34,7 @@ import {
     removeOverride as removeOverrideFn,
 } from "@/server/fns/events";
 import { effectiveEnd } from "./date-utils";
-import type { EventStatus } from "./types";
+import type { EventStatus, Occurrence } from "./types";
 import { spaceRoute } from "./use-calendar-deep-link";
 
 type EventDetailsDialogProps = {
@@ -60,7 +60,10 @@ function formatTime(date: Date, tz: string): string {
 }
 
 // One compact, locale-formatted line for an occurrence that ends on a
-// later day, e.g. "Sa., 12. Sept. 2026, 12:00 – Mo., 14. Sept. 2026, 14:00"
+// later day, e.g. "Sa., 12. Sept. 2026, 12:00 – Mo., 14. Sept. 2026, 14:00".
+// ICU versions differ in the spaces they put around the dash (Node uses
+// thin spaces, browsers regular ones), which would break hydration of the
+// server-rendered card; normalized to plain spaces
 function formatDateTimeRange(start: Date, end: Date, tz: string): string {
     return new Intl.DateTimeFormat("de-DE", {
         weekday: "short",
@@ -70,7 +73,9 @@ function formatDateTimeRange(start: Date, end: Date, tz: string): string {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: tz,
-    }).formatRange(start, end);
+    })
+        .formatRange(start, end)
+        .replace(/[\u2009\u202f\u00a0]/g, " ");
 }
 
 function formatDateTime(date: Date, tz: string): string {
@@ -187,18 +192,50 @@ function getStatusBadge(status: EventStatus, isDraft: boolean) {
     return badges;
 }
 
-function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
+/** Event type, status and visibility badges of an occurrence */
+export function OccurrenceBadges({ occurrence }: { occurrence: Occurrence }) {
+    return (
+        <div className="flex items-center gap-2">
+            {occurrence.eventType && (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                    {occurrence.eventType.color && (
+                        <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                                backgroundColor: occurrence.eventType.color,
+                            }}
+                        />
+                    )}
+                    <span>{occurrence.eventType.name}</span>
+                </div>
+            )}
+            {getStatusBadge(occurrence.status, occurrence.isDraft)}
+            {occurrence.isInternal && <Badge variant="outline">Internal</Badge>}
+        </div>
+    );
+}
+
+type OccurrenceContentProps = {
+    occurrence: Occurrence;
+    canEdit: boolean;
+    /** The action row (copy link, close, edit); off for the no-JS card */
+    showActions?: boolean;
+};
+
+/** The body of the details: when, description, links, location, notes */
+export function OccurrenceContent({
+    occurrence,
+    canEdit,
+    showActions = true,
+}: OccurrenceContentProps) {
     const tz = useAppTimezone();
     const store = useCalendarDialogStore();
-    const occurrence = store.occurrence;
 
     // Fetch full event data for single events to show creator info
     const { data: eventData } = useQuery({
-        ...eventsQueries.getById(occurrence?.eventId ?? ""),
-        enabled: !!occurrence && !occurrence.isRecurring,
+        ...eventsQueries.getById(occurrence.eventId),
+        enabled: !occurrence.isRecurring,
     });
-
-    if (!occurrence) return null;
 
     const displayEnd = effectiveEnd(occurrence);
     // An end on a later day (in the app timezone) gets its own date line;
@@ -356,18 +393,20 @@ function OccurrenceContent({ canEdit }: { canEdit: boolean }) {
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-2 border-t pt-4">
-                <CopyLinkButton
-                    eventId={occurrence.eventId}
-                    occurrenceDate={occurrence.occurrenceDate}
-                />
-                <Button onClick={() => store.close()} variant="outline">
-                    Close
-                </Button>
-                {canEdit && (
-                    <Button onClick={() => store.openEdit()}>Edit</Button>
-                )}
-            </div>
+            {showActions && (
+                <div className="flex justify-end gap-2 border-t pt-4">
+                    <CopyLinkButton
+                        eventId={occurrence.eventId}
+                        occurrenceDate={occurrence.occurrenceDate}
+                    />
+                    <Button onClick={() => store.close()} variant="outline">
+                        Close
+                    </Button>
+                    {canEdit && (
+                        <Button onClick={() => store.openEdit()}>Edit</Button>
+                    )}
+                </div>
+            )}
         </>
     );
 }
@@ -637,38 +676,14 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                                 <DialogTitle className="text-xl">
                                     {occurrence.summary}
                                 </DialogTitle>
-                                <div className="flex items-center gap-2">
-                                    {occurrence.eventType && (
-                                        <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                                            {occurrence.eventType.color && (
-                                                <span
-                                                    className="h-2.5 w-2.5 rounded-full"
-                                                    style={{
-                                                        backgroundColor:
-                                                            occurrence.eventType
-                                                                .color,
-                                                    }}
-                                                />
-                                            )}
-                                            <span>
-                                                {occurrence.eventType.name}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {getStatusBadge(
-                                        occurrence.status,
-                                        occurrence.isDraft,
-                                    )}
-                                    {occurrence.isInternal && (
-                                        <Badge variant="outline">
-                                            Internal
-                                        </Badge>
-                                    )}
-                                </div>
+                                <OccurrenceBadges occurrence={occurrence} />
                             </div>
                         </div>
                     </DialogHeader>
-                    <OccurrenceContent canEdit={canEdit} />
+                    <OccurrenceContent
+                        canEdit={canEdit}
+                        occurrence={occurrence}
+                    />
                 </DialogContent>
             </Dialog>
         );
@@ -690,30 +705,7 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                             <DialogTitle className="text-xl">
                                 {occurrence.summary}
                             </DialogTitle>
-                            <div className="flex items-center gap-2">
-                                {occurrence.eventType && (
-                                    <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                                        {occurrence.eventType.color && (
-                                            <span
-                                                className="h-2.5 w-2.5 rounded-full"
-                                                style={{
-                                                    backgroundColor:
-                                                        occurrence.eventType
-                                                            .color,
-                                                }}
-                                            />
-                                        )}
-                                        <span>{occurrence.eventType.name}</span>
-                                    </div>
-                                )}
-                                {getStatusBadge(
-                                    occurrence.status,
-                                    occurrence.isDraft,
-                                )}
-                                {occurrence.isInternal && (
-                                    <Badge variant="outline">Internal</Badge>
-                                )}
-                            </div>
+                            <OccurrenceBadges occurrence={occurrence} />
                         </div>
                     </div>
                 </DialogHeader>
@@ -729,7 +721,10 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                     </TabsList>
 
                     <TabsContent value="occurrence">
-                        <OccurrenceContent canEdit={canEdit} />
+                        <OccurrenceContent
+                            canEdit={canEdit}
+                            occurrence={occurrence}
+                        />
                     </TabsContent>
 
                     <TabsContent value="series">
