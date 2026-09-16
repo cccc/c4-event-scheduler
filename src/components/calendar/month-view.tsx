@@ -252,8 +252,12 @@ function useMonthViewContext(): MonthViewContextValue {
 type ViewProps = ComponentProps<ViewComponentType>;
 
 // FullCalendar calls the view's component as a plain render function (from
-// a class component), so hooks are only allowed one level down
-export const MonthView: ViewComponentType = (props) => <MonthGrid {...props} />;
+// a class component), so hooks are only allowed one level down. That
+// includes the React Compiler's memo cache, hence "use no memo"
+export const MonthView: ViewComponentType = (props) => {
+    "use no memo";
+    return <MonthGrid {...props} />;
+};
 
 function MonthGrid(props: ViewProps) {
     const { tz, occurrences } = useMonthViewContext();

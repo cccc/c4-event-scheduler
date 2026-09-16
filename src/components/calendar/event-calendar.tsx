@@ -8,6 +8,7 @@
 //   - multi-month plugin and view removed
 //   - addButton.click typed as a React MouseEventHandler (drops the `as any` in the toolbar)
 //   - `fallbackTitle` and `toolbarLinks` props passed to the toolbar
+//   - "use no memo": opted out of the React Compiler (mutable controller)
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import {
@@ -78,6 +79,9 @@ export function EventCalendar({
     plugins: userPlugins = [],
     ...restOptions
 }: EventCalendarProps) {
+    // c4: the controller is mutated in place, so a memoized toolbar element
+    // (same controller reference) would not re-render on navigation
+    "use no memo";
     const ownController = useCalendarController();
     const controller = userController ?? ownController; // c4
 

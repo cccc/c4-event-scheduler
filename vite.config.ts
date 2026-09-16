@@ -1,7 +1,8 @@
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -24,5 +25,7 @@ export default defineConfig({
         tanstackStart(),
         // react's vite plugin must come after start's vite plugin
         viteReact(),
+        // React Compiler, set up like the TanStack Start template's add-on
+        babel({ presets: [reactCompilerPreset()] }),
     ],
 });

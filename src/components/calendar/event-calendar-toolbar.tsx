@@ -11,6 +11,7 @@
 //     JavaScript, the caller handles client-side navigation in onClick)
 //   - the view switcher is `script-only` (views other than the first need
 //     JavaScript)
+//   - "use no memo": opted out of the React Compiler, see below
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
 import type { CalendarController } from "@fullcalendar/react";
@@ -64,6 +65,10 @@ export function EventCalendarToolbar({
     toolbarLinks, // c4
     addButton,
 }: EventCalendarToolbarProps) {
+    // c4: the controller is one object mutated in place (useCalendarController
+    // re-renders with the same reference), so compiler memoization keyed on
+    // it would keep a stale title, view and button state
+    "use no memo";
     const buttons = controller.getButtonState();
     const text = (
         key: string, // c4

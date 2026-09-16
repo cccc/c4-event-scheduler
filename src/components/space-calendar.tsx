@@ -107,6 +107,10 @@ function toCalendarEvent(occ: Occurrence, href: string): EventInput {
 }
 
 export function SpaceCalendar({ space }: { space: Space }) {
+    // Not compiled: useCalendarController returns the same object on every
+    // render and mutates it, so memoization keyed on it would keep the
+    // toolbar (title, month links) on a stale view
+    "use no memo";
     const tz = useAppTimezone();
     // The session comes from the root context so the server render and the
     // hydration render agree; appUrl makes the feed URL absolute (webcal:)
