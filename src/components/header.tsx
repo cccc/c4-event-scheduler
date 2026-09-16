@@ -1,7 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+    Link,
+    type LinkProps,
+    useNavigate,
+    useRouter,
+} from "@tanstack/react-router";
 import { ChevronDown, LogOut, Settings, User } from "lucide-react";
 
+import {
+    ADMIN_MENU,
+    INTEGRATIONS_MENU,
+    type NavMenuItem,
+    NavMenuLink,
+} from "@/components/nav-menus";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -20,6 +31,47 @@ type HeaderProps = {
     } | null;
     isAdmin?: boolean;
 };
+
+/**
+ * A dropdown of links. Dropdowns need JavaScript, so without it the trigger
+ * is a link to `to`, a page listing the same entries.
+ */
+function HeaderMenu({
+    label,
+    to,
+    items,
+}: {
+    label: string;
+    to: LinkProps["to"];
+    items: NavMenuItem[];
+}) {
+    return (
+        <>
+            <span className="noscript-only">
+                <Button asChild variant="ghost">
+                    <Link to={to}>{label}</Link>
+                </Button>
+            </span>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button className="script-only" variant="ghost">
+                        {label}
+                        <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {items.map((item) => (
+                        <DropdownMenuItem asChild key={item.label}>
+                            <NavMenuLink className="cursor-pointer" item={item}>
+                                {item.label}
+                            </NavMenuLink>
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </>
+    );
+}
 
 export function Header({ user, isAdmin }: HeaderProps) {
     const router = useRouter();
@@ -49,69 +101,36 @@ export function Header({ user, isAdmin }: HeaderProps) {
                     <Button asChild variant="ghost">
                         <Link to="/event-types">Event Types</Link>
                     </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost">
-                                Integrations
-                                <ChevronDown className="ml-1 h-3 w-3" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                                <Link className="cursor-pointer" to="/feeds">
-                                    iCal Feeds
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link className="cursor-pointer" to="/widget">
-                                    Widget API
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <a
-                                    className="cursor-pointer"
-                                    href="/api/v1/docs"
-                                    rel="noreferrer"
-                                    target="_blank"
-                                >
-                                    REST API Docs
-                                </a>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
+                    <HeaderMenu
+                        items={INTEGRATIONS_MENU}
+                        label="Integrations"
+                        to="/integrations"
+                    />
                     {isAdmin && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost">
-                                    Admin
-                                    <ChevronDown className="ml-1 h-3 w-3" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                    <Link
-                                        className="cursor-pointer"
-                                        to="/admin/users"
-                                    >
-                                        Users
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                    <Link
-                                        className="cursor-pointer"
-                                        to="/admin/api-keys"
-                                    >
-                                        API Keys
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <HeaderMenu
+                            items={ADMIN_MENU}
+                            label="Admin"
+                            to="/admin"
+                        />
                     )}
                     {user ? (
                         <DropdownMenu>
+                            {/* Without JavaScript: straight to the account
+                                page (signing out needs scripts anyway) */}
+                            <span className="noscript-only">
+                                <Button asChild size="sm" variant="outline">
+                                    <Link to="/account">
+                                        <User className="mr-2 h-4 w-4" />
+                                        {user.name || user.email}
+                                    </Link>
+                                </Button>
+                            </span>
                             <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="outline">
+                                <Button
+                                    className="script-only"
+                                    size="sm"
+                                    variant="outline"
+                                >
                                     <User className="mr-2 h-4 w-4" />
                                     {user.name || user.email}
                                 </Button>
