@@ -149,10 +149,17 @@ export function SubscribeMenu({
                             </DropdownMenuLabel>
                             {internalUrl ? (
                                 <>
-                                    <DropdownMenuItem asChild>
-                                        <a href={toWebcal(internalUrl)}>
-                                            Open in calendar app
-                                        </a>
+                                    {/* Not a link: a link shows its URL (and
+                                        so the token) in the status bar on
+                                        hover. "Copy feed URL" covers what the
+                                        link's context menu would offer */}
+                                    <DropdownMenuItem
+                                        onSelect={() => {
+                                            window.location.href =
+                                                toWebcal(internalUrl);
+                                        }}
+                                    >
+                                        Open in calendar app
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         onClick={() => copyUrl(internalUrl)}
