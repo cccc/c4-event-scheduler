@@ -15,6 +15,9 @@ import {
 import { feedTokenKeys, feedTokenQueries } from "@/lib/queries/feed-token";
 import { regenerateFeedToken } from "@/server/fns/feed-token";
 
+const NO_JS_TOKEN_HINT =
+    "Copying internal feed URLs, which carry your feed token, is not available without JavaScript";
+
 /** Append the feed token so the feed includes internal events */
 export function withFeedToken(url: string, token: string): string {
     const sep = url.includes("?") ? "&" : "?";
@@ -95,10 +98,24 @@ export function SubscribeMenu({
     return (
         <>
             {/* Without JavaScript the menu cannot open: a plain link to the
-                public feed file instead (nothing to offer for internal-only
-                feeds, those need the token) */}
-            {!internal && (
-                <span className="noscript-only">
+                public feed file instead. Internal-only feeds need the feed
+                token, which only the menu adds, so they get a disabled button
+                that says why */}
+            <span className="noscript-only">
+                {internal ? (
+                    // The title sits on a wrapper: disabled buttons get no
+                    // pointer events, so their own title never shows
+                    <span className="inline-flex" title={NO_JS_TOKEN_HINT}>
+                        <Button
+                            disabled
+                            size="sm"
+                            variant={compact ? "ghost" : "outline"}
+                        >
+                            <CalendarPlus />
+                            Subscribe
+                        </Button>
+                    </span>
+                ) : (
                     <Button
                         asChild
                         size="sm"
@@ -109,8 +126,8 @@ export function SubscribeMenu({
                             Subscribe
                         </a>
                     </Button>
-                </span>
-            )}
+                )}
+            </span>
             <DropdownMenu onOpenChange={ensureToken}>
                 <DropdownMenuTrigger asChild>
                     <Button
