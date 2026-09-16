@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 export const Route = createFileRoute("/_main/widget")({
+    // Prefetch so the per-space examples render on the server
+    loader: ({ context }) =>
+        context.queryClient.ensureQueryData(
+            spacesQueries.list({ includePrivate: false }),
+        ),
     component: WidgetPage,
 });
 
 function WidgetPage() {
-    const { data: spaces } = useQuery(
+    const { data: spaces } = useSuspenseQuery(
         spacesQueries.list({ includePrivate: false }),
     );
     const { appUrl } = Route.useRouteContext();
@@ -171,7 +176,7 @@ function WidgetPage() {
                         Example: Filtered by Space
                     </summary>
                     <div className="space-y-2 border-t p-4">
-                        {spaces?.map((space) => (
+                        {spaces.map((space) => (
                             <div
                                 className="flex items-center justify-between rounded border p-2"
                                 key={space.id}
