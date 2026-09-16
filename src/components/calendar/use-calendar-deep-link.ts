@@ -128,11 +128,15 @@ export function useCalendarDeepLink({
             }),
         [navigate],
     );
+    // Closing is a view transition: the dialog unmounts right away and the
+    // browser animates its last frame out (the dialog rules in globals.css).
+    // Without support it just closes
     const closeOccurrence = useCallback(
         () =>
             navigate({
                 search: (prev) => ({ ...prev, event: undefined }),
                 replace: true,
+                viewTransition: true,
             }),
         [navigate],
     );

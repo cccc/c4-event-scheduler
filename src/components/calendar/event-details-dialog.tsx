@@ -658,25 +658,33 @@ function SeriesInfoContent({
     );
 }
 
+/**
+ * Rendered only while an occurrence is linked. It closes by removing the
+ * link in a view transition (closeOccurrence), which animates the last
+ * frame out, so nothing has to stay mounted after closing. Keyed by the
+ * occurrence so every occurrence starts on its own first tab
+ */
 export function EventDetailsDialog({
+    occurrence,
+    ...props
+}: EventDetailsDialogProps) {
+    if (!occurrence) return null;
+    return (
+        <OpenEventDetailsDialog
+            key={occurrence.id}
+            occurrence={occurrence}
+            {...props}
+        />
+    );
+}
+
+function OpenEventDetailsDialog({
     canEdit,
-    occurrence: linked,
+    occurrence,
     onClose,
     onEdit,
-}: EventDetailsDialogProps) {
-    // The last occurrence stays rendered after the link is gone, so the
-    // dialog can animate out with its content
-    const [shown, setShown] = useState(linked);
+}: EventDetailsDialogProps & { occurrence: Occurrence }) {
     const [activeTab, setActiveTab] = useState("occurrence");
-    if (linked && linked !== shown) {
-        // Another occurrence starts on its own tab
-        if (linked.id !== shown?.id) setActiveTab("occurrence");
-        setShown(linked);
-    }
-    const occurrence = linked ?? shown;
-    if (!occurrence) return null;
-
-    const isOpen = linked !== null;
     const onOpenChange = (open: boolean) => {
         if (!open) onClose();
     };
@@ -688,7 +696,7 @@ export function EventDetailsDialog({
     // Single events: flat view (no tabs)
     if (!occurrence.isRecurring) {
         return (
-            <Dialog onOpenChange={onOpenChange} open={isOpen}>
+            <Dialog onOpenChange={onOpenChange} open>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <div className="flex items-start justify-between gap-4">
@@ -712,7 +720,7 @@ export function EventDetailsDialog({
 
     // Recurring events: tabbed view
     return (
-        <Dialog onOpenChange={onOpenChange} open={isOpen}>
+        <Dialog onOpenChange={onOpenChange} open>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <div className="flex items-start justify-between gap-4">
