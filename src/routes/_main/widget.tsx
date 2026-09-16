@@ -1,8 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { CopyUrlButton } from "@/components/copy-url-button";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 export const Route = createFileRoute("/_main/widget")({
@@ -19,11 +18,6 @@ function WidgetPage() {
         spacesQueries.list({ includePrivate: false }),
     );
     const { appUrl } = Route.useRouteContext();
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard");
-    };
 
     return (
         <>
@@ -44,15 +38,7 @@ function WidgetPage() {
                                 {appUrl}/api/widget/upcoming
                             </code>
                         </div>
-                        <Button
-                            onClick={() =>
-                                copyToClipboard(`${appUrl}/api/widget/upcoming`)
-                            }
-                            size="sm"
-                            variant="outline"
-                        >
-                            Copy URL
-                        </Button>
+                        <CopyUrlButton url={`${appUrl}/api/widget/upcoming`} />
                     </div>
                     <p className="text-muted-foreground text-sm">
                         Returns JSON data for programmatic use.
@@ -69,17 +55,9 @@ function WidgetPage() {
                                 {appUrl}/api/widget/upcoming?format=html
                             </code>
                         </div>
-                        <Button
-                            onClick={() =>
-                                copyToClipboard(
-                                    `${appUrl}/api/widget/upcoming?format=html`,
-                                )
-                            }
-                            size="sm"
-                            variant="outline"
-                        >
-                            Copy URL
-                        </Button>
+                        <CopyUrlButton
+                            url={`${appUrl}/api/widget/upcoming?format=html`}
+                        />
                     </div>
                     <p className="text-muted-foreground text-sm">
                         Returns a styled HTML page suitable for iframe
@@ -188,17 +166,10 @@ function WidgetPage() {
                                         {space.slug}
                                     </code>
                                 </div>
-                                <Button
-                                    onClick={() =>
-                                        copyToClipboard(
-                                            `${appUrl}/api/widget/upcoming?space=${space.slug}`,
-                                        )
-                                    }
-                                    size="sm"
-                                    variant="ghost"
-                                >
-                                    Copy
-                                </Button>
+                                <CopyUrlButton
+                                    compact
+                                    url={`${appUrl}/api/widget/upcoming?space=${space.slug}`}
+                                />
                             </div>
                         ))}
                     </div>

@@ -1,0 +1,43 @@
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+
+/**
+ * Copies a URL to the clipboard. Copying needs JavaScript, so without it
+ * the button is a link that opens the URL instead (in a new tab).
+ * `compact` is the lighter variant for dense lists.
+ */
+export function CopyUrlButton({
+    url,
+    compact,
+}: {
+    url: string;
+    compact?: boolean;
+}) {
+    const variant = compact ? "ghost" : "outline";
+
+    const copy = async () => {
+        await navigator.clipboard.writeText(url);
+        toast.success("Copied to clipboard");
+    };
+
+    return (
+        <>
+            <span className="noscript-only">
+                <Button asChild size="sm" variant={variant}>
+                    <a href={url} rel="noreferrer" target="_blank">
+                        Open URL
+                    </a>
+                </Button>
+            </span>
+            <Button
+                className="script-only"
+                onClick={copy}
+                size="sm"
+                variant={variant}
+            >
+                Copy URL
+            </Button>
+        </>
+    );
+}
