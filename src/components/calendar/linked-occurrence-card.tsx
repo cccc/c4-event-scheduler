@@ -34,11 +34,7 @@ export function LinkedOccurrenceCard({
                     </h2>
                     <OccurrenceBadges occurrence={occurrence} />
                 </div>
-                <OccurrenceContent
-                    canEdit={false}
-                    occurrence={occurrence}
-                    showActions={false}
-                />
+                <OccurrenceContent canEdit={false} occurrence={occurrence} />
             </section>
         </div>
     );

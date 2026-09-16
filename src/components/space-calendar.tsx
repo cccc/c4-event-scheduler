@@ -117,7 +117,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
     const isLoggedIn = !!session?.user;
     const feedUrl = `${appUrl}/api/cal/${space.slug}.ics`;
     const controller = useCalendarController();
-    const { openCreate, openDetails } = useCalendarDialogStore();
+    const { openCreate, openEdit } = useCalendarDialogStore();
     const router = useRouter();
 
     // Track the visible date range for fetching events. The initial range
@@ -142,7 +142,13 @@ export function SpaceCalendar({ space }: { space: Space }) {
         }),
     );
 
-    useCalendarDeepLink({ controller, linkedDate, dateRange, occurrences });
+    const { linkedOccurrence, openOccurrence, closeOccurrence } =
+        useCalendarDeepLink({
+            controller,
+            linkedDate,
+            dateRange,
+            occurrences,
+        });
 
     // Deep link of an occurrence (see the route's search schema); the same
     // link the details dialog copies
@@ -210,10 +216,10 @@ export function SpaceCalendar({ space }: { space: Space }) {
             e.preventDefault();
             const occ = occurrenceById.get(info.event.id);
             if (occ) {
-                openDetails(occ);
+                openOccurrence(occ);
             }
         },
-        [occurrenceById, openDetails],
+        [occurrenceById, openOccurrence],
     );
 
     // Toolbar navigation: real links to ?month= so it works without
@@ -262,7 +268,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
             occurrences: occurrenceById,
             canCreate: isLoggedIn,
             onDayClick: openCreate,
-            onEventClick: openDetails,
+            onEventClick: openOccurrence,
             occurrenceHref,
         }),
         [
@@ -270,7 +276,7 @@ export function SpaceCalendar({ space }: { space: Space }) {
             occurrenceById,
             isLoggedIn,
             openCreate,
-            openDetails,
+            openOccurrence,
             occurrenceHref,
         ],
     );
@@ -360,7 +366,15 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
             <CreateEventDialog eventTypes={eventTypes ?? []} space={space} />
 
-            <EventDetailsDialog canEdit={isLoggedIn} />
+            <EventDetailsDialog
+                canEdit={isLoggedIn}
+                occurrence={linkedOccurrence}
+                onClose={closeOccurrence}
+                onEdit={(occ, editTab) => {
+                    closeOccurrence();
+                    openEdit(occ, editTab);
+                }}
+            />
 
             <EditEventDialog />
         </>

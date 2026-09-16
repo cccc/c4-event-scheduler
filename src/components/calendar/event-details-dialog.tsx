@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEventLink } from "@/lib/event-link";
 import { eventsKeys, eventsQueries } from "@/lib/queries/events";
-import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
+import type { EditTab } from "@/lib/stores/calendar-dialog-store";
 import {
     removeExdate as removeExdateFn,
     removeOverride as removeOverrideFn,
@@ -40,6 +40,11 @@ import { spaceRoute } from "./use-calendar-deep-link";
 
 type EventDetailsDialogProps = {
     canEdit: boolean;
+    /** The linked occurrence (?event=); null closes the dialog */
+    occurrence: Occurrence | null;
+    onClose: () => void;
+    /** Leaves the details for the edit dialog */
+    onEdit: (occurrence: Occurrence, editTab?: EditTab) => void;
 };
 
 function formatDate(date: Date, tz: string): string {
@@ -218,18 +223,17 @@ export function OccurrenceBadges({ occurrence }: { occurrence: Occurrence }) {
 type OccurrenceContentProps = {
     occurrence: Occurrence;
     canEdit: boolean;
-    /** The action row (copy link, close, edit); off for the no-JS card */
-    showActions?: boolean;
+    /** The action row (copy link, close, edit); left out for the no-JS card */
+    actions?: { onClose: () => void; onEdit: () => void };
 };
 
 /** The body of the details: when, description, links, location, notes */
 export function OccurrenceContent({
     occurrence,
     canEdit,
-    showActions = true,
+    actions,
 }: OccurrenceContentProps) {
     const tz = useAppTimezone();
-    const store = useCalendarDialogStore();
 
     // Fetch full event data for single events to show creator info
     const { data: eventData } = useQuery({
@@ -393,18 +397,16 @@ export function OccurrenceContent({
             </div>
 
             {/* Actions */}
-            {showActions && (
+            {actions && (
                 <div className="flex justify-end gap-2 border-t pt-4">
                     <CopyLinkButton
                         eventId={occurrence.eventId}
                         occurrenceDate={occurrence.occurrenceDate}
                     />
-                    <Button onClick={() => store.close()} variant="outline">
+                    <Button onClick={actions.onClose} variant="outline">
                         Close
                     </Button>
-                    {canEdit && (
-                        <Button onClick={() => store.openEdit()}>Edit</Button>
-                    )}
+                    {canEdit && <Button onClick={actions.onEdit}>Edit</Button>}
                 </div>
             )}
         </>
@@ -656,19 +658,37 @@ function SeriesInfoContent({
     );
 }
 
-export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
-    const store = useCalendarDialogStore();
+export function EventDetailsDialog({
+    canEdit,
+    occurrence: linked,
+    onClose,
+    onEdit,
+}: EventDetailsDialogProps) {
+    // The last occurrence stays rendered after the link is gone, so the
+    // dialog can animate out with its content
+    const [shown, setShown] = useState(linked);
     const [activeTab, setActiveTab] = useState("occurrence");
-
-    const isOpen = store.activeDialog === "details";
-    const occurrence = store.occurrence;
-
+    if (linked && linked !== shown) {
+        // Another occurrence starts on its own tab
+        if (linked.id !== shown?.id) setActiveTab("occurrence");
+        setShown(linked);
+    }
+    const occurrence = linked ?? shown;
     if (!occurrence) return null;
+
+    const isOpen = linked !== null;
+    const onOpenChange = (open: boolean) => {
+        if (!open) onClose();
+    };
+    const actions = {
+        onClose,
+        onEdit: () => onEdit(occurrence),
+    };
 
     // Single events: flat view (no tabs)
     if (!occurrence.isRecurring) {
         return (
-            <Dialog onOpenChange={() => store.close()} open={isOpen}>
+            <Dialog onOpenChange={onOpenChange} open={isOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <div className="flex items-start justify-between gap-4">
@@ -681,6 +701,7 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                         </div>
                     </DialogHeader>
                     <OccurrenceContent
+                        actions={actions}
                         canEdit={canEdit}
                         occurrence={occurrence}
                     />
@@ -691,13 +712,7 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 
     // Recurring events: tabbed view
     return (
-        <Dialog
-            onOpenChange={() => {
-                store.close();
-                setActiveTab("occurrence");
-            }}
-            open={isOpen}
-        >
+        <Dialog onOpenChange={onOpenChange} open={isOpen}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <div className="flex items-start justify-between gap-4">
@@ -722,6 +737,7 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
 
                     <TabsContent value="occurrence">
                         <OccurrenceContent
+                            actions={actions}
                             canEdit={canEdit}
                             occurrence={occurrence}
                         />
@@ -737,17 +753,12 @@ export function EventDetailsDialog({ canEdit }: EventDetailsDialogProps) {
                                 eventId={occurrence.eventId}
                                 occurrenceDate={occurrence.occurrenceDate}
                             />
-                            <Button
-                                onClick={() => store.close()}
-                                variant="outline"
-                            >
+                            <Button onClick={onClose} variant="outline">
                                 Close
                             </Button>
                             {canEdit && (
                                 <Button
-                                    onClick={() =>
-                                        store.openEdit(undefined, "whole")
-                                    }
+                                    onClick={() => onEdit(occurrence, "whole")}
                                 >
                                     Edit Series
                                 </Button>

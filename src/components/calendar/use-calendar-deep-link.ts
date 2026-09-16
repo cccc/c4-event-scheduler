@@ -2,12 +2,15 @@ import type { CalendarController } from "@fullcalendar/react";
 import { getRouteApi } from "@tanstack/react-router";
 import { isValid } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { useAppTimezone } from "@/components/timezone-provider";
-import { linkedOccurrenceId, parseEventLink } from "@/lib/event-link";
-import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
+import {
+    formatEventLink,
+    linkedOccurrenceId,
+    parseEventLink,
+} from "@/lib/event-link";
 
 import type { Occurrence } from "./types";
 
@@ -55,12 +58,13 @@ type DeepLinkArgs = {
 };
 
 /**
- * Applies the space route's deep link params (see its search schema): moves
- * the calendar to the linked occurrence's date and opens its details once
- * its range is loaded. Closing the dialog drops ?event= from the URL so a
- * reload stays closed. A link to a whole event was already resolved to an
- * occurrence by the route loader; if one is left, the event does not exist
- * or is not visible.
+ * The details dialog's state is the space route's ?event= (see its search
+ * schema): the linked occurrence, once loaded, is the one the dialog shows.
+ * Opening an occurrence sets the link, closing removes it. A link the
+ * calendar does not show yet (from outside, e.g. to another month) moves
+ * the calendar to its date first. A link to a whole event was already
+ * resolved to an occurrence by the route loader; if one is left, the event
+ * does not exist or is not visible.
  */
 export function useCalendarDeepLink({
     controller,
@@ -70,61 +74,68 @@ export function useCalendarDeepLink({
 }: DeepLinkArgs) {
     const search = spaceRoute.useSearch();
     const navigate = spaceRoute.useNavigate();
-    const { activeDialog, openDetails } = useCalendarDialogStore();
     const link = parseEventLink(search.event);
-
-    // Follow link changes after mount (initialDate only applies once)
-    useEffect(() => {
-        if (linkedDate) {
-            controller.gotoDate(linkedDate);
-        }
-    }, [linkedDate, controller]);
-
-    const unresolvedEvent = link && !link.occurrenceDate;
-    useEffect(() => {
-        if (!unresolvedEvent) return;
-        toast.error("Linked event not found");
-        navigate({
-            search: (prev) => ({ ...prev, event: undefined }),
-            replace: true,
-        });
-    }, [unresolvedEvent, navigate]);
-
-    // Open the occurrence's details once it is loaded. Remembers the handled
-    // link so closing the dialog does not reopen it.
-    const handledLink = useRef<string | null>(null);
     const linkKey = linkedOccurrenceId(link);
-    // Only judge the link against occurrences of the range that contains it
-    // (after gotoDate the previous range's data is still around briefly)
+    const linkedOccurrence =
+        (linkKey && occurrences?.find((o) => o.id === linkKey)) || null;
+
+    // Once per linked date: move there unless the occurrence is loaded
+    // already (a clicked occurrence always is, even one whose date lies
+    // outside the view, like a multi-day event from the previous month).
+    // initialDate covers the first render
+    const isLoaded = linkedOccurrence !== null;
+    const followedDate = useRef(linkedDate?.getTime() ?? null);
+    useEffect(() => {
+        const time = linkedDate?.getTime() ?? null;
+        if (time === followedDate.current) return;
+        followedDate.current = time;
+        if (linkedDate && !isLoaded) controller.gotoDate(linkedDate);
+    }, [linkedDate, isLoaded, controller]);
+
+    // Links that lead nowhere: the event is unknown or hidden, or it has no
+    // occurrence on that date. Judged only once the range containing the
+    // date is loaded (occurrences are undefined while a range loads)
+    const unresolvedEvent = !!link && !link.occurrenceDate;
     const rangeCoversLink =
         !!linkedDate &&
         linkedDate >= dateRange.start &&
         linkedDate < dateRange.end;
+    const missingOccurrence =
+        !!linkKey && !!occurrences && rangeCoversLink && !isLoaded;
     useEffect(() => {
-        if (!linkKey || !occurrences || !rangeCoversLink) return;
-        if (handledLink.current === linkKey) {
-            if (activeDialog === null) {
-                handledLink.current = null;
-                navigate({
-                    search: (prev) => ({ ...prev, event: undefined }),
-                    replace: true,
-                });
-            }
-            return;
-        }
-        handledLink.current = linkKey;
-        const occ = occurrences.find((o) => o.id === linkKey);
-        if (occ) {
-            openDetails(occ);
-        } else {
-            toast.error("Linked event not found on that date");
-        }
-    }, [
-        linkKey,
-        occurrences,
-        rangeCoversLink,
-        activeDialog,
-        openDetails,
-        navigate,
-    ]);
+        if (!unresolvedEvent && !missingOccurrence) return;
+        toast.error(
+            unresolvedEvent
+                ? "Linked event not found"
+                : "Linked event not found on that date",
+        );
+        navigate({
+            search: (prev) => ({ ...prev, event: undefined }),
+            replace: true,
+        });
+    }, [unresolvedEvent, missingOccurrence, navigate]);
+
+    // Both replace the history entry: no history step per dialog.
+    // Opening drops ?month= too: it is the no-JS toolbar's and may be stale
+    // by now, and once the link is removed it would move the calendar back
+    const openOccurrence = useCallback(
+        (occ: Occurrence) =>
+            navigate({
+                search: {
+                    event: formatEventLink(occ.eventId, occ.occurrenceDate),
+                },
+                replace: true,
+            }),
+        [navigate],
+    );
+    const closeOccurrence = useCallback(
+        () =>
+            navigate({
+                search: (prev) => ({ ...prev, event: undefined }),
+                replace: true,
+            }),
+        [navigate],
+    );
+
+    return { linkedOccurrence, openOccurrence, closeOccurrence };
 }
