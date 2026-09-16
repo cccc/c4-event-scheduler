@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+import { SecretInput } from "@/components/secret-input";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -35,12 +36,6 @@ export function FeedTokenCard() {
         if (feedToken === null && !creating) createToken();
     }, [feedToken, creating, createToken]);
 
-    const copy = async () => {
-        if (!feedToken) return;
-        await navigator.clipboard.writeText(feedToken.token);
-        toast.success("Feed token copied");
-    };
-
     return (
         <Card>
             <CardHeader>
@@ -56,17 +51,12 @@ export function FeedTokenCard() {
             </CardHeader>
             <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                    <code className="break-all rounded bg-muted px-2 py-1 text-sm">
-                        {feedToken?.token ?? "…"}
-                    </code>
-                    <Button
-                        disabled={!feedToken}
-                        onClick={copy}
-                        size="sm"
-                        variant="outline"
-                    >
-                        Copy
-                    </Button>
+                    <SecretInput
+                        className="flex-1"
+                        label="Feed token"
+                        prefix="c4f_"
+                        value={feedToken?.token}
+                    />
                     <Button
                         disabled={!feedToken || regenerate.isPending}
                         onClick={() => {
