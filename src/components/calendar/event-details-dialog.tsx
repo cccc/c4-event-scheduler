@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatEventLink } from "@/lib/event-link";
 import { eventsKeys, eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import {
@@ -141,8 +142,7 @@ function CopyLinkButton({
     const { slug } = spaceRoute.useParams();
     const copy = async () => {
         const params = new URLSearchParams({
-            date: occurrenceDate,
-            event: eventId,
+            event: formatEventLink(eventId, occurrenceDate),
         });
         await navigator.clipboard.writeText(
             `${appUrl}/spaces/${slug}?${params}`,

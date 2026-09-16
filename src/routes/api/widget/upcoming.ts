@@ -3,6 +3,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 
 import { env } from "@/env";
+import { formatEventLink } from "@/lib/event-link";
 import { expandRruleInTimezone, formatOccurrenceDate } from "@/lib/rrule-utils";
 import { db } from "@/server/db";
 import { event, space } from "@/server/db/schema";
@@ -159,7 +160,7 @@ async function GET(request: Request) {
 
     for (const evt of events) {
         const calendarUrl = (occDate: string) =>
-            `${env.APP_URL}/spaces/${evt.space.slug}?date=${occDate}&event=${evt.id}`;
+            `${env.APP_URL}/spaces/${evt.space.slug}?event=${formatEventLink(evt.id, occDate)}`;
 
         // Parse exdates for recurring events
         const exdatesSet = new Set(evt.exdates ?? []);

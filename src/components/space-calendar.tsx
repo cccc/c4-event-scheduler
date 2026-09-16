@@ -39,6 +39,7 @@ import {
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
+import { formatEventLink } from "@/lib/event-link";
 import { eventTypesQueries } from "@/lib/queries/event-types";
 import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
@@ -63,18 +64,16 @@ const BUTTONS = { month: { text: "Month", hint: "Month view" } };
 
 /**
  * The query the calendar reads first: the occurrences of the month it opens
- * on (from ?date= / ?month=, else today). The space route's loader ensures
+ * on (the linked occurrence's or ?month=, else today). The space route's loader ensures
  * it (TanStack's loader + queryOptions pattern), so the server render has
  * the events; the component computes the same range for its initial state.
  */
 export function spaceCalendarInitialQuery(opts: {
     timezone: string;
     spaceId: string;
-    search: { date?: string; month?: string };
+    search: { event?: string; month?: string };
 }) {
-    const base =
-        parseSearchDate(opts.search.date, opts.search.month, opts.timezone) ??
-        new Date();
+    const base = parseSearchDate(opts.search, opts.timezone) ?? new Date();
     const range = initialCalendarRange(base, opts.timezone);
     return eventsQueries.getOccurrences({ spaceId: opts.spaceId, ...range });
 }
@@ -152,7 +151,9 @@ export function SpaceCalendar({ space }: { space: Space }) {
             router.buildLocation({
                 to: "/spaces/$slug",
                 params: { slug: space.slug },
-                search: { date: occ.occurrenceDate, event: occ.eventId },
+                search: {
+                    event: formatEventLink(occ.eventId, occ.occurrenceDate),
+                },
             }).href,
         [router, space.slug],
     );

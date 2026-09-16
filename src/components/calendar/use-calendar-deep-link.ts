@@ -1,5 +1,4 @@
 import type { CalendarController } from "@fullcalendar/react";
-import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { isValid } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
@@ -7,8 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { useAppTimezone } from "@/components/timezone-provider";
-import { eventsQueries } from "@/lib/queries/events";
-import { formatOccurrenceDate } from "@/lib/rrule-utils";
+import { linkedOccurrenceId, parseEventLink } from "@/lib/event-link";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 
 import type { Occurrence } from "./types";
@@ -18,31 +16,31 @@ import type { Occurrence } from "./types";
 export const spaceRoute = getRouteApi("/_main/spaces/$slug");
 
 /**
- * YYYY-MM-DD from the URL as midnight in the app timezone. Not local
- * midnight: that would be a different instant on the server and on every
- * client, while the calendar displays and reports its ranges in the app
- * timezone.
- */
-/**
- * The day the calendar should show, as app-timezone midnight: ?date=, else
- * the first of ?month=, else null (today)
+ * The day the calendar should show, as midnight in the app timezone (not
+ * local midnight: that would be a different instant on the server and on
+ * every client, while the calendar works in the app timezone). The linked
+ * occurrence's date, else the first of ?month=, else null (today)
  */
 export function parseSearchDate(
-    date: string | undefined,
-    month: string | undefined,
+    search: { event?: string; month?: string },
     tz: string,
 ): Date | null {
-    if (!date && month) date = `${month}-01`;
+    const date =
+        parseEventLink(search.event)?.occurrenceDate ??
+        (search.month ? `${search.month}-01` : undefined);
     if (!date) return null;
     const parsed = fromZonedTime(`${date}T00:00:00`, tz);
     return isValid(parsed) ? parsed : null;
 }
 
-/** The ?date= of the space route as a Date, memoized per URL value */
+/** The space route's linked day (see parseSearchDate), memoized per URL */
 export function useLinkedDate(): Date | null {
     const tz = useAppTimezone();
-    const { date, month } = spaceRoute.useSearch();
-    return useMemo(() => parseSearchDate(date, month, tz), [date, month, tz]);
+    const { event, month } = spaceRoute.useSearch();
+    return useMemo(
+        () => parseSearchDate({ event, month }, tz),
+        [event, month, tz],
+    );
 }
 
 type DeepLinkArgs = {
@@ -57,11 +55,12 @@ type DeepLinkArgs = {
 };
 
 /**
- * Applies the space route's deep link params (see its search schema):
- * moves the calendar to ?date=, resolves ?event= without a date to the
- * event's first occurrence, and opens the details dialog for the linked
- * occurrence once its range is loaded. Closing the dialog drops ?event=
- * from the URL so a reload stays closed.
+ * Applies the space route's deep link params (see its search schema): moves
+ * the calendar to the linked occurrence's date and opens its details once
+ * its range is loaded. Closing the dialog drops ?event= from the URL so a
+ * reload stays closed. A link to a whole event was already resolved to an
+ * occurrence by the route loader; if one is left, the event does not exist
+ * or is not visible.
  */
 export function useCalendarDeepLink({
     controller,
@@ -69,44 +68,32 @@ export function useCalendarDeepLink({
     dateRange,
     occurrences,
 }: DeepLinkArgs) {
-    const tz = useAppTimezone();
     const search = spaceRoute.useSearch();
     const navigate = spaceRoute.useNavigate();
     const { activeDialog, openDetails } = useCalendarDialogStore();
+    const link = parseEventLink(search.event);
 
-    // Follow ?date= changes after mount (initialDate only applies once)
+    // Follow link changes after mount (initialDate only applies once)
     useEffect(() => {
         if (linkedDate) {
             controller.gotoDate(linkedDate);
         }
     }, [linkedDate, controller]);
 
-    // ?event= without ?date=: look the event up to find its (first) date
-    const { data: linkedEvent } = useQuery({
-        ...eventsQueries.getById(search.event ?? ""),
-        enabled: !!search.event && !search.date,
-    });
+    const unresolvedEvent = link && !link.occurrenceDate;
     useEffect(() => {
-        if (!search.event || search.date || linkedEvent === undefined) return;
-        if (linkedEvent === null) {
-            toast.error("Linked event not found");
-            navigate({ search: {}, replace: true });
-            return;
-        }
+        if (!unresolvedEvent) return;
+        toast.error("Linked event not found");
         navigate({
-            search: {
-                date: formatOccurrenceDate(linkedEvent.dtstart, tz),
-                event: search.event,
-            },
+            search: (prev) => ({ ...prev, event: undefined }),
             replace: true,
         });
-    }, [search.event, search.date, linkedEvent, navigate, tz]);
+    }, [unresolvedEvent, navigate]);
 
-    // ?event= with ?date=: open the occurrence's details once it is loaded.
-    // Remembers the handled link so closing the dialog does not reopen it.
+    // Open the occurrence's details once it is loaded. Remembers the handled
+    // link so closing the dialog does not reopen it.
     const handledLink = useRef<string | null>(null);
-    const linkKey =
-        search.event && search.date ? `${search.event}:${search.date}` : null;
+    const linkKey = linkedOccurrenceId(link);
     // Only judge the link against occurrences of the range that contains it
     // (after gotoDate the previous range's data is still around briefly)
     const rangeCoversLink =

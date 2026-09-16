@@ -29,6 +29,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatEventLink } from "@/lib/event-link";
 import { capabilitiesGrant } from "@/lib/permissions-core";
 import { accountQueries } from "@/lib/queries/account";
 import { eventTypesQueries } from "@/lib/queries/event-types";
@@ -284,8 +285,10 @@ function EventTypesPage() {
                                                             slug: occ.spaceSlug,
                                                         }}
                                                         search={{
-                                                            date: occ.occurrenceDate,
-                                                            event: occ.eventId,
+                                                            event: formatEventLink(
+                                                                occ.eventId,
+                                                                occ.occurrenceDate,
+                                                            ),
                                                         }}
                                                         to="/spaces/$slug"
                                                     >

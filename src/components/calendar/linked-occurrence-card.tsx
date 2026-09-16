@@ -4,9 +4,10 @@ import {
 } from "@/components/calendar/event-details-dialog";
 import type { Occurrence } from "@/components/calendar/types";
 import { spaceRoute } from "@/components/calendar/use-calendar-deep-link";
+import { linkedOccurrenceId, parseEventLink } from "@/lib/event-link";
 
 /**
- * The details of a deep-linked occurrence (?event= with ?date=) as a card
+ * The details of a deep-linked occurrence (?event=<id>.<date>) as a card
  * above the calendar, for visitors without JavaScript: the dialog cannot be
  * server-rendered (it lives in a portal). Hidden as soon as scripts run; the
  * dialog takes over then. Rendered from the same prefetched occurrences the
@@ -17,9 +18,9 @@ export function LinkedOccurrenceCard({
 }: {
     occurrences: ReadonlyMap<string, Occurrence>;
 }) {
-    const { event, date } = spaceRoute.useSearch();
-    const occurrence =
-        event && date ? occurrences.get(`${event}:${date}`) : undefined;
+    const { event } = spaceRoute.useSearch();
+    const id = linkedOccurrenceId(parseEventLink(event));
+    const occurrence = id ? occurrences.get(id) : undefined;
     if (!occurrence) return null;
     return (
         <div className="noscript-only">
