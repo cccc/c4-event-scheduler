@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { type FeedAccess, SubscribeMenu } from "@/components/subscribe-menu";
@@ -8,6 +8,14 @@ import { eventTypesQueries } from "@/lib/queries/event-types";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 export const Route = createFileRoute("/_main/feeds")({
+    // Prefetch so the feed lists render on the server
+    loader: ({ context }) =>
+        Promise.all([
+            context.queryClient.ensureQueryData(
+                spacesQueries.list({ includePrivate: !!context.session?.user }),
+            ),
+            context.queryClient.ensureQueryData(eventTypesQueries.list({})),
+        ]),
     component: FeedsPage,
 });
 
@@ -100,11 +108,11 @@ function ApiKeyNote() {
 function FeedsPage() {
     const { session, appUrl } = Route.useRouteContext();
     const isLoggedIn = !!session?.user;
-    const { data: spaces } = useQuery(
+    const { data: spaces } = useSuspenseQuery(
         spacesQueries.list({ includePrivate: isLoggedIn }),
     );
     // Internal event types are only returned for signed-in users
-    const { data: eventTypes } = useQuery(eventTypesQueries.list({}));
+    const { data: eventTypes } = useSuspenseQuery(eventTypesQueries.list({}));
 
     return (
         <>
@@ -155,7 +163,7 @@ function FeedsPage() {
                 <section>
                     <h2 className="mb-4 font-semibold text-xl">By Space</h2>
                     <div className="space-y-2">
-                        {spaces?.map((space) => (
+                        {spaces.map((space) => (
                             <FeedRow
                                 access={space.isPublic ? "mixed" : "internal"}
                                 key={space.id}
@@ -163,7 +171,7 @@ function FeedsPage() {
                                 url={`${appUrl}/api/cal/${space.slug}.ics`}
                             />
                         ))}
-                        {spaces?.length === 0 && (
+                        {spaces.length === 0 && (
                             <p className="text-muted-foreground">
                                 No spaces available.
                             </p>
@@ -187,7 +195,7 @@ function FeedsPage() {
                             Show all combinations
                         </summary>
                         <div className="space-y-4 border-t p-4">
-                            {spaces?.map((space) => (
+                            {spaces.map((space) => (
                                 <div key={space.id}>
                                     {/* The space tag covers all rows below it */}
                                     <h3 className="mb-2 font-medium">
@@ -197,7 +205,7 @@ function FeedsPage() {
                                         )}
                                     </h3>
                                     <div className="space-y-2 pl-4">
-                                        {eventTypes?.map((et) => (
+                                        {eventTypes.map((et) => (
                                             <FeedRow
                                                 access={
                                                     !space.isPublic ||
