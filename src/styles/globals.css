@@ -288,3 +288,34 @@
 
 /* The counterpart, `script-only`, marks controls that only work with
    JavaScript; the same <noscript><style> hides them. No rule needed here. */
+
+/* Dialogs removed inside a view transition (the event details close by
+   dropping their URL link in one, see closeOccurrence) are gone from the DOM
+   at once, so Radix's exit animation cannot run: their last frame zooms out
+   the same way instead, while the page's default crossfade takes the overlay
+   away. Every DialogContent carries its own view-transition-name and the
+   "dialog" class. :only-child limits this to dialogs that are gone
+   afterwards; a dialog appearing in the same transition (details handing
+   over to edit) keeps its own enter animation */
+::view-transition-old(*.dialog):only-child {
+    animation: 200ms ease-in both dialog-out;
+}
+
+::view-transition-new(*.dialog):only-child {
+    animation: none;
+}
+
+@keyframes dialog-out {
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}

@@ -1,6 +1,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 import type * as React from "react";
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -48,10 +49,16 @@ function DialogContent({
     className,
     children,
     showCloseButton = true,
+    style,
     ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean;
 }) {
+    // c4: a view transition name of its own (names must be unique on the
+    // page) and the shared "dialog" class, so a dialog removed inside a view
+    // transition animates out (globals.css); Radix's exit animation only
+    // runs while the content stays mounted
+    const viewTransitionName = `dialog-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
     return (
         <DialogPortal data-slot="dialog-portal">
             <DialogOverlay />
@@ -61,6 +68,11 @@ function DialogContent({
                     className,
                 )}
                 data-slot="dialog-content"
+                style={{
+                    viewTransitionName,
+                    viewTransitionClass: "dialog",
+                    ...style,
+                }}
                 {...props}
             >
                 {children}
