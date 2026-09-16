@@ -93,57 +93,82 @@ export function SubscribeMenu({
     if (internal && !isLoggedIn) return null;
 
     return (
-        <DropdownMenu onOpenChange={ensureToken}>
-            <DropdownMenuTrigger asChild>
-                <Button size="sm" variant={compact ? "ghost" : "outline"}>
-                    <CalendarPlus />
-                    Subscribe
-                    <ChevronDown className="opacity-60" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                {!internal && (
-                    <>
-                        {offerToken && (
-                            <DropdownMenuLabel>Public events</DropdownMenuLabel>
-                        )}
-                        <DropdownMenuItem asChild>
-                            <a href={toWebcal(url)}>Open in calendar app</a>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => copyUrl(url)}>
-                            Copy feed URL
-                        </DropdownMenuItem>
-                    </>
-                )}
-                {offerToken && (
-                    <>
-                        {!internal && <DropdownMenuSeparator />}
-                        <DropdownMenuLabel>
-                            {internal
-                                ? "With your feed token"
-                                : "Including internal events"}
-                        </DropdownMenuLabel>
-                        {internalUrl ? (
-                            <>
-                                <DropdownMenuItem asChild>
-                                    <a href={toWebcal(internalUrl)}>
-                                        Open in calendar app
-                                    </a>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => copyUrl(internalUrl)}
-                                >
-                                    Copy feed URL
-                                </DropdownMenuItem>
-                            </>
-                        ) : (
-                            <DropdownMenuItem disabled>
-                                Preparing your feed token…
+        <>
+            {/* Without JavaScript the menu cannot open: a plain link to the
+                public feed file instead (nothing to offer for internal-only
+                feeds, those need the token) */}
+            {!internal && (
+                <span className="noscript-only">
+                    <Button
+                        asChild
+                        size="sm"
+                        variant={compact ? "ghost" : "outline"}
+                    >
+                        <a href={url}>
+                            <CalendarPlus />
+                            Subscribe
+                        </a>
+                    </Button>
+                </span>
+            )}
+            <DropdownMenu onOpenChange={ensureToken}>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        className="script-only"
+                        size="sm"
+                        variant={compact ? "ghost" : "outline"}
+                    >
+                        <CalendarPlus />
+                        Subscribe
+                        <ChevronDown className="opacity-60" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {!internal && (
+                        <>
+                            {offerToken && (
+                                <DropdownMenuLabel>
+                                    Public events
+                                </DropdownMenuLabel>
+                            )}
+                            <DropdownMenuItem asChild>
+                                <a href={toWebcal(url)}>Open in calendar app</a>
                             </DropdownMenuItem>
-                        )}
-                    </>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                            <DropdownMenuItem onClick={() => copyUrl(url)}>
+                                Copy feed URL
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                    {offerToken && (
+                        <>
+                            {!internal && <DropdownMenuSeparator />}
+                            <DropdownMenuLabel>
+                                {internal
+                                    ? "With your feed token"
+                                    : "Including internal events"}
+                            </DropdownMenuLabel>
+                            {internalUrl ? (
+                                <>
+                                    <DropdownMenuItem asChild>
+                                        <a href={toWebcal(internalUrl)}>
+                                            Open in calendar app
+                                        </a>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => copyUrl(internalUrl)}
+                                    >
+                                        Copy feed URL
+                                    </DropdownMenuItem>
+                                </>
+                            ) : (
+                                <DropdownMenuItem disabled>
+                                    Preparing your feed token…
+                                </DropdownMenuItem>
+                            )}
+                        </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </>
     );
 }

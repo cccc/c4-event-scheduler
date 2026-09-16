@@ -296,19 +296,6 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
             <LinkedOccurrenceCard occurrences={occurrenceById} />
 
-            {/* The server render shows this month with its events; moving
-                around needs JavaScript */}
-            <div className="noscript-only">
-                <p className="mb-4 rounded-lg border bg-card px-4 py-3 text-muted-foreground text-sm">
-                    Event details and the week and list views need JavaScript.
-                    Without it,{" "}
-                    <a className="underline" href={feedUrl}>
-                        subscribe to the iCal feed
-                    </a>{" "}
-                    instead.
-                </p>
-            </div>
-
             <div className="relative rounded-lg border bg-card p-4">
                 {showLoading && (
                     <div
