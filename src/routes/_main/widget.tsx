@@ -29,10 +29,10 @@ function WidgetPage() {
 
             <div className="space-y-4">
                 <div className="rounded-lg border p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                        <div>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
                             <div className="font-medium">JSON Endpoint</div>
-                            <code className="text-muted-foreground text-sm">
+                            <code className="break-all text-muted-foreground text-sm">
                                 {appUrl}/api/widget/upcoming
                             </code>
                         </div>
@@ -44,12 +44,12 @@ function WidgetPage() {
                 </div>
 
                 <div className="rounded-lg border p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                        <div>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
                             <div className="font-medium">
                                 HTML Embed (iframe)
                             </div>
-                            <code className="text-muted-foreground text-sm">
+                            <code className="break-all text-muted-foreground text-sm">
                                 {appUrl}/api/widget/upcoming?format=html
                             </code>
                         </div>
@@ -154,12 +154,12 @@ function WidgetPage() {
                     <div className="space-y-2 border-t p-4">
                         {spaces.map((space) => (
                             <div
-                                className="flex items-center justify-between rounded border p-2"
+                                className="flex flex-wrap items-center justify-between gap-2 rounded border p-2"
                                 key={space.id}
                             >
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-sm">{space.name}</div>
-                                    <code className="text-muted-foreground text-xs">
+                                    <code className="break-all text-muted-foreground text-xs">
                                         {appUrl}/api/widget/upcoming?space=
                                         {space.slug}
                                     </code>

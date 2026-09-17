@@ -47,11 +47,11 @@ function FeedRow({
         <div
             className={
                 compact
-                    ? "flex items-center justify-between rounded border p-2"
-                    : "flex items-center justify-between rounded-lg border p-4"
+                    ? "flex flex-wrap items-center justify-between gap-2 rounded border p-2"
+                    : "flex flex-wrap items-center justify-between gap-2 rounded-lg border p-4"
             }
         >
-            <div>
+            <div className="min-w-0">
                 <div className={compact ? "text-sm" : "font-medium"}>
                     {name}
                     {badge && <InternalFeedBadge />}
@@ -59,8 +59,8 @@ function FeedRow({
                 <code
                     className={
                         compact
-                            ? "text-muted-foreground text-xs"
-                            : "text-muted-foreground text-sm"
+                            ? "break-all text-muted-foreground text-xs"
+                            : "break-all text-muted-foreground text-sm"
                     }
                 >
                     {url}
