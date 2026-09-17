@@ -110,7 +110,7 @@ function EventTypesPage() {
     return (
         <>
             <PageHeader
-                description='Event types are templates for categorizing events (e.g., "Meetup", "Workshop", "Conference").'
+                description="The kinds of events on this calendar, with what is coming up next and a feed to subscribe to for each."
                 title="Event Types"
             >
                 {canCreate && (
