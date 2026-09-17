@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { useState } from "react";
 
+import { formatDurationMinutes } from "@/components/calendar/date-utils";
 import { describeUsage } from "@/components/delete-impact";
 import { CreateEventTypeDialog } from "@/components/event-types/create-event-type-dialog";
 import {
@@ -69,14 +70,6 @@ function formatUpcoming(date: Date, tz: string): string {
         minute: "2-digit",
         timeZone: tz,
     });
-}
-
-/** 120 -> "2 h", 90 -> "1 h 30 min", 45 -> "45 min" */
-function formatDuration(minutes: number): string {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m} min`;
-    return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
 function EventTypesPage() {
@@ -320,7 +313,7 @@ function EventTypesPage() {
                                     {et.defaultDurationMinutes && (
                                         <>
                                             {" · "}usually{" "}
-                                            {formatDuration(
+                                            {formatDurationMinutes(
                                                 et.defaultDurationMinutes,
                                             )}
                                         </>
