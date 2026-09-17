@@ -187,12 +187,15 @@ export function EventCalendarToolbar({
                 value={controller.view?.type ?? availableViews[0]}
                 className="script-only [grid-area:tabs] justify-self-end" // c4: needs JavaScript
             >
-                <TabsList>
+                {/* c4: styled like the outline button next to it (white,
+                    1px border, same radius), the active tab a muted inset */}
+                <TabsList className="rounded-md border bg-background p-[3px] shadow-xs dark:border-input dark:bg-input/30">
                     {availableViews.map((availableView) => (
                         <TabsTrigger
                             key={availableView}
                             value={availableView}
                             data-view={availableView} // c4: lets callers style single tabs
+                            className="data-[state=active]:bg-muted data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-muted" // c4
                             onClick={() => controller.changeView(availableView)}
                             aria-label={buttons[availableView]?.hint}
                         >
