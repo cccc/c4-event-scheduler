@@ -164,7 +164,7 @@ function CopyLinkButton({
         setCopied(true);
     };
     return (
-        <Button className="mr-auto" onClick={copy} variant="ghost">
+        <Button className="script-only mr-auto" onClick={copy} variant="ghost">
             {copied ? <Check /> : <Link2 />}
             {copied ? "Copied" : "Copy link"}
         </Button>
@@ -415,7 +415,14 @@ export function OccurrenceContent({
                     <Button onClick={actions.onClose} variant="outline">
                         Close
                     </Button>
-                    {canEdit && <Button onClick={actions.onEdit}>Edit</Button>}
+                    {canEdit && (
+                        <Button
+                            className="script-only"
+                            onClick={actions.onEdit}
+                        >
+                            Edit
+                        </Button>
+                    )}
                 </div>
             )}
         </>
@@ -743,7 +750,8 @@ function OpenEventDetailsDialog({
                 </DialogHeader>
 
                 <Tabs onValueChange={setActiveTab} value={activeTab}>
-                    <TabsList className="w-full">
+                    {/* Tabs need scripts; without them the first one shows */}
+                    <TabsList className="script-only w-full">
                         <TabsTrigger className="flex-1" value="occurrence">
                             This Occurrence
                         </TabsTrigger>
@@ -775,6 +783,7 @@ function OpenEventDetailsDialog({
                             </Button>
                             {canEdit && (
                                 <Button
+                                    className="script-only"
                                     onClick={() => onEdit(occurrence, "whole")}
                                 >
                                     Edit Series
