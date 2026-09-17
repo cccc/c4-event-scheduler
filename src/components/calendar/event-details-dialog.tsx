@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import {
     CalendarDays,
+    Check,
     Clock,
     ExternalLink,
     FileText,
@@ -13,9 +14,8 @@ import {
     User,
     X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RRule } from "rrule";
-import { toast } from "sonner";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -135,7 +135,10 @@ function describeOverride(
     return changes.length > 0 ? changes.join(", ") : "modified";
 }
 
-/** Copies a deep link to this occurrence (calendar on its date, details open) */
+/**
+ * Copies a deep link to this occurrence (calendar on its date, details open).
+ * Confirms on the button itself, where the click happened
+ */
 function CopyLinkButton({
     eventId,
     occurrenceDate,
@@ -145,6 +148,12 @@ function CopyLinkButton({
 }) {
     const { appUrl } = useRouteContext({ from: "__root__" });
     const { slug } = spaceRoute.useParams();
+    const [copied, setCopied] = useState(false);
+    useEffect(() => {
+        if (!copied) return;
+        const timer = setTimeout(() => setCopied(false), 2000);
+        return () => clearTimeout(timer);
+    }, [copied]);
     const copy = async () => {
         const params = new URLSearchParams({
             event: formatEventLink(eventId, occurrenceDate),
@@ -152,12 +161,12 @@ function CopyLinkButton({
         await navigator.clipboard.writeText(
             `${appUrl}/spaces/${slug}?${params}`,
         );
-        toast.success("Link copied");
+        setCopied(true);
     };
     return (
         <Button className="mr-auto" onClick={copy} variant="ghost">
-            <Link2 />
-            Copy link
+            {copied ? <Check /> : <Link2 />}
+            {copied ? "Copied" : "Copy link"}
         </Button>
     );
 }
