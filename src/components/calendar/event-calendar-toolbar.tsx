@@ -11,6 +11,8 @@
 //     JavaScript, the caller handles client-side navigation in onClick)
 //   - the view switcher is `script-only` (views other than the first need
 //     JavaScript); its tabs carry `data-view`
+//   - laid out as a grid with named areas; below md the title sits between
+//     the arrows, Today and the view tabs move to a second row
 //   - "use no memo": opted out of the React Compiler, see below
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
@@ -78,13 +80,19 @@ export function EventCalendarToolbar({
         key.charAt(0).toUpperCase() + key.slice(1);
 
     return (
+        // c4: a grid with named areas instead of two flex groups, so narrow
+        // screens can rearrange: prev, title, next on one row, Today and the
+        // view tabs on the next
         <div
             className={cn(
-                "flex items-center justify-between flex-wrap gap-3",
+                "grid items-center gap-x-3 gap-y-2",
+                "grid-cols-[auto_auto_auto_1fr_auto] [grid-template-areas:'today_prev_next_title_tabs']",
+                // Two middle columns so the rows share no column width
+                "max-md:grid-cols-[auto_1fr_1fr_auto] max-md:[grid-template-areas:'prev_title_title_next'_'today_today_tabs_tabs']",
                 className,
             )}
         >
-            <div className="flex items-center shrink-0 gap-3">
+            <div className="flex items-center shrink-0 gap-3 [grid-area:today]">
                 {addButton && (
                     <Button
                         onClick={addButton.click} // c4: no cast
@@ -116,66 +124,68 @@ export function EventCalendarToolbar({
                         {text("today")}
                     </Button>
                 )}
-                <div className="flex items-center">
-                    {toolbarLinks ? (
-                        <>
-                            <Button
-                                asChild
-                                aria-label={buttons.prev?.hint || "Previous"}
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <a
-                                    href={toolbarLinks.prev.href}
-                                    onClick={toolbarLinks.prev.onClick}
-                                >
-                                    <EventCalendarPrevIcon />
-                                </a>
-                            </Button>
-                            <Button
-                                asChild
-                                aria-label={buttons.next?.hint || "Next"}
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <a
-                                    href={toolbarLinks.next.href}
-                                    onClick={toolbarLinks.next.onClick}
-                                >
-                                    <EventCalendarNextIcon />
-                                </a>
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Button
-                                onClick={() => controller.prev()}
-                                disabled={buttons.prev.isDisabled}
-                                aria-label={buttons.prev.hint}
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <EventCalendarPrevIcon />
-                            </Button>
-                            <Button
-                                onClick={() => controller.next()}
-                                disabled={buttons.next.isDisabled}
-                                aria-label={buttons.next.hint}
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <EventCalendarNextIcon />
-                            </Button>
-                        </>
-                    )}
-                </div>
-                <div className="text-xl">
-                    {controller.view?.title ?? fallbackTitle}
-                </div>
+            </div>
+            {toolbarLinks ? (
+                <>
+                    <Button
+                        asChild
+                        aria-label={buttons.prev?.hint || "Previous"}
+                        variant="ghost"
+                        size="icon"
+                        className="[grid-area:prev]"
+                    >
+                        <a
+                            href={toolbarLinks.prev.href}
+                            onClick={toolbarLinks.prev.onClick}
+                        >
+                            <EventCalendarPrevIcon />
+                        </a>
+                    </Button>
+                    <Button
+                        asChild
+                        aria-label={buttons.next?.hint || "Next"}
+                        variant="ghost"
+                        size="icon"
+                        className="[grid-area:next] md:-ms-3"
+                    >
+                        <a
+                            href={toolbarLinks.next.href}
+                            onClick={toolbarLinks.next.onClick}
+                        >
+                            <EventCalendarNextIcon />
+                        </a>
+                    </Button>
+                </>
+            ) : (
+                <>
+                    <Button
+                        onClick={() => controller.prev()}
+                        disabled={buttons.prev.isDisabled}
+                        aria-label={buttons.prev.hint}
+                        variant="ghost"
+                        size="icon"
+                        className="[grid-area:prev]"
+                    >
+                        <EventCalendarPrevIcon />
+                    </Button>
+                    <Button
+                        onClick={() => controller.next()}
+                        disabled={buttons.next.isDisabled}
+                        aria-label={buttons.next.hint}
+                        variant="ghost"
+                        size="icon"
+                        className="[grid-area:next] md:-ms-3"
+                    >
+                        <EventCalendarNextIcon />
+                    </Button>
+                </>
+            )}
+            <div className="text-xl [grid-area:title] max-md:text-center">
+                {controller.view?.title ?? fallbackTitle}
             </div>
             <Tabs
                 value={controller.view?.type ?? availableViews[0]}
-                className="script-only" // c4: needs JavaScript
+                className="script-only [grid-area:tabs] justify-self-end" // c4: needs JavaScript
             >
                 <TabsList>
                     {availableViews.map((availableView) => (
