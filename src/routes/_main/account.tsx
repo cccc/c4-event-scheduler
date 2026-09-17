@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { PersonalApiKeysCard } from "@/components/account/api-keys-card";
 import { FeedTokenCard } from "@/components/account/feed-token-card";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { PageHeader } from "@/components/page-header";
 import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ function AccountPage() {
     const { session, authOptions } = Route.useRouteContext();
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { data: info, isLoading: infoLoading } = useQuery(
+    const { data: info, isPending: infoPending } = useQuery(
         accountQueries.info(),
     );
 
@@ -169,10 +170,8 @@ function AccountPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {infoLoading ? (
-                            <p className="text-muted-foreground text-sm">
-                                Loading...
-                            </p>
+                        {infoPending ? (
+                            <LoadingPlaceholder kind="lines" />
                         ) : canChangePassword ? (
                             <form
                                 className="space-y-4"

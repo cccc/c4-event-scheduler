@@ -5,6 +5,7 @@ import {
     ApiKeyList,
     CreateApiKeyDialog,
 } from "@/components/api-keys/api-key-manager";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -23,7 +24,7 @@ export function PersonalApiKeysCard({
     /** The signed-in user's effective rights (bound the grantable scopes) */
     owner: Capabilities | undefined;
 }) {
-    const { data: keys, isLoading } = useQuery(apiKeysQueries.mine());
+    const { data: keys, isPending } = useQuery(apiKeysQueries.mine());
     const [createOpen, setCreateOpen] = useState(false);
     const capabilities = owner ?? { isAdmin: false, permissions: [] };
 
@@ -49,8 +50,8 @@ export function PersonalApiKeysCard({
                 </div>
             </CardHeader>
             <CardContent>
-                {isLoading ? (
-                    <p className="text-muted-foreground text-sm">Loading...</p>
+                {isPending ? (
+                    <LoadingPlaceholder />
                 ) : (
                     <ApiKeyList
                         capabilities={capabilities}

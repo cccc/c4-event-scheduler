@@ -4,6 +4,7 @@ import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UserApiKeys } from "@/components/api-keys/user-api-keys";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { PageHeader } from "@/components/page-header";
 import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -100,7 +101,7 @@ function AdminUsersPage() {
     const currentUserId = session?.user.id;
 
     // Queries
-    const { data: users, isLoading: usersLoading } = useQuery({
+    const { data: users, isPending: usersPending } = useQuery({
         ...usersQueries.listUsers(),
         enabled: isAdmin,
     });
@@ -360,8 +361,8 @@ function AdminUsersPage() {
                 </Alert>
             )}
 
-            {usersLoading ? (
-                <p>Loading users...</p>
+            {usersPending ? (
+                <LoadingPlaceholder rows={4} />
             ) : (
                 <div className="space-y-4">
                     {users?.map((u) => (

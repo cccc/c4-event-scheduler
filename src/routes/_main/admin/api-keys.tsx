@@ -7,6 +7,7 @@ import {
     ApiKeyList,
     CreateApiKeyDialog,
 } from "@/components/api-keys/api-key-manager";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { PageHeader } from "@/components/page-header";
 import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/_main/admin/api-keys")({
 function AdminApiKeysPage() {
     const { isAdmin } = Route.useRouteContext();
     const [createOpen, setCreateOpen] = useState(false);
-    const { data: keys, isLoading } = useQuery({
+    const { data: keys, isPending } = useQuery({
         ...apiKeysQueries.list(),
         enabled: isAdmin,
     });
@@ -55,8 +56,8 @@ function AdminApiKeysPage() {
             </PageHeader>
             <RequiresScriptsAlert />
 
-            {isLoading ? (
-                <p>Loading keys...</p>
+            {isPending ? (
+                <LoadingPlaceholder rows={4} />
             ) : (
                 <div className="space-y-10">
                     <section>
