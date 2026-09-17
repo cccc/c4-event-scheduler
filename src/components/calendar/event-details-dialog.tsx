@@ -24,6 +24,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEventLink } from "@/lib/event-link";
+import {
+    formatDate,
+    formatDateOnly,
+    formatDateTime,
+    formatDateTimeRange,
+    formatTime,
+} from "@/lib/format-date";
 import { eventsKeys, eventsQueries } from "@/lib/queries/events";
 import type { EditTab } from "@/lib/stores/calendar-dialog-store";
 import {
@@ -43,68 +50,6 @@ type EventDetailsDialogProps = {
     /** Leaves the details for the edit dialog */
     onEdit: (occurrence: Occurrence, editTab?: EditTab) => void;
 };
-
-function formatDate(date: Date, tz: string): string {
-    return date.toLocaleDateString("de-DE", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        timeZone: tz,
-    });
-}
-
-function formatTime(date: Date, tz: string): string {
-    return date.toLocaleTimeString("de-DE", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: tz,
-    });
-}
-
-// One compact, locale-formatted line for an occurrence that ends on a
-// later day, e.g. "Sa., 12. Sept. 2026, 12:00 – Mo., 14. Sept. 2026, 14:00".
-// ICU versions differ in the spaces they put around the dash (Node uses
-// thin spaces, browsers regular ones), which would break hydration of the
-// server-rendered card; normalized to plain spaces
-function formatDateTimeRange(start: Date, end: Date, tz: string): string {
-    return new Intl.DateTimeFormat("de-DE", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: tz,
-    })
-        .formatRange(start, end)
-        .replace(/[\u2009\u202f\u00a0]/g, " ");
-}
-
-function formatDateTime(date: Date, tz: string): string {
-    return date.toLocaleString("de-DE", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: tz,
-    });
-}
-
-function formatExdate(dateStr: string): string {
-    // dateStr is YYYY-MM-DD — a date-only value, display as UTC to match the stored date
-    const [year, month, day] = dateStr.split("-").map(Number);
-    if (!year || !month || !day) return dateStr;
-    const date = new Date(Date.UTC(year, month - 1, day));
-    return date.toLocaleDateString("de-DE", {
-        weekday: "short",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        timeZone: "UTC",
-    });
-}
 
 function describeOverride(
     override: {
@@ -583,7 +528,7 @@ function SeriesInfoContent({
                                     className="flex items-center justify-between gap-2"
                                     key={d}
                                 >
-                                    <span>{formatExdate(d)}</span>
+                                    <span>{formatDateOnly(d)}</span>
                                     {canEdit && (
                                         <button
                                             className="text-muted-foreground hover:text-destructive disabled:opacity-50"
@@ -623,7 +568,7 @@ function SeriesInfoContent({
                                 >
                                     <span>
                                         <span className="font-medium text-foreground">
-                                            {formatExdate(o.occurrenceDate)}
+                                            {formatDateOnly(o.occurrenceDate)}
                                         </span>
                                         {" — "}
                                         {describeOverride(o, tz)}

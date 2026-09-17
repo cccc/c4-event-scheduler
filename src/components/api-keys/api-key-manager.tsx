@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
+import { useAppTimezone } from "@/components/timezone-provider";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { formatShortDate } from "@/lib/format-date";
 import { formatPermissionScope } from "@/lib/format-permission";
 import {
     type Capabilities,
@@ -115,6 +117,7 @@ export function ApiKeyList({
     showOwner,
     emptyText,
 }: ApiKeyListProps) {
+    const tz = useAppTimezone();
     const m = useApiKeyMutations();
     const [permKey, setPermKey] = useState<ApiKeyView | null>(null);
 
@@ -147,7 +150,7 @@ export function ApiKeyList({
                         <div className="flex items-center gap-2">
                             <span className="text-muted-foreground text-xs">
                                 {key.lastUsedAt
-                                    ? `Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`
+                                    ? `Last used ${formatShortDate(new Date(key.lastUsedAt), tz)}`
                                     : "Never used"}
                             </span>
                             <Button
@@ -194,7 +197,7 @@ export function ApiKeyList({
                     </div>
 
                     <div className="mb-2 text-muted-foreground text-xs">
-                        Created {new Date(key.createdAt).toLocaleDateString()}
+                        Created {formatShortDate(new Date(key.createdAt), tz)}
                         {key.owner &&
                             ` · acts as ${key.owner.name}; both the key and ${key.owner.name} must allow an action`}
                     </div>

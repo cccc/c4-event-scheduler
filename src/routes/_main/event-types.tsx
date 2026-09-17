@@ -32,6 +32,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatEventLink } from "@/lib/event-link";
+import { formatShortDateTime } from "@/lib/format-date";
 import { capabilitiesGrant } from "@/lib/permissions-core";
 import { accountQueries } from "@/lib/queries/account";
 import { eventTypesQueries } from "@/lib/queries/event-types";
@@ -59,18 +60,6 @@ export const Route = createFileRoute("/_main/event-types")({
     },
     component: EventTypesPage,
 });
-
-/** "Di., 16.09., 19:00" in the app timezone */
-function formatUpcoming(date: Date, tz: string): string {
-    return date.toLocaleString("de-DE", {
-        weekday: "short",
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: tz,
-    });
-}
 
 function EventTypesPage() {
     const [open, setOpen] = useState(false);
@@ -258,7 +247,7 @@ function EventTypesPage() {
                                                     key={occ.id}
                                                 >
                                                     <span className="text-muted-foreground tabular-nums">
-                                                        {formatUpcoming(
+                                                        {formatShortDateTime(
                                                             occ.dtstart,
                                                             tz,
                                                         )}
