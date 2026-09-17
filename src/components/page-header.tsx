@@ -21,7 +21,8 @@ export function PageHeader({
     return (
         <div
             className={cn(
-                "mb-8 flex items-start justify-between gap-4",
+                // Actions wrap under the title where the row is too narrow
+                "mb-8 flex flex-wrap items-start justify-between gap-4",
                 className,
             )}
         >
@@ -32,7 +33,7 @@ export function PageHeader({
                 )}
             </div>
             {children && (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                     {children}
                 </div>
             )}
