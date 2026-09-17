@@ -8,6 +8,12 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { type ComponentProps, createContext, useContext } from "react";
 
 import type { Occurrence } from "@/components/calendar/types";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useHydrated } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 
 /**
@@ -137,54 +143,68 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
         !occ.allDay && isStart
             ? formatInTimeZone(occ.dtstart, tz, "HH:mm")
             : null;
+    const label = `${time ? `${time} ` : ""}${occ.summary}`;
+    // A tooltip with the full text (names get cut); until scripts run,
+    // the browser's own tooltip from a title does the job
+    const hydrated = useHydrated();
     return (
-        // A link to the occurrence's deep link (its details without
-        // JavaScript); with scripts a plain click opens the dialog instead
-        <a
-            aria-label={`${time ? `${time} ` : ""}${occ.summary}`}
-            className={cn(
-                "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
-                // List layout: a strip without text, the week's list has it
-                "list:h-2 list:px-0 list:py-0",
-                // Continuations: no border on the open side, the other
-                // borders dissolve toward it (event-cut* in globals.css)
-                isStart ? "ms-1" : "rounded-s-none border-s-0",
-                isEnd ? "me-1" : "rounded-e-none border-e-0",
-                (!isStart || !isEnd) && "event-cut",
-                !isStart && "event-cut-start",
-                !isEnd && "event-cut-end",
-                `event-${occ.status}`,
-                occ.isDraft && "event-draft",
-                occ.isInternal && "event-internal",
-            )}
-            href={occurrenceHref(occ)}
-            onClick={(e) => {
-                if (
-                    e.button !== 0 ||
-                    e.metaKey ||
-                    e.ctrlKey ||
-                    e.shiftKey ||
-                    e.altKey
-                ) {
-                    return;
-                }
-                e.preventDefault();
-                onEventClick(occ);
-            }}
-            style={{
-                gridColumn: `${segment.column} / span ${segment.span}`,
-                gridRow: segment.lane + 2,
-                // Same variable FullCalendar sets, so the event-* rules in
-                // globals.css apply to both
-                ["--fc-event-color" as string]: occ.color ?? "var(--primary)",
-            }}
-            type="button"
-        >
-            {time && <span className="list:hidden shrink-0">{time}</span>}
-            <span className="list:hidden truncate font-semibold">
-                {occ.summary}
-            </span>
-        </a>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                {/* A link to the occurrence's deep link (its details
+                    without JavaScript); with scripts a plain click opens
+                    the dialog instead */}
+                <a
+                    aria-label={label}
+                    className={cn(
+                        "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
+                        // List layout: a strip without text, the week's list has it
+                        "list:h-2 list:px-0 list:py-0",
+                        // Continuations: no border on the open side, the other
+                        // borders dissolve toward it (event-cut* in globals.css)
+                        isStart ? "ms-1" : "rounded-s-none border-s-0",
+                        isEnd ? "me-1" : "rounded-e-none border-e-0",
+                        (!isStart || !isEnd) && "event-cut",
+                        !isStart && "event-cut-start",
+                        !isEnd && "event-cut-end",
+                        `event-${occ.status}`,
+                        occ.isDraft && "event-draft",
+                        occ.isInternal && "event-internal",
+                    )}
+                    href={occurrenceHref(occ)}
+                    onClick={(e) => {
+                        if (
+                            e.button !== 0 ||
+                            e.metaKey ||
+                            e.ctrlKey ||
+                            e.shiftKey ||
+                            e.altKey
+                        ) {
+                            return;
+                        }
+                        e.preventDefault();
+                        onEventClick(occ);
+                    }}
+                    style={{
+                        gridColumn: `${segment.column} / span ${segment.span}`,
+                        gridRow: segment.lane + 2,
+                        // Same variable FullCalendar sets, so the event-* rules in
+                        // globals.css apply to both
+                        ["--fc-event-color" as string]:
+                            occ.color ?? "var(--primary)",
+                    }}
+                    title={hydrated ? undefined : label}
+                    type="button"
+                >
+                    {time && (
+                        <span className="list:hidden shrink-0">{time}</span>
+                    )}
+                    <span className="list:hidden truncate font-semibold">
+                        {occ.summary}
+                    </span>
+                </a>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
     );
 }
 
