@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import {
     CalendarDays,
-    Check,
     Clock,
     ExternalLink,
     FileText,
@@ -14,8 +13,9 @@ import {
     User,
     X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RRule } from "rrule";
+import { CopyButton } from "@/components/copy-button";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,26 +145,17 @@ function CopyLinkButton({
 }) {
     const { appUrl } = useRouteContext({ from: "__root__" });
     const { slug } = spaceRoute.useParams();
-    const [copied, setCopied] = useState(false);
-    useEffect(() => {
-        if (!copied) return;
-        const timer = setTimeout(() => setCopied(false), 2000);
-        return () => clearTimeout(timer);
-    }, [copied]);
-    const copy = async () => {
-        const params = new URLSearchParams({
-            event: formatEventLink(eventId, occurrenceDate),
-        });
-        await navigator.clipboard.writeText(
-            `${appUrl}/spaces/${slug}?${params}`,
-        );
-        setCopied(true);
-    };
+    const params = new URLSearchParams({
+        event: formatEventLink(eventId, occurrenceDate),
+    });
     return (
-        <Button className="script-only mr-auto" onClick={copy} variant="ghost">
-            {copied ? <Check /> : <Link2 />}
-            {copied ? "Copied" : "Copy link"}
-        </Button>
+        <CopyButton
+            className="script-only mr-auto"
+            icon={Link2}
+            label="Copy link"
+            value={`${appUrl}/spaces/${slug}?${params}`}
+            variant="ghost"
+        />
     );
 }
 

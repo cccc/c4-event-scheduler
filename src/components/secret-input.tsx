@@ -1,7 +1,7 @@
-import { Copy, Eye, EyeOff } from "lucide-react";
+import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
+import { useCopy } from "@/components/copy-button";
 import {
     InputGroup,
     InputGroupAddon,
@@ -45,11 +45,7 @@ export function SecretInput({
         setRevealed(false);
     }
 
-    const copy = async () => {
-        if (!value) return;
-        await navigator.clipboard.writeText(value);
-        toast.success(`${label} copied`);
-    };
+    const { copied, copy } = useCopy(value);
 
     return (
         <InputGroup className={cn("min-w-64", className)}>
@@ -71,8 +67,8 @@ export function SecretInput({
                     {revealed ? <EyeOff /> : <Eye />}
                 </InputGroupButton>
                 <InputGroupButton disabled={!value} onClick={copy}>
-                    <Copy />
-                    Copy
+                    {copied ? <Check /> : <Copy />}
+                    {copied ? "Copied" : "Copy"}
                 </InputGroupButton>
             </InputGroupAddon>
         </InputGroup>

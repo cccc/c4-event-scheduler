@@ -1,5 +1,4 @@
-import { toast } from "sonner";
-
+import { CopyButton } from "@/components/copy-button";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -16,11 +15,6 @@ export function CopyUrlButton({
 }) {
     const variant = compact ? "ghost" : "outline";
 
-    const copy = async () => {
-        await navigator.clipboard.writeText(url);
-        toast.success("Copied to clipboard");
-    };
-
     return (
         <>
             <span className="noscript-only">
@@ -30,14 +24,13 @@ export function CopyUrlButton({
                     </a>
                 </Button>
             </span>
-            <Button
+            <CopyButton
                 className="script-only"
-                onClick={copy}
+                label="Copy URL"
                 size="sm"
+                value={url}
                 variant={variant}
-            >
-                Copy URL
-            </Button>
+            />
         </>
     );
 }

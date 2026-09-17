@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-
+import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -558,7 +558,6 @@ export function CreateApiKeyDialog({
     const [isAdmin, setIsAdmin] = useState(false);
     const [permissions, setPermissions] = useState<Permission[]>([]);
     const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
 
     const create = useMutation({
         mutationFn: (input: Parameters<typeof createApiKeyFn>[0]["data"]) =>
@@ -572,7 +571,6 @@ export function CreateApiKeyDialog({
 
     const close = () => {
         setNewKeyValue(null);
-        setCopied(false);
         setName("");
         setIsAdmin(false);
         setPermissions([]);
@@ -602,13 +600,6 @@ export function CreateApiKeyDialog({
         });
     };
 
-    const handleCopy = async () => {
-        if (!newKeyValue) return;
-        await navigator.clipboard.writeText(newKeyValue);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     return (
         <Dialog onOpenChange={(o) => !o && close()} open={open}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -635,13 +626,7 @@ export function CreateApiKeyDialog({
                             <code className="flex-1 break-all rounded bg-muted px-3 py-2 font-mono text-sm">
                                 {newKeyValue}
                             </code>
-                            <Button
-                                onClick={handleCopy}
-                                type="button"
-                                variant="outline"
-                            >
-                                {copied ? "Copied!" : "Copy"}
-                            </Button>
+                            <CopyButton value={newKeyValue} variant="outline" />
                         </div>
                         <div className="flex justify-end">
                             <Button onClick={close} type="button">
