@@ -1,8 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
-import { TriangleAlert } from "lucide-react";
 import type { ComponentProps } from "react";
 import { PageHeader } from "@/components/page-header";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 
 export type NavMenuItem = {
     label: string;
@@ -94,23 +93,7 @@ export function NavMenuPage({
                                 {item.description}
                             </p>
                             {item.requiresJs && (
-                                <span className="noscript-only">
-                                    <Alert
-                                        className="mt-3"
-                                        // Static text, not an announcement
-                                        role="note"
-                                        variant="destructive"
-                                    >
-                                        <TriangleAlert />
-                                        <AlertTitle>
-                                            Requires JavaScript
-                                        </AlertTitle>
-                                        <AlertDescription>
-                                            This page does not work with scripts
-                                            disabled.
-                                        </AlertDescription>
-                                    </Alert>
-                                </span>
+                                <RequiresScriptsAlert className="mt-3 mb-0" />
                             )}
                         </NavMenuLink>
                     </li>

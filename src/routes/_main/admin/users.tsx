@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { UserApiKeys } from "@/components/api-keys/user-api-keys";
 import { PageHeader } from "@/components/page-header";
+import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -346,6 +347,7 @@ function AdminUsersPage() {
                     Add Local User
                 </Button>
             </PageHeader>
+            <RequiresScriptsAlert />
 
             {!authOptions.emailEnabled && (
                 <Alert className="mb-6">

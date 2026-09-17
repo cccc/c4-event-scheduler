@@ -8,6 +8,7 @@ import {
     CreateApiKeyDialog,
 } from "@/components/api-keys/api-key-manager";
 import { PageHeader } from "@/components/page-header";
+import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Button } from "@/components/ui/button";
 import { apiKeysQueries } from "@/lib/queries/api-keys";
 
@@ -52,6 +53,7 @@ function AdminApiKeysPage() {
                     Create Service Key
                 </Button>
             </PageHeader>
+            <RequiresScriptsAlert />
 
             {isLoading ? (
                 <p>Loading keys...</p>

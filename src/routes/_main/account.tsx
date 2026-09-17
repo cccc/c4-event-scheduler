@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PersonalApiKeysCard } from "@/components/account/api-keys-card";
 import { FeedTokenCard } from "@/components/account/feed-token-card";
 import { PageHeader } from "@/components/page-header";
+import { RequiresScriptsAlert } from "@/components/requires-scripts-alert";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -120,6 +121,7 @@ function AccountPage() {
                 description="Manage your profile and sign-in settings."
                 title="Account"
             />
+            <RequiresScriptsAlert />
 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>
