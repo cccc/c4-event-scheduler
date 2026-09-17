@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { KeyRound, Loader2, Mail } from "lucide-react";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,11 @@ import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/server/better-auth/client";
 
 export const Route = createFileRoute("/login")({
+    // `expired`: sent here by a server function that needed a session and
+    // found none (server/auth-middleware.ts)
+    validateSearch: z.object({
+        expired: z.boolean().optional().catch(undefined),
+    }),
     beforeLoad: ({ context }) => {
         if (context.session) throw redirect({ to: "/" });
     },
@@ -30,6 +36,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
     const { authOptions } = Route.useRouteContext();
+    const { expired } = Route.useSearch();
     const router = useRouter();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -129,6 +136,11 @@ function LoginPage() {
                     <CardDescription>Sign in to manage events</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {expired && !error && (
+                        <div className="rounded-md bg-muted p-3 text-muted-foreground text-sm">
+                            Your session has ended, please sign in again.
+                        </div>
+                    )}
                     {error && (
                         <div className="rounded-md bg-destructive/10 p-3 text-destructive text-sm">
                             {error}

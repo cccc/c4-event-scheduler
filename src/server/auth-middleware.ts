@@ -1,3 +1,4 @@
+import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
@@ -6,7 +7,7 @@ import { authLog } from "@/server/auth-log";
 import { auth } from "@/server/better-auth";
 import { db } from "@/server/db";
 import { actor } from "@/server/db/schema";
-import { forbidden, unauthorized } from "@/server/fn-errors";
+import { forbidden } from "@/server/fn-errors";
 import {
     type Actor,
     describeActor,
@@ -61,13 +62,23 @@ export const withActor = createMiddleware({ type: "function" }).server(
 /**
  * Requires a signed-in user; mirrors the old `protectedProcedure`. The handler
  * context gets a non-null `session`, `user` and `actor`.
+ *
+ * Without a session the call redirects to the login page. Thrown from a
+ * loader the router follows it; thrown from a query or mutation the SSR query
+ * integration (router.tsx) does. `reloadDocument` because the page's cached
+ * app context (lib/queries/app.ts) still says signed in: a fresh document
+ * starts from the real state.
  */
 export const authed = createMiddleware({ type: "function" })
     .middleware([withActor])
     .server(async ({ next, context }) => {
         if (!context.session?.user || !context.actor) {
             authLog.warn("server fn unauthorized: no session");
-            throw unauthorized();
+            throw redirect({
+                to: "/login",
+                search: { expired: true },
+                reloadDocument: true,
+            });
         }
         return next({
             context: {
