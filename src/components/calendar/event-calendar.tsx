@@ -5,7 +5,8 @@
 // off here so the structure stays diffable against upstream).
 // Local changes, each marked with a `c4:` comment:
 //   - optional `controller` prop (external useCalendarController) for navigation from outside
-//   - multi-month plugin and view removed
+//   - multi-month and list plugins and views removed (the list view is our
+//     own, calendar/month-view.tsx)
 //   - addButton.click typed as a React MouseEventHandler (drops the `as any` in the toolbar)
 //   - `fallbackTitle` and `toolbarLinks` props passed to the toolbar
 //   - "use no memo": opted out of the React Compiler (mutable controller)
@@ -18,7 +19,6 @@ import {
 } from "@fullcalendar/react"; // c4: CalendarController type
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import listPlugin from "@fullcalendar/react/list";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import type { MouseEventHandler } from "react"; // c4
 import { EventCalendarCloseIcon } from "@/components/calendar/event-calendar-icons";
@@ -32,16 +32,14 @@ import { cn } from "@/lib/utils";
 const plugins = [
     dayGridPlugin,
     timeGridPlugin,
-    listPlugin,
     interactionPlugin,
-    // c4: multiMonthPlugin dropped, we do not offer that view
+    // c4: multiMonthPlugin and listPlugin dropped, we do not offer those views
 ];
 const defaultAvailableViews = [
     "dayGridMonth",
     "timeGridWeek",
     "timeGridDay",
-    "listWeek",
-    // c4: 'multiMonthYear' dropped
+    // c4: 'listWeek' and 'multiMonthYear' dropped
 ];
 const navLinkDayClick = "timeGridDay";
 const navLinkWeekClick = "timeGridWeek";

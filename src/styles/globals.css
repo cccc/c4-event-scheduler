@@ -3,9 +3,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* The list layout of the month view (calendar/month-view.tsx), below the md
-   breakpoint, where seven columns have no room for text */
-@custom-variant list (@media (width < 48rem));
+/* The list layout of the month view (calendar/month-view.tsx): the list view
+   itself, and the month view below the md breakpoint, where seven columns
+   have no room for text */
+@custom-variant list {
+	@media (width < 48rem) {
+		@slot;
+	}
+	[data-layout="list"] & {
+		@slot;
+	}
+}
 
 @theme {
 	--font-sans:

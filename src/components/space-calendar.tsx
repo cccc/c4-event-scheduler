@@ -21,6 +21,7 @@ import { EventCalendar } from "@/components/calendar/event-calendar";
 import type { NavLink } from "@/components/calendar/event-calendar-toolbar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
 import {
+    MonthListView,
     MonthView,
     MonthViewContext,
     type MonthViewContextValue,
@@ -45,7 +46,7 @@ import { eventsQueries } from "@/lib/queries/events";
 import { useCalendarDialogStore } from "@/lib/stores/calendar-dialog-store";
 import { cn } from "@/lib/utils";
 
-const VIEWS = ["month", "timeGridWeek", "listMonth"];
+const VIEWS = ["month", "timeGridWeek", "list"];
 
 // Our own month view (CSS grid, server-renderable): the day grid plugin's
 // month definition with our component. A plugin's own view types keep their
@@ -59,8 +60,18 @@ const VIEW_OPTIONS = {
         fixedWeekCount: false,
         component: MonthView,
     },
+    // The same weeks in the month view's list layout
+    list: {
+        type: "dayGrid",
+        duration: { months: 1 },
+        fixedWeekCount: false,
+        component: MonthListView,
+    },
 };
-const BUTTONS = { month: { text: "Month", hint: "Month view" } };
+const BUTTONS = {
+    month: { text: "Month", hint: "Month view" },
+    list: { text: "List", hint: "List view" },
+};
 
 /**
  * The query the calendar reads first: the occurrences of the month it opens

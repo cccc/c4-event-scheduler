@@ -18,10 +18,11 @@ import { cn } from "@/lib/utils";
  * (dateProfile), the event slicing (multi-day events cut per week), the
  * toolbar and navigation.
  *
- * The same markup has a second, list layout below the md breakpoint, where
- * seven columns have no room for text: the bars shrink to strips without
- * text and each week is followed by its events as a list (day, time, name).
- * The `list:` variant in globals.css applies it.
+ * The same markup has a second, list layout: the bars shrink to strips
+ * without text and each week is followed by its events as a list (day,
+ * time, name). The list view (`MonthListView`) renders that way at every
+ * width, the month view below the md breakpoint, where seven columns have
+ * no room for text (the `list:` variant in globals.css covers both).
  *
  * Registered as a view type of its own on the day grid base (see
  * VIEW_OPTIONS in space-calendar.tsx), which keeps the plugin's date logic
@@ -368,10 +369,19 @@ type ViewProps = ComponentProps<ViewComponentType>;
 // includes the React Compiler's memo cache, hence "use no memo"
 export const MonthView: ViewComponentType = (props) => {
     "use no memo";
-    return <MonthGrid {...props} />;
+    return <MonthGrid {...props} layout="month" />;
 };
 
-function MonthGrid(props: ViewProps) {
+/** The same weeks in the list layout at every width */
+export const MonthListView: ViewComponentType = (props) => {
+    "use no memo";
+    return <MonthGrid {...props} layout="list" />;
+};
+
+function MonthGrid({
+    layout,
+    ...props
+}: ViewProps & { layout: "month" | "list" }) {
     const { tz, occurrences } = useMonthViewContext();
     const { dateProfile } = props;
     const active = dateProfile.activeRange ?? dateProfile.currentRange;
@@ -399,7 +409,11 @@ function MonthGrid(props: ViewProps) {
     });
 
     return (
-        <section aria-label={props.labelStr} className="flex flex-col">
+        <section
+            aria-label={props.labelStr}
+            className="flex flex-col"
+            data-layout={layout}
+        >
             <div className="sticky top-0 z-20 grid grid-cols-7 border-b bg-background">
                 {weekdays.map((d, i) => (
                     <div
