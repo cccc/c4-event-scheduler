@@ -152,9 +152,9 @@ export function Header({ user, isAdmin }: HeaderProps) {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     ) : (
-                        <Link to="/login">
-                            <Button>Sign In</Button>
-                        </Link>
+                        <Button asChild>
+                            <Link to="/login">Sign In</Link>
+                        </Button>
                     )}
                 </nav>
             </div>
