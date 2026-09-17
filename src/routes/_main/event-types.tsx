@@ -114,7 +114,10 @@ function EventTypesPage() {
                 title="Event Types"
             >
                 {canCreate && (
-                    <Button onClick={() => setOpen(true)}>
+                    <Button
+                        className="script-only"
+                        onClick={() => setOpen(true)}
+                    >
                         Create Event Type
                     </Button>
                 )}
@@ -178,7 +181,7 @@ function EventTypesPage() {
                                     </CardDescription>
                                 )}
                                 {canManage(et) && (
-                                    <CardAction>
+                                    <CardAction className="script-only">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button

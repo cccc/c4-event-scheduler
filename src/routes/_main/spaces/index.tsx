@@ -64,7 +64,12 @@ function SpacesPage() {
                 title="Spaces"
             >
                 {canCreate && (
-                    <Button onClick={() => setOpen(true)}>Create Space</Button>
+                    <Button
+                        className="script-only"
+                        onClick={() => setOpen(true)}
+                    >
+                        Create Space
+                    </Button>
                 )}
             </PageHeader>
             {canCreate && (
@@ -102,8 +107,10 @@ function SpacesPage() {
                                 )}
                             </div>
                         </Link>
+                        {/* Edit and Delete open dialogs, so the bar needs
+                            scripts; the card itself is the link to the space */}
                         {canManage(space.slug) && (
-                            <div className="flex items-center gap-2 border-t px-4 py-2">
+                            <div className="script-only flex items-center gap-2 border-t px-4 py-2">
                                 <Button asChild size="sm" variant="outline">
                                     <Link
                                         params={{ slug: space.slug }}
