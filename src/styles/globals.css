@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The list layout of the month view (calendar/month-view.tsx), below the md
+   breakpoint, where seven columns have no room for text */
+@custom-variant list (@media (width < 48rem));
+
 @theme {
 	--font-sans:
 		"Geist Variable", ui-sans-serif, system-ui, sans-serif,

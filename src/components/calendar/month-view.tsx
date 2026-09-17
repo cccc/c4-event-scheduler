@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
  * (dateProfile), the event slicing (multi-day events cut per week), the
  * toolbar and navigation.
  *
+ * The same markup has a second, list layout below the md breakpoint, where
+ * seven columns have no room for text: the bars shrink to strips without
+ * text and each week is followed by its events as a list (day, time, name).
+ * The `list:` variant in globals.css applies it.
+ *
  * Registered as a view type of its own on the day grid base (see
  * VIEW_OPTIONS in space-calendar.tsx), which keeps the plugin's date logic
  * (whole weeks) and only swaps the rendering. FullCalendar calls a
@@ -138,6 +143,8 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
             aria-label={`${time ? `${time} ` : ""}${occ.summary}`}
             className={cn(
                 "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
+                // List layout: a strip without text, the week's list has it
+                "list:h-2 list:px-0 list:py-0",
                 // Continuations: no border on the open side, the other
                 // borders dissolve toward it (event-cut* in globals.css)
                 isStart ? "ms-1" : "rounded-s-none border-s-0",
@@ -172,9 +179,114 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
             }}
             type="button"
         >
-            {time && <span className="shrink-0">{time}</span>}
-            <span className="truncate font-semibold">{occ.summary}</span>
+            {time && <span className="list:hidden shrink-0">{time}</span>}
+            <span className="list:hidden truncate font-semibold">
+                {occ.summary}
+            </span>
         </a>
+    );
+}
+
+/**
+ * The week's events as a list, the text of the bars in the list layout.
+ * Same links as the bars, ordered by day, then start time.
+ */
+function WeekList({
+    segments,
+    weekStart,
+    tz,
+    isOther,
+}: {
+    segments: Segment[];
+    weekStart: Date;
+    tz: string;
+    isOther: (marker: Date) => boolean;
+}) {
+    const { onEventClick, occurrenceHref } = useMonthViewContext();
+    if (segments.length === 0) return null;
+    const sorted = [...segments].sort(
+        (a, b) =>
+            a.column - b.column ||
+            a.occurrence.dtstart.getTime() - b.occurrence.dtstart.getTime(),
+    );
+    let lastColumn = 0;
+    return (
+        <ol className="list:grid hidden grid-cols-[3.25rem_3.25rem_1fr] gap-x-2 gap-y-1 border-b px-2 py-2 text-sm">
+            {sorted.map((seg) => {
+                const { occurrence: occ } = seg;
+                const showDay = seg.column !== lastColumn;
+                lastColumn = seg.column;
+                const day = new Date(
+                    weekStart.getTime() + (seg.column - 1) * DAY_MS,
+                );
+                const last = new Date(day.getTime() + (seg.span - 1) * DAY_MS);
+                // A bar continuing from the previous week is all day here;
+                // its own days follow the name
+                const when =
+                    occ.allDay || !seg.isStart
+                        ? "all day"
+                        : formatInTimeZone(occ.dtstart, tz, "HH:mm");
+                const days = !seg.isStart
+                    ? `${formatInTimeZone(occ.dtstart, tz, "EEE d")} to ${formatInTimeZone(last, "UTC", "EEE d")}`
+                    : seg.span > 1
+                      ? `to ${formatInTimeZone(last, "UTC", "EEE d")}`
+                      : null;
+                return (
+                    <li className="contents" key={`${occ.id}:${seg.column}`}>
+                        <span
+                            className={cn(
+                                "font-medium",
+                                isOther(day)
+                                    ? "text-muted-foreground/60"
+                                    : "text-muted-foreground",
+                            )}
+                        >
+                            {showDay && formatInTimeZone(day, "UTC", "EEE d")}
+                        </span>
+                        <span className="text-muted-foreground tabular-nums">
+                            {when}
+                        </span>
+                        <a
+                            className={cn(
+                                "min-w-0",
+                                `event-${occ.status}`,
+                                occ.isDraft && "event-draft",
+                                occ.isInternal && "event-internal",
+                            )}
+                            href={occurrenceHref(occ)}
+                            onClick={(e) => {
+                                if (
+                                    e.button !== 0 ||
+                                    e.metaKey ||
+                                    e.ctrlKey ||
+                                    e.shiftKey ||
+                                    e.altKey
+                                ) {
+                                    return;
+                                }
+                                e.preventDefault();
+                                onEventClick(occ);
+                            }}
+                            style={{
+                                ["--fc-event-color" as string]:
+                                    occ.color ?? "var(--primary)",
+                            }}
+                        >
+                            <span
+                                aria-hidden
+                                className="me-1.5 inline-block size-2 rounded-full bg-(--fc-event-color)"
+                            />
+                            <span className="font-semibold">{occ.summary}</span>
+                            {days && (
+                                <span className="ms-1.5 inline-block whitespace-nowrap text-muted-foreground">
+                                    {days}
+                                </span>
+                            )}
+                        </a>
+                    </li>
+                );
+            })}
+        </ol>
     );
 }
 
@@ -273,6 +385,10 @@ function MonthGrid(props: ViewProps) {
     const todayKey = formatInTimeZone(new Date(), tz, "yyyy-MM-dd");
     const currentStartMs = dateProfile.currentRange.start.getTime();
     const currentEndMs = dateProfile.currentRange.end.getTime();
+    const isOther = (marker: Date) => {
+        const ms = marker.getTime();
+        return ms < currentStartMs || ms >= currentEndMs;
+    };
 
     const weekdays = Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
         const marker = new Date(active.start.getTime() + i * DAY_MS);
@@ -308,42 +424,45 @@ function MonthGrid(props: ViewProps) {
                 );
                 const isLastWeek = w === weekCount - 1;
                 return (
-                    <div
-                        className="grid min-h-32 grid-cols-7"
-                        key={dayKey(weekStart)}
-                        style={{
-                            // Row 1 holds the day numbers, one row per lane,
-                            // a last row takes the remaining height so the day
-                            // cells (spanning all rows) fill the week
-                            gridTemplateRows: `2rem repeat(${lanes}, auto) minmax(0, 1fr)`,
-                        }}
-                    >
-                        {Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
-                            const marker = new Date(
-                                weekStart.getTime() + i * DAY_MS,
-                            );
-                            const ms = marker.getTime();
-                            return (
-                                <DayCell
-                                    column={i + 1}
-                                    isLastWeek={isLastWeek}
-                                    isOther={
-                                        ms < currentStartMs ||
-                                        ms >= currentEndMs
-                                    }
-                                    key={dayKey(marker)}
-                                    marker={marker}
-                                    todayKey={todayKey}
+                    <div key={dayKey(weekStart)}>
+                        <div
+                            className="grid list:min-h-0 min-h-32 grid-cols-7"
+                            style={{
+                                // Row 1 holds the day numbers, one row per lane,
+                                // a last row takes the remaining height so the day
+                                // cells (spanning all rows) fill the week
+                                gridTemplateRows: `2rem repeat(${lanes}, auto) minmax(0, 1fr)`,
+                            }}
+                        >
+                            {Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
+                                const marker = new Date(
+                                    weekStart.getTime() + i * DAY_MS,
+                                );
+                                return (
+                                    <DayCell
+                                        column={i + 1}
+                                        isLastWeek={isLastWeek}
+                                        isOther={isOther(marker)}
+                                        key={dayKey(marker)}
+                                        marker={marker}
+                                        todayKey={todayKey}
+                                    />
+                                );
+                            })}
+                            {segments.map((seg) => (
+                                <EventBar
+                                    key={`${seg.occurrence.id}:${seg.column}`}
+                                    segment={seg}
+                                    tz={tz}
                                 />
-                            );
-                        })}
-                        {segments.map((seg) => (
-                            <EventBar
-                                key={`${seg.occurrence.id}:${seg.column}`}
-                                segment={seg}
-                                tz={tz}
-                            />
-                        ))}
+                            ))}
+                        </div>
+                        <WeekList
+                            isOther={isOther}
+                            segments={segments}
+                            tz={tz}
+                            weekStart={weekStart}
+                        />
                     </div>
                 );
             })}
