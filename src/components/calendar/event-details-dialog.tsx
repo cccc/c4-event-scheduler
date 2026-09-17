@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import {
     CalendarDays,
     Check,
@@ -19,12 +19,7 @@ import { RRule } from "rrule";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEventLink } from "@/lib/event-link";
@@ -42,7 +37,8 @@ type EventDetailsDialogProps = {
     canEdit: boolean;
     /** The linked occurrence (?event=); null closes the dialog */
     occurrence: Occurrence | null;
-    onClose: () => void;
+    /** Escape or a backdrop click; the close buttons are links instead */
+    onClose: () => unknown;
     /** Leaves the details for the edit dialog */
     onEdit: (occurrence: Occurrence, editTab?: EditTab) => void;
 };
@@ -137,7 +133,8 @@ function describeOverride(
 
 /**
  * Copies a deep link to this occurrence (calendar on its date, details open).
- * Confirms on the button itself, where the click happened
+ * Confirms on the button itself: a toast would render under the modal's
+ * backdrop, outside the top layer
  */
 function CopyLinkButton({
     eventId,
@@ -168,6 +165,50 @@ function CopyLinkButton({
             {copied ? <Check /> : <Link2 />}
             {copied ? "Copied" : "Copy link"}
         </Button>
+    );
+}
+
+/**
+ * Closes the details by dropping the link that keeps them open: a client
+ * navigation in a view transition with scripts, a page load without
+ */
+function CloseLink(props: {
+    children: React.ReactNode;
+    "aria-label"?: string;
+    className?: string;
+}) {
+    return (
+        <Link
+            from="/spaces/$slug"
+            replace
+            search={(prev) => ({ ...prev, event: undefined })}
+            to="."
+            viewTransition
+            {...props}
+        />
+    );
+}
+
+function DetailsHeader({ occurrence }: { occurrence: Occurrence }) {
+    return (
+        <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+                <DialogTitle className="text-xl">
+                    {occurrence.summary}
+                </DialogTitle>
+                <OccurrenceBadges occurrence={occurrence} />
+            </div>
+            <Button
+                asChild
+                className="-mt-2 -mr-2"
+                size="icon-sm"
+                variant="ghost"
+            >
+                <CloseLink aria-label="Close">
+                    <X />
+                </CloseLink>
+            </Button>
+        </div>
     );
 }
 
@@ -232,15 +273,14 @@ export function OccurrenceBadges({ occurrence }: { occurrence: Occurrence }) {
 type OccurrenceContentProps = {
     occurrence: Occurrence;
     canEdit: boolean;
-    /** The action row (copy link, close, edit); left out for the no-JS card */
-    actions?: { onClose: () => void; onEdit: () => void };
+    onEdit: () => void;
 };
 
 /** The body of the details: when, description, links, location, notes */
 export function OccurrenceContent({
     occurrence,
     canEdit,
-    actions,
+    onEdit,
 }: OccurrenceContentProps) {
     const tz = useAppTimezone();
 
@@ -406,25 +446,20 @@ export function OccurrenceContent({
             </div>
 
             {/* Actions */}
-            {actions && (
-                <div className="flex justify-end gap-2 border-t pt-4">
-                    <CopyLinkButton
-                        eventId={occurrence.eventId}
-                        occurrenceDate={occurrence.occurrenceDate}
-                    />
-                    <Button onClick={actions.onClose} variant="outline">
-                        Close
+            <div className="flex justify-end gap-2 border-t pt-4">
+                <CopyLinkButton
+                    eventId={occurrence.eventId}
+                    occurrenceDate={occurrence.occurrenceDate}
+                />
+                <Button asChild variant="outline">
+                    <CloseLink>Close</CloseLink>
+                </Button>
+                {canEdit && (
+                    <Button className="script-only" onClick={onEdit}>
+                        Edit
                     </Button>
-                    {canEdit && (
-                        <Button
-                            className="script-only"
-                            onClick={actions.onEdit}
-                        >
-                            Edit
-                        </Button>
-                    )}
-                </div>
-            )}
+                )}
+            </div>
         </>
     );
 }
@@ -677,8 +712,10 @@ function SeriesInfoContent({
 /**
  * Rendered only while an occurrence is linked. It closes by removing the
  * link in a view transition (closeOccurrence), which animates the last
- * frame out, so nothing has to stay mounted after closing. Keyed by the
- * occurrence so every occurrence starts on its own first tab
+ * frame out, so nothing has to stay mounted after closing. A native dialog
+ * (ui/dialog.tsx), so it is part of the server HTML: without scripts it is
+ * a card above the calendar. Keyed by the occurrence so every occurrence
+ * starts on its own first tab
  */
 export function EventDetailsDialog({
     occurrence,
@@ -701,33 +738,18 @@ function OpenEventDetailsDialog({
     onEdit,
 }: EventDetailsDialogProps & { occurrence: Occurrence }) {
     const [activeTab, setActiveTab] = useState("occurrence");
-    const onOpenChange = (open: boolean) => {
-        if (!open) onClose();
-    };
-    const actions = {
-        onClose,
-        onEdit: () => onEdit(occurrence),
-    };
+    const onOpenChange = (open: boolean) => (open ? undefined : onClose());
 
     // Single events: flat view (no tabs)
     if (!occurrence.isRecurring) {
         return (
             <Dialog onOpenChange={onOpenChange} open>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1">
-                                <DialogTitle className="text-xl">
-                                    {occurrence.summary}
-                                </DialogTitle>
-                                <OccurrenceBadges occurrence={occurrence} />
-                            </div>
-                        </div>
-                    </DialogHeader>
+                <DialogContent showCloseButton={false}>
+                    <DetailsHeader occurrence={occurrence} />
                     <OccurrenceContent
-                        actions={actions}
                         canEdit={canEdit}
                         occurrence={occurrence}
+                        onEdit={() => onEdit(occurrence)}
                     />
                 </DialogContent>
             </Dialog>
@@ -737,17 +759,8 @@ function OpenEventDetailsDialog({
     // Recurring events: tabbed view
     return (
         <Dialog onOpenChange={onOpenChange} open>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                            <DialogTitle className="text-xl">
-                                {occurrence.summary}
-                            </DialogTitle>
-                            <OccurrenceBadges occurrence={occurrence} />
-                        </div>
-                    </div>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-2xl" showCloseButton={false}>
+                <DetailsHeader occurrence={occurrence} />
 
                 <Tabs onValueChange={setActiveTab} value={activeTab}>
                     {/* Tabs need scripts; without them the first one shows */}
@@ -762,9 +775,9 @@ function OpenEventDetailsDialog({
 
                     <TabsContent value="occurrence">
                         <OccurrenceContent
-                            actions={actions}
                             canEdit={canEdit}
                             occurrence={occurrence}
+                            onEdit={() => onEdit(occurrence)}
                         />
                     </TabsContent>
 
@@ -778,8 +791,8 @@ function OpenEventDetailsDialog({
                                 eventId={occurrence.eventId}
                                 occurrenceDate={occurrence.occurrenceDate}
                             />
-                            <Button onClick={onClose} variant="outline">
-                                Close
+                            <Button asChild variant="outline">
+                                <CloseLink>Close</CloseLink>
                             </Button>
                             {canEdit && (
                                 <Button

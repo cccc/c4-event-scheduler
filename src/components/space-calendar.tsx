@@ -20,7 +20,6 @@ import { EditEventDialog } from "@/components/calendar/edit-event-dialog";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import type { NavLink } from "@/components/calendar/event-calendar-toolbar";
 import { EventDetailsDialog } from "@/components/calendar/event-details-dialog";
-import { LinkedOccurrenceCard } from "@/components/calendar/linked-occurrence-card";
 import {
     MonthView,
     MonthViewContext,
@@ -305,7 +304,15 @@ export function SpaceCalendar({ space }: { space: Space }) {
                 </div>
             </div>
 
-            <LinkedOccurrenceCard occurrences={occurrenceById} />
+            <EventDetailsDialog
+                canEdit={isLoggedIn}
+                occurrence={linkedOccurrence}
+                onClose={closeOccurrence}
+                onEdit={(occ, editTab) => {
+                    closeOccurrence();
+                    openEdit(occ, editTab);
+                }}
+            />
 
             <div className="relative rounded-lg border bg-card p-4">
                 {showLoading && (
@@ -365,16 +372,6 @@ export function SpaceCalendar({ space }: { space: Space }) {
             </div>
 
             <CreateEventDialog eventTypes={eventTypes ?? []} space={space} />
-
-            <EventDetailsDialog
-                canEdit={isLoggedIn}
-                occurrence={linkedOccurrence}
-                onClose={closeOccurrence}
-                onEdit={(occ, editTab) => {
-                    closeOccurrence();
-                    openEdit(occ, editTab);
-                }}
-            />
 
             <EditEventDialog />
         </>
