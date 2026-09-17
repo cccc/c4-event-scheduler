@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CopyUrlButton } from "@/components/copy-url-button";
+import { PageHeader } from "@/components/page-header";
 import { spacesQueries } from "@/lib/queries/spaces";
 
 export const Route = createFileRoute("/_main/widget")({
@@ -21,13 +22,10 @@ function WidgetPage() {
 
     return (
         <>
-            <div className="mb-8">
-                <h1 className="mb-2 font-bold text-3xl">Widget API</h1>
-                <p className="text-muted-foreground">
-                    Embed upcoming events on your website using the widget API.
-                    Returns upcoming events sorted by date.
-                </p>
-            </div>
+            <PageHeader
+                description="Embed upcoming events on your website using the widget API. Returns upcoming events sorted by date."
+                title="Widget API"
+            />
 
             <div className="space-y-4">
                 <div className="rounded-lg border p-4">

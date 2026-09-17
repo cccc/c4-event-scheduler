@@ -35,6 +35,7 @@ import {
     useCalendarDeepLink,
     useLinkedDate,
 } from "@/components/calendar/use-calendar-deep-link";
+import { PageHeader } from "@/components/page-header";
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { useAppTimezone } from "@/components/timezone-provider";
 import { Button } from "@/components/ui/button";
@@ -282,27 +283,19 @@ export function SpaceCalendar({ space }: { space: Space }) {
 
     return (
         <>
-            <div className="mb-6 flex items-start justify-between">
-                <div>
-                    <h1 className="mb-2 font-bold text-3xl">{space.name}</h1>
-                    {space.description && (
-                        <p className="text-muted-foreground">
-                            {space.description}
-                        </p>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <SubscribeMenu
-                        access={space.isPublic ? "mixed" : "internal"}
-                        url={feedUrl}
-                    />
-                    {isLoggedIn && (
-                        <Button onClick={() => openCreate()}>
-                            Create Event
-                        </Button>
-                    )}
-                </div>
-            </div>
+            <PageHeader
+                className="mb-6"
+                description={space.description}
+                title={space.name}
+            >
+                <SubscribeMenu
+                    access={space.isPublic ? "mixed" : "internal"}
+                    url={feedUrl}
+                />
+                {isLoggedIn && (
+                    <Button onClick={() => openCreate()}>Create Event</Button>
+                )}
+            </PageHeader>
 
             <EventDetailsDialog
                 canEdit={isLoggedIn}

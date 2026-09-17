@@ -1,7 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import type { ComponentProps } from "react";
-
+import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export type NavMenuItem = {
@@ -81,10 +81,7 @@ export function NavMenuPage({
 }) {
     return (
         <>
-            <div className="mb-8">
-                <h1 className="mb-2 font-bold text-3xl">{title}</h1>
-                <p className="text-muted-foreground">{description}</p>
-            </div>
+            <PageHeader description={description} title={title} />
             <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => (
                     <li key={item.label}>

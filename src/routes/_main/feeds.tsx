@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-
+import { PageHeader } from "@/components/page-header";
 import { type FeedAccess, SubscribeMenu } from "@/components/subscribe-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -116,14 +116,10 @@ function FeedsPage() {
 
     return (
         <>
-            <div className="mb-8">
-                <h1 className="mb-2 font-bold text-3xl">iCal Feeds</h1>
-                <p className="text-muted-foreground">
-                    Subscribe to calendar feeds using any calendar application
-                    that supports iCal (Google Calendar, Apple Calendar,
-                    Outlook, etc.).
-                </p>
-            </div>
+            <PageHeader
+                description="Subscribe to calendar feeds using any calendar application that supports iCal (Google Calendar, Apple Calendar, Outlook, etc.)."
+                title="iCal Feeds"
+            />
 
             <div className="space-y-8">
                 {isLoggedIn && <ApiKeyNote />}

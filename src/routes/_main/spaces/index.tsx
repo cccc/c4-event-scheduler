@@ -2,7 +2,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { useState } from "react";
-
+import { PageHeader } from "@/components/page-header";
 import { CreateSpaceDialog } from "@/components/spaces/create-space-dialog";
 import {
     type DeleteSpace,
@@ -59,24 +59,17 @@ function SpacesPage() {
 
     return (
         <>
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="mb-2 font-bold text-3xl">Spaces</h1>
-                    <p className="text-muted-foreground">
-                        Manage calendar spaces for different venues or
-                        communities.
-                    </p>
-                </div>
-
+            <PageHeader
+                description="Manage calendar spaces for different venues or communities."
+                title="Spaces"
+            >
                 {canCreate && (
-                    <>
-                        <Button onClick={() => setOpen(true)}>
-                            Create Space
-                        </Button>
-                        <CreateSpaceDialog onOpenChange={setOpen} open={open} />
-                    </>
+                    <Button onClick={() => setOpen(true)}>Create Space</Button>
                 )}
-            </div>
+            </PageHeader>
+            {canCreate && (
+                <CreateSpaceDialog onOpenChange={setOpen} open={open} />
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {spaces.map((space) => (

@@ -4,6 +4,7 @@ import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UserApiKeys } from "@/components/api-keys/user-api-keys";
+import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -341,21 +342,22 @@ function AdminUsersPage() {
 
     return (
         <>
-            <div className="mb-8 flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="mb-2 font-bold text-3xl">Users</h1>
-                    <p className="text-muted-foreground">
-                        Manage users, local accounts and permissions.
-                    </p>
-                    <p className="mt-2 text-muted-foreground text-sm">
-                        Permissions from OIDC are synced automatically on login.
-                        Manual permissions can be added here.
-                    </p>
-                </div>
+            <PageHeader
+                description={
+                    <>
+                        <p>Manage users, local accounts and permissions.</p>
+                        <p className="mt-2 text-sm">
+                            Permissions from OIDC are synced automatically on
+                            login. Manual permissions can be added here.
+                        </p>
+                    </>
+                }
+                title="Users"
+            >
                 <Button onClick={() => setCreateOpen(true)}>
                     Add Local User
                 </Button>
-            </div>
+            </PageHeader>
 
             {!authOptions.emailEnabled && (
                 <Alert className="mb-6">

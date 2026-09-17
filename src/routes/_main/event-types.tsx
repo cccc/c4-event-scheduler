@@ -10,6 +10,7 @@ import {
     DeleteEventTypeDialog,
 } from "@/components/event-types/delete-event-type-dialog";
 import { EditEventTypeDialog } from "@/components/event-types/edit-event-type-dialog";
+import { PageHeader } from "@/components/page-header";
 import { SubscribeMenu } from "@/components/subscribe-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,28 +127,23 @@ function EventTypesPage() {
 
     return (
         <>
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="mb-2 font-bold text-3xl">Event Types</h1>
-                    <p className="text-muted-foreground">
-                        Event types are templates for categorizing events (e.g.,
-                        "Meetup", "Workshop", "Conference").
-                    </p>
-                </div>
-
+            <PageHeader
+                description='Event types are templates for categorizing events (e.g., "Meetup", "Workshop", "Conference").'
+                title="Event Types"
+            >
                 {canCreate && (
-                    <>
-                        <Button onClick={() => setOpen(true)}>
-                            Create Event Type
-                        </Button>
-                        <CreateEventTypeDialog
-                            onOpenChange={setOpen}
-                            open={open}
-                            spaces={spaces}
-                        />
-                    </>
+                    <Button onClick={() => setOpen(true)}>
+                        Create Event Type
+                    </Button>
                 )}
-            </div>
+            </PageHeader>
+            {canCreate && (
+                <CreateEventTypeDialog
+                    onOpenChange={setOpen}
+                    open={open}
+                    spaces={spaces}
+                />
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
                 {eventTypes.map((et) => {

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { PersonalApiKeysCard } from "@/components/account/api-keys-card";
 import { FeedTokenCard } from "@/components/account/feed-token-card";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -115,12 +116,10 @@ function AccountPage() {
 
     return (
         <>
-            <div className="mb-8">
-                <h1 className="mb-2 font-bold text-3xl">Account</h1>
-                <p className="text-muted-foreground">
-                    Manage your profile and sign-in settings.
-                </p>
-            </div>
+            <PageHeader
+                description="Manage your profile and sign-in settings."
+                title="Account"
+            />
 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>

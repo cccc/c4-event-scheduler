@@ -7,6 +7,7 @@ import {
     ApiKeyList,
     CreateApiKeyDialog,
 } from "@/components/api-keys/api-key-manager";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { apiKeysQueries } from "@/lib/queries/api-keys";
 
@@ -43,19 +44,14 @@ function AdminApiKeysPage() {
 
     return (
         <>
-            <div className="mb-8 flex items-start justify-between">
-                <div>
-                    <h1 className="mb-2 font-bold text-3xl">
-                        API Key Management
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Keys for the REST API and iCal feeds.
-                    </p>
-                </div>
+            <PageHeader
+                description="Keys for the REST API and iCal feeds."
+                title="API Key Management"
+            >
                 <Button onClick={() => setCreateOpen(true)}>
                     Create Service Key
                 </Button>
-            </div>
+            </PageHeader>
 
             {isLoading ? (
                 <p>Loading keys...</p>
