@@ -9,6 +9,7 @@ import { KeyRound, Loader2, Mail } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -137,14 +138,16 @@ function LoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {expired && !error && (
-                        <div className="rounded-md bg-muted p-3 text-muted-foreground text-sm">
-                            Your session has ended, please sign in again.
-                        </div>
+                        <Alert role="status">
+                            <AlertDescription>
+                                Your session has ended, please sign in again.
+                            </AlertDescription>
+                        </Alert>
                     )}
                     {error && (
-                        <div className="rounded-md bg-destructive/10 p-3 text-destructive text-sm">
-                            {error}
-                        </div>
+                        <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
                     )}
 
                     {ssoEnabled && (

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -617,11 +618,11 @@ export function CreateApiKeyDialog({
 
                 {newKeyValue ? (
                     <div className="space-y-4">
-                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
-                            <p className="font-medium text-amber-800 text-sm dark:text-amber-200">
+                        <Alert variant="warning">
+                            <AlertTitle>
                                 This key will not be shown again. Copy it now.
-                            </p>
-                        </div>
+                            </AlertTitle>
+                        </Alert>
                         <div className="flex gap-2">
                             <code className="flex-1 break-all rounded bg-muted px-3 py-2 font-mono text-sm">
                                 {newKeyValue}

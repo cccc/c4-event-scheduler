@@ -17,6 +17,7 @@ import { useState } from "react";
 import { RRule } from "rrule";
 import { CopyButton } from "@/components/copy-button";
 import { useAppTimezone } from "@/components/timezone-provider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -376,14 +377,10 @@ export function OccurrenceContent({
 
                 {/* Notes (only shown if there are override notes) */}
                 {occurrence.notes && (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
-                        <div className="font-medium text-amber-800 text-sm dark:text-amber-200">
-                            Note
-                        </div>
-                        <div className="mt-1 text-amber-700 text-sm dark:text-amber-300">
-                            {occurrence.notes}
-                        </div>
-                    </div>
+                    <Alert role="note" variant="warning">
+                        <AlertTitle>Note</AlertTitle>
+                        <AlertDescription>{occurrence.notes}</AlertDescription>
+                    </Alert>
                 )}
 
                 {/* Created/Updated by (single events only — recurring shows this in Series Info tab) */}
