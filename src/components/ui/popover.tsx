@@ -1,5 +1,6 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
 import type * as React from "react";
+import { useDialogContainer } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function Popover({
@@ -21,7 +22,7 @@ function PopoverContent({
     ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
     return (
-        <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Portal container={useDialogContainer()}>
             <PopoverPrimitive.Content
                 align={align}
                 className={cn(

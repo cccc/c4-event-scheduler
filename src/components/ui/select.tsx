@@ -2,6 +2,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type * as React from "react";
 
+import { useDialogContainer } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function Select({
@@ -56,7 +57,7 @@ function SelectContent({
     ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
     return (
-        <SelectPrimitive.Portal>
+        <SelectPrimitive.Portal container={useDialogContainer()}>
             <SelectPrimitive.Content
                 align={align}
                 className={cn(

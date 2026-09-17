@@ -1,47 +1,80 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Slot } from "@radix-ui/react-slot";
 import { XIcon } from "lucide-react";
-import type * as React from "react";
-import { useId } from "react";
+import {
+    createContext,
+    useContext,
+    useId,
+    useLayoutEffect,
+    useState,
+} from "react";
+import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/*
+ * c4: dialogs on the native <dialog> element instead of Radix, so there is
+ * no portal. `Dialog` renders its children only while open: a closed dialog
+ * is unmounted (forms start fresh every time) and an open one is part of the
+ * server HTML. `DialogContent` carries the `open` attribute in that HTML,
+ * which without scripts is a card in the page (globals.css, the noscript
+ * style in __root.tsx); once mounted with scripts it reopens as a modal: top
+ * layer, backdrop, the rest of the page inert, focus kept inside, Escape.
+ * Closing is a view transition in which the dialog unmounts at once and its
+ * last frame zooms out (globals.css), so nothing stays mounted to animate.
+ * Popups inside a dialog (select, popover, menu, tooltip) portal into the
+ * dialog element through `useDialogContainer`; everything outside it is
+ * inert while the dialog is open.
+ */
+
+type DialogContextValue = {
+    close: () => void;
+    titleId: string;
+    descriptionId: string;
+};
+
+const DialogContext = createContext<DialogContextValue | null>(null);
+const DialogContainerContext = createContext<HTMLElement | null>(null);
+
+function useDialog() {
+    const context = useContext(DialogContext);
+    if (!context) throw new Error("Dialog parts must be inside <Dialog>");
+    return context;
+}
+
+/** The open dialog element popups should portal into; null outside one */
+function useDialogContainer() {
+    return useContext(DialogContainerContext);
+}
+
 function Dialog({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-    return <DialogPrimitive.Root data-slot="dialog" {...props} />;
-}
-
-function DialogTrigger({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-    return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
-}
-
-function DialogPortal({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-    return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
-}
-
-function DialogClose({
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-    return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
-}
-
-function DialogOverlay({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+    open = false,
+    onOpenChange,
+    children,
+}: {
+    open?: boolean;
+    /** May return a promise (a navigation) the close transition waits for */
+    onOpenChange?: (open: boolean) => unknown;
+    children: React.ReactNode;
+}) {
+    const titleId = useId();
+    const descriptionId = useId();
+    const close = () => {
+        if (!onOpenChange) return;
+        if (typeof document.startViewTransition !== "function") {
+            onOpenChange(false);
+            return;
+        }
+        // flushSync commits a plain state change inside the callback; a
+        // returned promise (URL-driven dialogs navigate) is waited for
+        document.startViewTransition(
+            () => flushSync(() => onOpenChange(false)) as Promise<void>,
+        );
+    };
+    if (!open) return null;
     return (
-        <DialogPrimitive.Overlay
-            className={cn(
-                "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in",
-                className,
-            )}
-            data-slot="dialog-overlay"
-            {...props}
-        />
+        <DialogContext value={{ close, titleId, descriptionId }}>
+            {children}
+        </DialogContext>
     );
 }
 
@@ -51,23 +84,44 @@ function DialogContent({
     showCloseButton = true,
     style,
     ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+}: React.ComponentProps<"dialog"> & {
     showCloseButton?: boolean;
 }) {
-    // c4: a view transition name of its own (names must be unique on the
-    // page) and the shared "dialog" class, so a dialog removed inside a view
-    // transition animates out (globals.css); Radix's exit animation only
-    // runs while the content stays mounted
+    const { close, titleId, descriptionId } = useDialog();
+    const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
+    // Unique per dialog (names must be) plus the shared "dialog" class for
+    // the zoom-out in globals.css
     const viewTransitionName = `dialog-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
+
+    useLayoutEffect(() => {
+        if (!dialog || dialog.matches(":modal")) return;
+        // Removing the attribute, unlike close(), fires no close event
+        dialog.removeAttribute("open");
+        dialog.showModal();
+    }, [dialog]);
+
     return (
-        <DialogPortal data-slot="dialog-portal">
-            <DialogOverlay />
-            <DialogPrimitive.Content
+        <DialogContainerContext value={dialog}>
+            <dialog
+                aria-describedby={descriptionId}
+                aria-labelledby={titleId}
+                // Light dismiss (a click on the backdrop) as a cancel event,
+                // like Escape; not in the JSX types yet
+                {...{ closedby: "any" }}
                 className={cn(
-                    "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in sm:max-w-lg",
+                    "m-auto max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg border bg-background p-0 text-foreground shadow-lg backdrop:bg-black/50 sm:max-w-lg",
+                    // Without scripts (never modal): a card above the content
+                    "[&:not(:modal)]:static [&:not(:modal)]:mb-6 [&:not(:modal)]:max-w-none",
                     className,
                 )}
-                data-slot="dialog-content"
+                onCancel={(event) => {
+                    // Keep it open so the close transition can capture it
+                    event.preventDefault();
+                    close();
+                }}
+                onClose={close}
+                open
+                ref={setDialog}
                 style={{
                     viewTransitionName,
                     viewTransitionClass: "dialog",
@@ -75,18 +129,40 @@ function DialogContent({
                 }}
                 {...props}
             >
-                {children}
-                {showCloseButton && (
-                    <DialogPrimitive.Close
-                        className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-                        data-slot="dialog-close"
-                    >
-                        <XIcon />
-                        <span className="sr-only">Close</span>
-                    </DialogPrimitive.Close>
-                )}
-            </DialogPrimitive.Content>
-        </DialogPortal>
+                <div className="relative grid gap-4 p-6">
+                    {children}
+                    {showCloseButton && (
+                        <DialogClose
+                            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                            data-slot="dialog-close"
+                        >
+                            <XIcon />
+                            <span className="sr-only">Close</span>
+                        </DialogClose>
+                    )}
+                </div>
+            </dialog>
+        </DialogContainerContext>
+    );
+}
+
+function DialogClose({
+    asChild,
+    onClick,
+    ...props
+}: React.ComponentProps<"button"> & { asChild?: boolean }) {
+    const { close } = useDialog();
+    const Comp = asChild ? Slot : "button";
+    return (
+        <Comp
+            data-slot="dialog-close"
+            onClick={(event) => {
+                onClick?.(event);
+                if (!event.defaultPrevented) close();
+            }}
+            type="button"
+            {...props}
+        />
     );
 }
 
@@ -122,35 +198,33 @@ function DialogFooter({
         >
             {children}
             {showCloseButton && (
-                <DialogPrimitive.Close asChild>
+                <DialogClose asChild>
                     <Button variant="outline">Close</Button>
-                </DialogPrimitive.Close>
+                </DialogClose>
             )}
         </div>
     );
 }
 
-function DialogTitle({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+function DialogTitle({ className, ...props }: React.ComponentProps<"h2">) {
+    const { titleId } = useDialog();
     return (
-        <DialogPrimitive.Title
+        <h2
             className={cn("font-semibold text-lg leading-none", className)}
             data-slot="dialog-title"
+            id={titleId}
             {...props}
         />
     );
 }
 
-function DialogDescription({
-    className,
-    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
+    const { descriptionId } = useDialog();
     return (
-        <DialogPrimitive.Description
+        <p
             className={cn("text-muted-foreground text-sm", className)}
             data-slot="dialog-description"
+            id={descriptionId}
             {...props}
         />
     );
@@ -163,8 +237,6 @@ export {
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogOverlay,
-    DialogPortal,
     DialogTitle,
-    DialogTrigger,
+    useDialogContainer,
 };

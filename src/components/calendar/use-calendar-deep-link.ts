@@ -136,7 +136,6 @@ export function useCalendarDeepLink({
             navigate({
                 search: (prev) => ({ ...prev, event: undefined }),
                 replace: true,
-                viewTransition: true,
             }),
         [navigate],
     );

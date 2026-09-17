@@ -67,14 +67,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <html lang="en" suppressHydrationWarning>
             <head>
                 <HeadContent />
-                {/* Reveals .noscript-only content and hides .script-only
-                    content (see globals.css). Only a <style> may live in
-                    here: script blockers re-inject noscript content with its
-                    nesting flattened */}
+                {/* Reveals .noscript-only content and open dialogs
+                    (ui/dialog.tsx) and hides .script-only content (see
+                    globals.css). Only a <style> may live in here: script
+                    blockers re-inject noscript content with its nesting
+                    flattened */}
                 <noscript>
                     <style>
                         {
-                            ".noscript-only { display: contents; } .script-only { display: none; }"
+                            ".noscript-only { display: contents; } .script-only { display: none; } dialog[open]:not(:modal) { display: block; }"
                         }
                     </style>
                 </noscript>
