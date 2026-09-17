@@ -32,6 +32,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { formatPermissionScope } from "@/lib/format-permission";
 import { usersKeys, usersQueries } from "@/lib/queries/users";
 import {
     addPermission as addPermissionFn,
@@ -68,19 +69,6 @@ type UserRow = {
 };
 
 type ScopeType = "admin" | "global" | "space" | "eventType" | "scoped";
-
-function formatPermissionScope(perm: Permission): string {
-    if (!perm.spaceSlug && !perm.eventTypeSlug) {
-        return "Global (all spaces & event types)";
-    }
-    if (perm.spaceSlug && !perm.eventTypeSlug) {
-        return `Space: ${perm.spaceSlug}`;
-    }
-    if (!perm.spaceSlug && perm.eventTypeSlug) {
-        return `Event Type: ${perm.eventTypeSlug} (all spaces)`;
-    }
-    return `Space: ${perm.spaceSlug} / Event Type: ${perm.eventTypeSlug}`;
-}
 
 function AdminUsersPage() {
     // Add Permission dialog
