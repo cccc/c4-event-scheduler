@@ -2,10 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
     Link,
     type LinkProps,
+    useLocation,
     useNavigate,
     useRouter,
 } from "@tanstack/react-router";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Settings, User } from "lucide-react";
 
 import {
     ADMIN_MENU,
@@ -13,13 +14,14 @@ import {
     type NavMenuItem,
     NavMenuLink,
 } from "@/components/nav-menus";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { authClient } from "@/server/better-auth/client";
 
 type HeaderProps = {
@@ -73,6 +75,47 @@ function HeaderMenu({
     );
 }
 
+/**
+ * The page links on narrow screens: a details element as a menu, which
+ * needs no scripts (no outside-click dismissal, but Escape and the same
+ * button close it); with scripts it remounts closed on every navigation.
+ * The dropdown menus' entries stay on their landing pages here.
+ */
+function MobileNav({ isAdmin }: { isAdmin?: boolean }) {
+    const { pathname } = useLocation();
+    const itemClass =
+        "block rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground";
+    return (
+        <details className="relative md:hidden" key={pathname}>
+            <summary
+                aria-label="Menu"
+                className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "cursor-pointer list-none open:bg-accent [&::-webkit-details-marker]:hidden",
+                )}
+            >
+                <Menu />
+            </summary>
+            <nav className="absolute end-0 top-full z-50 mt-2 w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+                <Link className={itemClass} to="/spaces">
+                    Spaces
+                </Link>
+                <Link className={itemClass} to="/event-types">
+                    Event Types
+                </Link>
+                <Link className={itemClass} to="/integrations">
+                    Integrations
+                </Link>
+                {isAdmin && (
+                    <Link className={itemClass} to="/admin">
+                        Admin
+                    </Link>
+                )}
+            </nav>
+        </details>
+    );
+}
+
 export function Header({ user, isAdmin }: HeaderProps) {
     const router = useRouter();
     const navigate = useNavigate();
@@ -91,28 +134,31 @@ export function Header({ user, isAdmin }: HeaderProps) {
     return (
         <header className="border-b">
             <div className="container mx-auto flex items-center justify-between px-4 py-4">
-                <Link className="font-bold text-xl" to="/">
+                <Link className="whitespace-nowrap font-bold text-xl" to="/">
                     C4 Events
                 </Link>
-                <nav className="flex items-center gap-4">
-                    <Button asChild variant="ghost">
-                        <Link to="/spaces">Spaces</Link>
-                    </Button>
-                    <Button asChild variant="ghost">
-                        <Link to="/event-types">Event Types</Link>
-                    </Button>
-                    <HeaderMenu
-                        items={INTEGRATIONS_MENU}
-                        label="Integrations"
-                        to="/integrations"
-                    />
-                    {isAdmin && (
+                <div className="flex items-center gap-4 max-md:gap-2">
+                    {/* The page links, on narrow screens in the menu */}
+                    <nav className="flex items-center gap-4 max-md:hidden">
+                        <Button asChild variant="ghost">
+                            <Link to="/spaces">Spaces</Link>
+                        </Button>
+                        <Button asChild variant="ghost">
+                            <Link to="/event-types">Event Types</Link>
+                        </Button>
                         <HeaderMenu
-                            items={ADMIN_MENU}
-                            label="Admin"
-                            to="/admin"
+                            items={INTEGRATIONS_MENU}
+                            label="Integrations"
+                            to="/integrations"
                         />
-                    )}
+                        {isAdmin && (
+                            <HeaderMenu
+                                items={ADMIN_MENU}
+                                label="Admin"
+                                to="/admin"
+                            />
+                        )}
+                    </nav>
                     {user ? (
                         <DropdownMenu>
                             {/* Without JavaScript: straight to the account
@@ -156,7 +202,8 @@ export function Header({ user, isAdmin }: HeaderProps) {
                             <Link to="/login">Sign In</Link>
                         </Button>
                     )}
-                </nav>
+                    <MobileNav isAdmin={isAdmin} />
+                </div>
             </div>
         </header>
     );
