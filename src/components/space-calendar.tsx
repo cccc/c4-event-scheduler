@@ -72,6 +72,10 @@ const BUTTONS = {
     month: { text: "Month", hint: "Month view" },
     list: { text: "List", hint: "List view" },
 };
+// Below this the month view renders in its list layout (the list: variant
+// in globals.css), so with scripts the calendar switches to the list view
+// itself and the Month tab is hidden
+const NARROW = "(width < 48rem)";
 
 /**
  * The query the calendar reads first: the occurrences of the month it opens
@@ -273,6 +277,21 @@ export function SpaceCalendar({ space }: { space: Space }) {
         next: monthLink(shiftMonth(1), () => controller.next()),
     };
 
+    // The month view has no room on narrow screens: the list view takes its
+    // place (the CSS fallback already shows the month view that way)
+    const viewType = controller.view?.type;
+    useEffect(() => {
+        const narrow = window.matchMedia(NARROW);
+        const apply = () => {
+            if (narrow.matches && viewType === "month") {
+                controller.changeView("list");
+            }
+        };
+        apply();
+        narrow.addEventListener("change", apply);
+        return () => narrow.removeEventListener("change", apply);
+    }, [controller, viewType]);
+
     const monthViewContext = useMemo<MonthViewContextValue>(
         () => ({
             tz,
@@ -331,6 +350,8 @@ export function SpaceCalendar({ space }: { space: Space }) {
                     <div
                         className={cn(
                             "transition-opacity",
+                            // No Month tab where the month view is the list
+                            "max-md:**:data-[view=month]:hidden",
                             showLoading && "opacity-60",
                         )}
                     >

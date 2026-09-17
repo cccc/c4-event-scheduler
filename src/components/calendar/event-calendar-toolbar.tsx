@@ -10,7 +10,7 @@
 //   - optional `toolbarLinks`: today/prev/next as real links (work without
 //     JavaScript, the caller handles client-side navigation in onClick)
 //   - the view switcher is `script-only` (views other than the first need
-//     JavaScript)
+//     JavaScript); its tabs carry `data-view`
 //   - "use no memo": opted out of the React Compiler, see below
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
 /* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
@@ -182,6 +182,7 @@ export function EventCalendarToolbar({
                         <TabsTrigger
                             key={availableView}
                             value={availableView}
+                            data-view={availableView} // c4: lets callers style single tabs
                             onClick={() => controller.changeView(availableView)}
                             aria-label={buttons[availableView]?.hint}
                         >
