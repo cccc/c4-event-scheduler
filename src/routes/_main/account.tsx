@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/_main/account")({
 function AccountPage() {
     const { session, authOptions } = Route.useRouteContext();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { data: info, isLoading: infoLoading } = useQuery(
         accountQueries.info(),
     );
@@ -57,7 +58,9 @@ function AccountPage() {
                 return;
             }
             toast.success("Profile updated");
-            // Root beforeLoad re-runs so the header shows the new name
+            // Refetch cached data (audit names, app context) and re-run the
+            // root beforeLoad so the header shows the new name
+            await queryClient.invalidateQueries();
             await router.invalidate();
         } finally {
             setSavingProfile(false);

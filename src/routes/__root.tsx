@@ -13,7 +13,7 @@ import { ThemeProvider } from "next-themes";
 
 import { TimezoneProvider } from "@/components/timezone-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { getAppContext } from "@/server/fns/app";
+import { appQueries } from "@/lib/queries/app";
 import appCss from "@/styles/globals.css?url";
 
 interface RouterContext {
@@ -43,8 +43,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     }),
     // Resolve the session, admin flag and runtime config once for the whole
     // tree; child routes read them from context (guards, header, login form).
-    beforeLoad: async () => {
-        const app = await getAppContext();
+    // beforeLoad runs on every navigation, so the result is cached in the
+    // query client and only refetched after login, logout, account edits or
+    // a 401 (they invalidate the cache), not for every search param change.
+    // fetchQuery, not ensureQueryData: the latter returns cached data even
+    // when the query has been invalidated.
+    beforeLoad: async ({ context }) => {
+        const app = await context.queryClient.fetchQuery(appQueries.context());
         return {
             session: app.session,
             isAdmin: app.isAdmin,

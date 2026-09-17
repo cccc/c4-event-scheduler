@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
     createFileRoute,
     redirect,
@@ -31,6 +32,7 @@ function LoginPage() {
     const { authOptions } = Route.useRouteContext();
     const router = useRouter();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +57,10 @@ function LoginPage() {
                 setError(result.error.message ?? "Failed to sign in");
             } else {
                 await navigate({ to: "/" });
-                // Re-run the root beforeLoad so context.session is populated
+                // Everything cached so far was fetched anonymously; refetch
+                // it and re-run the root beforeLoad so context.session is
+                // populated
+                await queryClient.invalidateQueries();
                 await router.invalidate();
             }
         } catch {
@@ -81,6 +86,7 @@ function LoginPage() {
                 setError(result.error.message ?? "Failed to create account");
             } else {
                 await navigate({ to: "/" });
+                await queryClient.invalidateQueries();
                 await router.invalidate();
             }
         } catch {
