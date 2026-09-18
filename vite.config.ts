@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { cn } from "cn/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -22,6 +23,10 @@ export default defineConfig({
             consolePiping: { enabled: false },
         }),
         tailwindcss(),
+        // Generates src/lib/cn-tables.js (gitignored): the class merge
+        // tables cut down to the classes found in the sources, like
+        // Tailwind's own scan. Class names must stay whole strings
+        cn({ content: ["src/**/*.{ts,tsx}"], out: "src/lib/cn-tables.js" }),
         tanstackStart(),
         // react's vite plugin must come after start's vite plugin
         viteReact(),

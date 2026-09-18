@@ -12,6 +12,7 @@
 /.nitro/
 /.tanstack/
 src/routeTree.gen.ts
+src/lib/cn-tables.js
 
 # production
 /build

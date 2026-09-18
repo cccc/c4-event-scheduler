@@ -5,7 +5,8 @@
 		"includes": [
 			"src/**/*.{js,jsx,ts,tsx}",
 			"vite.config.ts",
-			"!src/routeTree.gen.ts"
+			"!src/routeTree.gen.ts",
+			"!src/lib/cn-tables.js"
 		]
 	},
 	"vcs": {
