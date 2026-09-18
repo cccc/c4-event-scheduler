@@ -65,6 +65,8 @@ type UserRow = {
     name: string;
     email: string;
     isAdmin: boolean;
+    /** Admin through AUTH_SSO_USERS_ADMIN, not stored on the user */
+    envAdmin: boolean;
     providers: string[];
     hasPassword: boolean;
     permissions: Permission[];
@@ -375,7 +377,9 @@ function AdminUsersPage() {
                                     <span className="text-muted-foreground text-sm">
                                         {u.email}
                                     </span>
-                                    {u.isAdmin && <Badge>Admin</Badge>}
+                                    {(u.isAdmin || u.envAdmin) && (
+                                        <Badge>Admin</Badge>
+                                    )}
                                     {u.providers.includes("oidc") && (
                                         <Badge variant="secondary">SSO</Badge>
                                     )}
@@ -439,7 +443,9 @@ function AdminUsersPage() {
                                 </div>
                             </div>
 
-                            {u.isAdmin || u.permissions.length > 0 ? (
+                            {u.isAdmin ||
+                            u.envAdmin ||
+                            u.permissions.length > 0 ? (
                                 <div className="space-y-1">
                                     {u.isAdmin && (
                                         <div className="flex items-center justify-between rounded bg-muted px-3 py-2 text-sm">
@@ -465,6 +471,21 @@ function AdminUsersPage() {
                                             >
                                                 Remove
                                             </Button>
+                                        </div>
+                                    )}
+                                    {/* Not a stored permission: it holds
+                                        as long as the server setting does,
+                                        so there is nothing to remove */}
+                                    {u.envAdmin && (
+                                        <div className="flex items-center gap-2 rounded bg-muted px-3 py-2 text-sm">
+                                            <span className="text-muted-foreground">
+                                                Admin - every SSO user is an
+                                                admin on this server
+                                                (AUTH_SSO_USERS_ADMIN)
+                                            </span>
+                                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 text-xs dark:bg-amber-900 dark:text-amber-200">
+                                                env
+                                            </span>
                                         </div>
                                     )}
                                     {u.permissions.map((perm) => (

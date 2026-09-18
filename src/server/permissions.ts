@@ -45,6 +45,17 @@ export async function resolveUserIsAdmin(
     return !!ssoAccount;
 }
 
+/**
+ * The same rule from a user's sign-in providers, for listings that have
+ * them loaded anyway: true when admin rights come from the environment
+ * rather than (or on top of) the stored flag
+ */
+export function isEnvAdmin(providerIds: string[]): boolean {
+    return (
+        env.AUTH_SSO_USERS_ADMIN && providerIds.some((p) => p !== "credential")
+    );
+}
+
 /** Compact, log-friendly description of an actor and its permissions */
 export function describeActor(actorArg: Actor) {
     const scopes = (perms: Permission[]) =>

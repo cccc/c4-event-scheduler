@@ -6,6 +6,7 @@ import { admin } from "@/server/auth-middleware";
 import { auth } from "@/server/better-auth";
 import { account, actor, permission, user } from "@/server/db/schema";
 import { badRequest, notFound } from "@/server/fn-errors";
+import { isEnvAdmin } from "@/server/permissions";
 
 // Slug pattern: lowercase alphanumeric and hyphens, no colons or slashes
 const slugPattern = /^[a-z0-9-]+$/;
@@ -80,6 +81,9 @@ export const listUsers = createServerFn({ method: "GET" })
                 providers,
                 hasPassword: providers.includes("credential"),
                 isAdmin: actorByUser.get(u.id)?.isAdmin ?? false,
+                // Admin through AUTH_SSO_USERS_ADMIN: never stored, so the
+                // list shows it as a permission of its own
+                envAdmin: isEnvAdmin(providers),
                 permissions: actorByUser.get(u.id)?.permissions ?? [],
             };
         });
