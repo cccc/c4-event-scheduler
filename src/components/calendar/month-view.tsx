@@ -7,6 +7,7 @@ import {
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { type ComponentProps, createContext, useContext } from "react";
 
+import { effectiveEnd } from "@/components/calendar/date-utils";
 import type { Occurrence } from "@/components/calendar/types";
 import {
     Tooltip,
@@ -74,8 +75,27 @@ type Segment = {
     isStart: boolean;
     /** False when the bar continues into the next week */
     isEnd: boolean;
+    /** The event's last day (a marker), which may lie outside this week */
+    lastDay: Date;
     lane: number;
 };
+
+/**
+ * The marker of the day an occurrence ends on, for events whose range
+ * FullCalendar clipped to the visible weeks. Like its next-day threshold, an
+ * end at midnight belongs to the day before; all-day dates are plain UTC
+ * dates
+ */
+function lastDayMarker(occ: Occurrence, tz: string): Date | null {
+    const end = effectiveEnd(occ);
+    if (!end) return null;
+    const day = formatInTimeZone(
+        new Date(end.getTime() - 1),
+        occ.allDay ? "UTC" : tz,
+        "yyyy-MM-dd",
+    );
+    return new Date(`${day}T00:00:00Z`);
+}
 
 /**
  * Cuts the view's event ranges (already day-aligned and clipped to the
@@ -86,6 +106,7 @@ function layoutWeek(
     ranges: EventRenderRange[],
     weekStart: Date,
     occurrences: ReadonlyMap<string, Occurrence>,
+    tz: string,
 ): { segments: Segment[]; lanes: number } {
     const weekStartMs = weekStart.getTime();
     const weekEndMs = weekStartMs + DAYS_PER_WEEK * DAY_MS;
@@ -98,12 +119,17 @@ function layoutWeek(
         if (endMs <= startMs) continue;
         const column = Math.round((startMs - weekStartMs) / DAY_MS) + 1;
         const span = Math.round((endMs - startMs) / DAY_MS);
+        // The range's end is the real one unless the view cut it off
+        const rangeLastDay = new Date(r.range.end.getTime() - DAY_MS);
         segments.push({
             occurrence,
             column,
             span,
             isStart: r.isStart && r.range.start.getTime() >= weekStartMs,
             isEnd: r.isEnd && r.range.end.getTime() <= weekEndMs,
+            lastDay: r.isEnd
+                ? rangeLastDay
+                : (lastDayMarker(occurrence, tz) ?? rangeLastDay),
         });
     }
     segments.sort(
@@ -240,17 +266,26 @@ function WeekList({
                 const day = new Date(
                     weekStart.getTime() + (seg.column - 1) * DAY_MS,
                 );
-                const last = new Date(day.getTime() + (seg.span - 1) * DAY_MS);
                 // A bar continuing from the previous week is all day here;
-                // its own days follow the name
+                // its own days (the event's, not this week's slice) follow
+                // the name, with the month once it differs from the row's
+                const dayLabel = (d: Date, inTz: string) =>
+                    formatInTimeZone(
+                        d,
+                        inTz,
+                        formatInTimeZone(d, inTz, "M") ===
+                            formatInTimeZone(day, "UTC", "M")
+                            ? "EEE d"
+                            : "EEE d MMM",
+                    );
                 const when =
                     occ.allDay || !seg.isStart
                         ? "all day"
                         : formatInTimeZone(occ.dtstart, tz, "HH:mm");
                 const days = !seg.isStart
-                    ? `${formatInTimeZone(occ.dtstart, tz, "EEE d")} to ${formatInTimeZone(last, "UTC", "EEE d")}`
-                    : seg.span > 1
-                      ? `to ${formatInTimeZone(last, "UTC", "EEE d")}`
+                    ? `${dayLabel(occ.dtstart, tz)} to ${dayLabel(seg.lastDay, "UTC")}`
+                    : seg.lastDay.getTime() > day.getTime()
+                      ? `to ${dayLabel(seg.lastDay, "UTC")}`
                       : null;
                 return (
                     <li className="contents" key={`${occ.id}:${seg.column}`}>
@@ -455,6 +490,7 @@ function MonthGrid({
                     ranges,
                     weekStart,
                     occurrences,
+                    tz,
                 );
                 const isLastWeek = w === weekCount - 1;
                 return (
