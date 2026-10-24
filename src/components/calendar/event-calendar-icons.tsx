@@ -5,7 +5,7 @@
 // off here so the structure stays diffable against upstream).
 // No local changes.
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
-/* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
+/* biome-ignore-all lint/nursery/useTailwindSortedClasses: keep upstream order */
 import {
     ChevronDownIcon,
     ChevronLeftIcon,

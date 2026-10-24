@@ -14,7 +14,7 @@
 //     dissolve toward the open side
 //   - 2px borders on column and row events, like the month view's bars
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
-/* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
+/* biome-ignore-all lint/nursery/useTailwindSortedClasses: keep upstream order */
 import FullCalendar, { type CalendarOptions } from "@fullcalendar/react";
 import "@fullcalendar/react/skeleton.css";
 import { cn } from "@/lib/utils";

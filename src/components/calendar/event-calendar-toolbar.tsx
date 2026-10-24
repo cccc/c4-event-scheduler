@@ -15,7 +15,7 @@
 //     the arrows, Today and the view tabs move to a second row
 //   - "use no memo": opted out of the React Compiler, see below
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
-/* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
+/* biome-ignore-all lint/nursery/useTailwindSortedClasses: keep upstream order */
 import type { CalendarController } from "@fullcalendar/react";
 import type { MouseEventHandler } from "react"; // c4
 import {

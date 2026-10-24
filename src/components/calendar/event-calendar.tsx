@@ -11,7 +11,7 @@
 //   - `fallbackTitle` and `toolbarLinks` props passed to the toolbar
 //   - "use no memo": opted out of the React Compiler (mutable controller)
 /* biome-ignore-all assist/source/useSortedAttributes: keep upstream order */
-/* biome-ignore-all lint/nursery/useSortedClasses: keep upstream order */
+/* biome-ignore-all lint/nursery/useTailwindSortedClasses: keep upstream order */
 import {
     type CalendarController,
     type CalendarOptions,
