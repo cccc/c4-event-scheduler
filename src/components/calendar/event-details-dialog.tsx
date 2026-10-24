@@ -189,7 +189,7 @@ export function OccurrenceBadges({ occurrence }: { occurrence: Occurrence }) {
     return (
         <div className="flex items-center gap-2">
             {occurrence.eventType && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     {occurrence.eventType.color && (
                         <span
                             className="h-2.5 w-2.5 rounded-full"
@@ -262,7 +262,7 @@ export function OccurrenceContent({
                                     {formatDate(occurrence.dtstart, tz)}
                                 </div>
                                 {!occurrence.allDay && (
-                                    <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                         <Clock className="h-3.5 w-3.5" />
                                         <span>
                                             {formatTime(occurrence.dtstart, tz)}
@@ -274,7 +274,7 @@ export function OccurrenceContent({
                             </>
                         )}
                         {occurrence.isRecurring && (
-                            <div className="mt-1 text-muted-foreground text-sm">
+                            <div className="mt-1 text-sm text-muted-foreground">
                                 Part of a recurring series
                             </div>
                         )}
@@ -285,7 +285,7 @@ export function OccurrenceContent({
                 {occurrence.description && (
                     <div className="flex items-start gap-3">
                         <FileText className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                        <div className="whitespace-pre-wrap text-sm">
+                        <div className="text-sm whitespace-pre-wrap">
                             {occurrence.description}
                         </div>
                     </div>
@@ -296,7 +296,7 @@ export function OccurrenceContent({
                     <div className="flex items-start gap-3">
                         <ExternalLink className="mt-0.5 h-5 w-5 text-muted-foreground" />
                         <a
-                            className="text-primary text-sm hover:underline"
+                            className="text-sm text-primary hover:underline"
                             href={occurrence.url}
                             rel="noopener noreferrer"
                             target="_blank"
@@ -435,7 +435,7 @@ function SeriesInfoContent({
 
     if (!seriesEvent) {
         return (
-            <div className="text-muted-foreground text-sm">
+            <div className="text-sm text-muted-foreground">
                 Series not found.
             </div>
         );
@@ -466,7 +466,7 @@ function SeriesInfoContent({
         <div className="space-y-4">
             {/* Series summary + badges */}
             <div>
-                <div className="font-medium text-lg">{seriesEvent.summary}</div>
+                <div className="text-lg font-medium">{seriesEvent.summary}</div>
                 <div className="mt-1 flex items-center gap-2">
                     {getStatusBadge(seriesEvent.status, seriesEvent.isDraft)}
                 </div>
@@ -481,7 +481,7 @@ function SeriesInfoContent({
                             {rruleDescription}
                         </div>
                         {seriesEvent.frequencyLabel && (
-                            <div className="text-muted-foreground text-xs">
+                            <div className="text-xs text-muted-foreground">
                                 {seriesEvent.frequencyLabel}
                             </div>
                         )}
@@ -519,10 +519,10 @@ function SeriesInfoContent({
                 <div className="flex items-start gap-3">
                     <Info className="mt-0.5 h-5 w-5 text-muted-foreground" />
                     <div>
-                        <div className="mb-1 font-medium text-sm">
+                        <div className="mb-1 text-sm font-medium">
                             Excluded dates ({exdates.length})
                         </div>
-                        <ul className="space-y-0.5 text-muted-foreground text-sm">
+                        <ul className="space-y-0.5 text-sm text-muted-foreground">
                             {exdates.map((d) => (
                                 <li
                                     className="flex items-center justify-between gap-2"
@@ -557,7 +557,7 @@ function SeriesInfoContent({
                 <div className="flex items-start gap-3">
                     <FileText className="mt-0.5 h-5 w-5 text-muted-foreground" />
                     <div>
-                        <div className="mb-1 font-medium text-sm">
+                        <div className="mb-1 text-sm font-medium">
                             Overridden occurrences ({overrides.length})
                         </div>
                         <ul className="space-y-1 text-sm">

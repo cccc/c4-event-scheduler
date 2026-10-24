@@ -89,11 +89,11 @@ function SpacesPage() {
                         >
                             <h2 className="mb-1 font-semibold">{space.name}</h2>
                             {space.description && (
-                                <p className="text-muted-foreground text-sm">
+                                <p className="text-sm text-muted-foreground">
                                     {space.description}
                                 </p>
                             )}
-                            <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
+                            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>/{space.slug}</span>
                                 {!space.isPublic && (
                                     <span className="rounded bg-muted px-1">

@@ -161,16 +161,16 @@ function EventTypesPage() {
                                     )}
                                     {et.name}
                                     {et.spaceId ? (
-                                        <span className="rounded bg-muted px-1.5 py-0.5 font-normal text-muted-foreground text-xs">
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                                             {et.space?.name ?? "Space"}
                                         </span>
                                     ) : (
-                                        <span className="rounded bg-primary px-1.5 py-0.5 font-normal text-primary-foreground text-xs">
+                                        <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-normal text-primary-foreground">
                                             Global
                                         </span>
                                     )}
                                     {et.isInternal && (
-                                        <span className="rounded bg-yellow-100 px-1.5 py-0.5 font-normal text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                        <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-xs font-normal text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                                             Internal
                                         </span>
                                     )}
@@ -234,11 +234,11 @@ function EventTypesPage() {
                             {/* flex-1 pins the footer to the card bottom so the grid row lines up */}
                             <CardContent className="flex-1 space-y-3">
                                 <div>
-                                    <div className="mb-1 font-medium text-sm">
+                                    <div className="mb-1 text-sm font-medium">
                                         Upcoming
                                     </div>
                                     {next.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm">
+                                        <p className="text-sm text-muted-foreground">
                                             No events in the next{" "}
                                             {UPCOMING_MONTHS} months.
                                         </p>
@@ -300,7 +300,7 @@ function EventTypesPage() {
                                         </ul>
                                     )}
                                 </div>
-                                <div className="text-muted-foreground text-xs">
+                                <div className="text-xs text-muted-foreground">
                                     /{et.slug}
                                     {et.defaultDurationMinutes && (
                                         <>

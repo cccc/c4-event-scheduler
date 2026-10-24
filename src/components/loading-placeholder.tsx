@@ -37,7 +37,7 @@ export function LoadingPlaceholder({
                     key={width}
                 >
                     {i === 0 && (
-                        <span className="noscript-only text-muted-foreground text-sm">
+                        <span className="noscript-only text-sm text-muted-foreground">
                             Requires JavaScript to load.
                         </span>
                     )}

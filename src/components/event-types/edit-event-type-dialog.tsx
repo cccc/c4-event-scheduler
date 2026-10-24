@@ -200,7 +200,7 @@ export function EditEventTypeDialog({
                                 )}
                             </form.AppField>
 
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                                 Slug: /{eventType.slug} (read-only)
                             </p>
 

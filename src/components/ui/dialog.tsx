@@ -133,7 +133,7 @@ function DialogContent({
                     {children}
                     {showCloseButton && (
                         <DialogClose
-                            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
                             data-slot="dialog-close"
                         >
                             <XIcon />
@@ -210,7 +210,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<"h2">) {
     const { titleId } = useDialog();
     return (
         <h2
-            className={cn("font-semibold text-lg leading-none", className)}
+            className={cn("text-lg leading-none font-semibold", className)}
             data-slot="dialog-title"
             id={titleId}
             {...props}
@@ -222,7 +222,7 @@ function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
     const { descriptionId } = useDialog();
     return (
         <p
-            className={cn("text-muted-foreground text-sm", className)}
+            className={cn("text-sm text-muted-foreground", className)}
             data-slot="dialog-description"
             id={descriptionId}
             {...props}

@@ -51,7 +51,7 @@ export const EventTypeGroup = withFieldGroup({
                             />
                             <field.FieldError />
                             {selected?.isInternal && (
-                                <p className="mt-1 text-muted-foreground text-xs">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                     {INTERNAL_EVENT_TYPE_NOTE}
                                 </p>
                             )}

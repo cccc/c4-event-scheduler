@@ -59,8 +59,8 @@ function FeedRow({
                 <code
                     className={
                         compact
-                            ? "break-all text-muted-foreground text-xs"
-                            : "break-all text-muted-foreground text-sm"
+                            ? "text-xs break-all text-muted-foreground"
+                            : "text-sm break-all text-muted-foreground"
                     }
                 >
                     {url}
@@ -125,7 +125,7 @@ function FeedsPage() {
                 {isLoggedIn && <ApiKeyNote />}
 
                 <section>
-                    <h2 className="mb-4 font-semibold text-xl">All Events</h2>
+                    <h2 className="mb-4 text-xl font-semibold">All Events</h2>
                     <FeedRow
                         access="mixed"
                         name="All events"
@@ -134,10 +134,10 @@ function FeedsPage() {
                 </section>
 
                 <section>
-                    <h2 className="mb-4 font-semibold text-xl">
+                    <h2 className="mb-4 text-xl font-semibold">
                         By Event Type
                     </h2>
-                    <p className="mb-4 text-muted-foreground text-sm">
+                    <p className="mb-4 text-sm text-muted-foreground">
                         One event type across every space.
                     </p>
                     <div className="space-y-2">
@@ -157,7 +157,7 @@ function FeedsPage() {
                 </section>
 
                 <section>
-                    <h2 className="mb-4 font-semibold text-xl">By Space</h2>
+                    <h2 className="mb-4 text-xl font-semibold">By Space</h2>
                     <div className="space-y-2">
                         {spaces.map((space) => (
                             <FeedRow
@@ -176,10 +176,10 @@ function FeedsPage() {
                 </section>
 
                 <section>
-                    <h2 className="mb-4 font-semibold text-xl">
+                    <h2 className="mb-4 text-xl font-semibold">
                         By Space and Event Type
                     </h2>
-                    <p className="mb-4 text-muted-foreground text-sm">
+                    <p className="mb-4 text-sm text-muted-foreground">
                         You can filter by event type within a space using the
                         URL pattern:{" "}
                         <code>

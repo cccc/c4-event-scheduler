@@ -131,7 +131,7 @@ function LoginPage() {
         <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
-                    <CardTitle className="font-bold text-2xl">
+                    <CardTitle className="text-2xl font-bold">
                         Welcome back
                     </CardTitle>
                     <CardDescription>Sign in to manage events</CardDescription>
@@ -250,7 +250,7 @@ function LoginPage() {
                                     : "Sign in with Email"}
                             </Button>
                             {signupEnabled && (
-                                <p className="text-center text-muted-foreground text-sm">
+                                <p className="text-center text-sm text-muted-foreground">
                                     {mode === "signup"
                                         ? "Already have an account? "
                                         : "No account yet? "}

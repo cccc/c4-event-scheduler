@@ -37,7 +37,7 @@ export const EventStatusGroup = withFieldGroup({
                         <div>
                             <field.CheckboxField id="isDraft" label="Draft" />
                             {field.state.value && (
-                                <p className="mt-1 text-muted-foreground text-xs">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                     {DRAFT_NOTE}
                                 </p>
                             )}

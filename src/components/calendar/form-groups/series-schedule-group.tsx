@@ -43,7 +43,7 @@ export const SeriesScheduleGroup = withFieldGroup({
         return (
             <>
                 <div className="space-y-4 rounded-md border p-4">
-                    <h4 className="font-medium text-sm">Series Date Range</h4>
+                    <h4 className="text-sm font-medium">Series Date Range</h4>
                     <div className="grid grid-cols-2 gap-4">
                         <group.AppField name="seriesFirstDate">
                             {(field) => (
@@ -78,8 +78,8 @@ export const SeriesScheduleGroup = withFieldGroup({
                 </div>
 
                 <div className="space-y-4 rounded-md border p-4">
-                    <h4 className="font-medium text-sm">Occurrence Times</h4>
-                    <p className="text-muted-foreground text-xs">
+                    <h4 className="text-sm font-medium">Occurrence Times</h4>
+                    <p className="text-xs text-muted-foreground">
                         Each occurrence will use these times
                     </p>
                     <div className="grid grid-cols-2 gap-4">

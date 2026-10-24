@@ -442,7 +442,7 @@ export function EditSeriesForm({
             <TabsContent className="space-y-4 pt-4" value="occurrence">
                 <occurrenceForm.AppForm>
                     <occurrenceForm.Form className="space-y-4">
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-sm text-muted-foreground">
                             Changes only affect this specific occurrence. Leave
                             fields empty to inherit from series.
                         </p>
@@ -509,7 +509,7 @@ export function EditSeriesForm({
                 <div className="space-y-4 pt-4">
                     <seriesForm.AppForm>
                         <seriesForm.Form className="space-y-4">
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                                 {editTab === "fromHere"
                                     ? "Changes apply from this occurrence onwards. The series will be split; past occurrences remain unchanged."
                                     : "Changes apply to the entire series, including all past and future occurrences."}

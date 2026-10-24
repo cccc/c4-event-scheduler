@@ -34,12 +34,9 @@
 		"rules": {
 			"preset": "recommended",
 			"nursery": {
-				"useSortedClasses": {
+				"useTailwindSortedClasses": {
 					"level": "warn",
-					"fix": "safe",
-					"options": {
-						"functions": ["clsx", "cva", "cn"]
-					}
+					"fix": "safe"
 				}
 			}
 		}
@@ -74,5 +71,10 @@
 			"cssModules": true,
 			"tailwindDirectives": true
 		}
+	},
+	"tailwind": {
+		"stylesheet": "./src/styles/globals.css",
+		"mergeFunctions": ["clsx", "cn"],
+		"variantFunctions": ["cva"]
 	}
 }

@@ -77,7 +77,7 @@ export function FeedTokenCard() {
                         Regenerate
                     </Button>
                 </div>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                     Append it to any feed URL as <code>?key=…</code>. If it
                     leaked, regenerate it: every subscription built with the old
                     token then stops working.

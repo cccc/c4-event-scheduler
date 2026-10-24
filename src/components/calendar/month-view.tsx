@@ -182,7 +182,7 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
                 <a
                     aria-label={label}
                     className={cn(
-                        "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-(--fc-event-color) border-2 bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-foreground text-sm leading-tight hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
+                        "z-10 my-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden rounded border-2 border-(--fc-event-color) bg-[color-mix(in_srgb,var(--fc-event-color)_20%,transparent)] px-1.5 py-0.5 text-left text-sm leading-tight text-foreground hover:brightness-95 focus-visible:outline-3 focus-visible:outline-ring/50",
                         // List layout: a strip without text, the week's list has it
                         "list:h-2 list:px-0 list:py-0",
                         // Continuations: no border on the open side, the other
@@ -222,9 +222,9 @@ function EventBar({ segment, tz }: { segment: Segment; tz: string }) {
                     type="button"
                 >
                     {time && (
-                        <span className="list:hidden shrink-0">{time}</span>
+                        <span className="shrink-0 list:hidden">{time}</span>
                     )}
-                    <span className="list:hidden truncate font-semibold">
+                    <span className="truncate font-semibold list:hidden">
                         {occ.summary}
                     </span>
                 </a>
@@ -258,7 +258,7 @@ function WeekList({
     );
     let lastColumn = 0;
     return (
-        <ol className="list:grid hidden grid-cols-[3.25rem_3.25rem_1fr] gap-x-2 gap-y-1 border-b px-2 py-2 text-sm">
+        <ol className="hidden grid-cols-[3.25rem_3.25rem_1fr] gap-x-2 gap-y-1 border-b px-2 py-2 text-sm list:grid">
             {sorted.map((seg) => {
                 const { occurrence: occ } = seg;
                 const showDay = seg.column !== lastColumn;
@@ -373,7 +373,7 @@ function DayCell({
         column < DAYS_PER_WEEK && "border-e",
         isToday && "bg-accent",
         canCreate &&
-            "cursor-pointer focus-visible:outline-3 focus-visible:outline-ring/50 focus-visible:-outline-offset-3",
+            "cursor-pointer focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-ring/50",
     );
     const style = { gridColumn: column, gridRow: "1 / -1" };
     const content = (
@@ -473,7 +473,7 @@ function MonthGrid({
                 {weekdays.map((d, i) => (
                     <div
                         className={cn(
-                            "py-1.5 text-center font-medium text-sm",
+                            "py-1.5 text-center text-sm font-medium",
                             i < DAYS_PER_WEEK - 1 && "border-e",
                         )}
                         key={d.key}
@@ -496,7 +496,7 @@ function MonthGrid({
                 return (
                     <div key={dayKey(weekStart)}>
                         <div
-                            className="grid list:min-h-0 min-h-32 grid-cols-7"
+                            className="grid min-h-32 grid-cols-7 list:min-h-0"
                             style={{
                                 // Row 1 holds the day numbers, one row per lane,
                                 // a last row takes the remaining height so the day

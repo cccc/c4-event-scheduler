@@ -32,13 +32,13 @@ function WidgetPage() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
                             <div className="font-medium">JSON Endpoint</div>
-                            <code className="break-all text-muted-foreground text-sm">
+                            <code className="text-sm break-all text-muted-foreground">
                                 {appUrl}/api/widget/upcoming
                             </code>
                         </div>
                         <CopyUrlButton url={`${appUrl}/api/widget/upcoming`} />
                     </div>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-sm text-muted-foreground">
                         Returns JSON data for programmatic use.
                     </p>
                 </div>
@@ -49,7 +49,7 @@ function WidgetPage() {
                             <div className="font-medium">
                                 HTML Embed (iframe)
                             </div>
-                            <code className="break-all text-muted-foreground text-sm">
+                            <code className="text-sm break-all text-muted-foreground">
                                 {appUrl}/api/widget/upcoming?format=html
                             </code>
                         </div>
@@ -57,7 +57,7 @@ function WidgetPage() {
                             url={`${appUrl}/api/widget/upcoming?format=html`}
                         />
                     </div>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-sm text-muted-foreground">
                         Returns a styled HTML page suitable for iframe
                         embedding.
                     </p>
@@ -159,7 +159,7 @@ function WidgetPage() {
                             >
                                 <div className="min-w-0">
                                     <div className="text-sm">{space.name}</div>
-                                    <code className="break-all text-muted-foreground text-xs">
+                                    <code className="text-xs break-all text-muted-foreground">
                                         {appUrl}/api/widget/upcoming?space=
                                         {space.slug}
                                     </code>

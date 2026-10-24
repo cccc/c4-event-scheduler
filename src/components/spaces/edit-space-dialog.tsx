@@ -112,7 +112,7 @@ export function EditSpaceDialog({
                             <div>
                                 <Label>Slug</Label>
                                 <Input disabled readOnly value={space.slug} />
-                                <p className="mt-1 text-muted-foreground text-xs">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                     The slug is part of feed URLs, links and
                                     permission scopes, so it cannot be changed.
                                 </p>
@@ -132,7 +132,7 @@ export function EditSpaceDialog({
                                     />
                                 )}
                             </form.AppField>
-                            <p className="text-muted-foreground text-xs">
+                            <p className="text-xs text-muted-foreground">
                                 Private spaces and their events are only visible
                                 to signed-in users and API keys.
                             </p>

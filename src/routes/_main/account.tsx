@@ -140,7 +140,7 @@ function AccountPage() {
                             <div className="space-y-2">
                                 <Label>Email</Label>
                                 <p className="text-sm">{session?.user.email}</p>
-                                <p className="text-muted-foreground text-xs">
+                                <p className="text-xs text-muted-foreground">
                                     Email changes are done by an administrator.
                                 </p>
                             </div>
@@ -207,7 +207,7 @@ function AccountPage() {
                                         type="password"
                                         value={newPassword}
                                     />
-                                    <p className="text-muted-foreground text-xs">
+                                    <p className="text-xs text-muted-foreground">
                                         At least 8 characters.
                                     </p>
                                 </div>
@@ -237,7 +237,7 @@ function AccountPage() {
                                 </Button>
                             </form>
                         ) : (
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                                 {passwordNotice}
                             </p>
                         )}

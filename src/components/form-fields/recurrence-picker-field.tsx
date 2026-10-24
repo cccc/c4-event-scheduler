@@ -20,14 +20,14 @@ export function RecurrencePickerField({
     const field = useFieldContext<RecurrenceConfig | null>();
     return (
         <div className="rounded-md border p-4">
-            <h4 className="mb-4 font-medium text-sm">Recurrence Pattern</h4>
+            <h4 className="mb-4 text-sm font-medium">Recurrence Pattern</h4>
             <RecurrencePicker
                 initialConfig={field.state.value ?? undefined}
                 onChange={field.handleChange}
                 startDate={startDate}
             />
             {field.state.value && (
-                <p className="mt-3 border-t pt-3 text-muted-foreground text-sm">
+                <p className="mt-3 border-t pt-3 text-sm text-muted-foreground">
                     {getRecurrenceSummary(field.state.value)}
                 </p>
             )}

@@ -15,7 +15,7 @@ export function UserApiKeys({ userId }: { userId: string }) {
     if (own.length === 0) return null;
     return (
         <div className="mt-4 space-y-2">
-            <div className="font-medium text-sm">API keys</div>
+            <div className="text-sm font-medium">API keys</div>
             <ApiKeyList
                 capabilities={ADMIN_CAPABILITIES}
                 emptyText=""

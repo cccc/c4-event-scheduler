@@ -321,7 +321,7 @@ function AdminUsersPage() {
     if (!isAdmin) {
         return (
             <div className="py-12 text-center">
-                <h1 className="mb-2 font-bold text-2xl">Access Denied</h1>
+                <h1 className="mb-2 text-2xl font-bold">Access Denied</h1>
                 <p className="text-muted-foreground">
                     You need admin privileges to access this page.
                 </p>
@@ -374,7 +374,7 @@ function AdminUsersPage() {
                                     <span className="font-medium">
                                         {u.name}
                                     </span>
-                                    <span className="text-muted-foreground text-sm">
+                                    <span className="text-sm text-muted-foreground">
                                         {u.email}
                                     </span>
                                     {(u.isAdmin || u.envAdmin) && (
@@ -483,7 +483,7 @@ function AdminUsersPage() {
                                                 admin on this server
                                                 (AUTH_SSO_USERS_ADMIN)
                                             </span>
-                                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 text-xs dark:bg-amber-900 dark:text-amber-200">
+                                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                                                 env
                                             </span>
                                         </div>
@@ -526,7 +526,7 @@ function AdminUsersPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-muted-foreground text-sm">
+                                <p className="text-sm text-muted-foreground">
                                     No specific permissions (requires admin or
                                     OIDC claims)
                                 </p>
@@ -583,7 +583,7 @@ function AdminUsersPage() {
                         </div>
 
                         {scopeType === "admin" && (
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                                 Grants this user unlimited access to all spaces
                                 and event types, bypassing all permission
                                 checks.
@@ -714,7 +714,7 @@ function AdminUsersPage() {
                                 type="password"
                                 value={createPassword}
                             />
-                            <p className="text-muted-foreground text-xs">
+                            <p className="text-xs text-muted-foreground">
                                 At least 8 characters.
                             </p>
                         </div>

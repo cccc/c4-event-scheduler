@@ -17,7 +17,7 @@ function AdminPage() {
     if (!isAdmin) {
         return (
             <div className="py-12 text-center">
-                <h1 className="mb-2 font-bold text-2xl">Access Denied</h1>
+                <h1 className="mb-2 text-2xl font-bold">Access Denied</h1>
                 <p className="text-muted-foreground">
                     You need admin privileges to access this page.
                 </p>

@@ -122,7 +122,7 @@ export function ApiKeyList({
     const [permKey, setPermKey] = useState<ApiKeyView | null>(null);
 
     if (keys.length === 0) {
-        return <p className="text-muted-foreground text-sm">{emptyText}</p>;
+        return <p className="text-sm text-muted-foreground">{emptyText}</p>;
     }
 
     return (
@@ -132,7 +132,7 @@ export function ApiKeyList({
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium">{key.name}</span>
-                            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
+                            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                                 {key.keyFingerprint}
                             </code>
                             {showOwner && key.owner && (
@@ -148,7 +148,7 @@ export function ApiKeyList({
                             )}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-muted-foreground text-xs">
+                            <span className="text-xs text-muted-foreground">
                                 {key.lastUsedAt
                                     ? `Last used ${formatShortDate(new Date(key.lastUsedAt), tz)}`
                                     : "Never used"}
@@ -196,7 +196,7 @@ export function ApiKeyList({
                         </div>
                     </div>
 
-                    <div className="mb-2 text-muted-foreground text-xs">
+                    <div className="mb-2 text-xs text-muted-foreground">
                         Created {formatShortDate(new Date(key.createdAt), tz)}
                         {key.owner &&
                             ` · acts as ${key.owner.name}; both the key and ${key.owner.name} must allow an action`}
@@ -257,7 +257,7 @@ export function ApiKeyList({
                             ))}
                         </div>
                     ) : (
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-sm text-muted-foreground">
                             No permissions: this key can read what its owner can
                             see but not change anything.
                         </p>
@@ -388,7 +388,7 @@ function ScopePicker({
             </div>
 
             {scopeType === "admin" && (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                     Grants this key unlimited access to all spaces and event
                     types, bypassing all permission checks.
                 </p>
@@ -639,7 +639,7 @@ export function CreateApiKeyDialog({
                         </div>
 
                         <div className="space-y-3 rounded-md border p-4">
-                            <h4 className="font-medium text-sm">Permissions</h4>
+                            <h4 className="text-sm font-medium">Permissions</h4>
                             {isAdmin || permissions.length > 0 ? (
                                 <div className="space-y-1">
                                     {isAdmin && (
@@ -686,7 +686,7 @@ export function CreateApiKeyDialog({
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-muted-foreground text-sm">
+                                <p className="text-sm text-muted-foreground">
                                     No permissions yet: the key could read what
                                     its owner can see but not change anything.
                                 </p>

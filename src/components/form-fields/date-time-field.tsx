@@ -34,7 +34,7 @@ export function DateTimeField({
                 value={field.state.value}
             />
             {description && (
-                <p className="mt-1 text-muted-foreground text-xs">
+                <p className="mt-1 text-xs text-muted-foreground">
                     {description}
                 </p>
             )}

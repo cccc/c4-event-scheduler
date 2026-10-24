@@ -338,7 +338,7 @@ export function RecurrencePicker({
                     type="number"
                     value={config.interval}
                 />
-                <span className="text-muted-foreground text-sm">
+                <span className="text-sm text-muted-foreground">
                     {config.frequency === "daily" &&
                         (config.interval === 1 ? "day" : "days")}
                     {config.frequency === "weekly" &&
@@ -413,7 +413,7 @@ export function RecurrencePicker({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <span className="text-muted-foreground text-sm">
+                            <span className="text-sm text-muted-foreground">
                                 of the month
                             </span>
                         </label>
@@ -546,7 +546,7 @@ export function RecurrencePicker({
                             type="number"
                             value={config.endCount}
                         />
-                        <span className="text-muted-foreground text-sm">
+                        <span className="text-sm text-muted-foreground">
                             occurrences
                         </span>
                     </label>

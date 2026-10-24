@@ -43,7 +43,7 @@ export function OptionalEndField({
                 children
             ) : (
                 <div
-                    className="flex h-9 items-center rounded-md border border-dashed px-3 text-muted-foreground text-sm"
+                    className="flex h-9 items-center rounded-md border border-dashed px-3 text-sm text-muted-foreground"
                     title={hint}
                 >
                     <span className="truncate">{hint}</span>

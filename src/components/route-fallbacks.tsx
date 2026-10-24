@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 export function NotFoundView() {
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-            <p className="font-bold text-6xl text-muted-foreground/40">404</p>
-            <h1 className="font-semibold text-foreground text-xl">
+            <p className="text-6xl font-bold text-muted-foreground/40">404</p>
+            <h1 className="text-xl font-semibold text-foreground">
                 Nothing here
             </h1>
-            <p className="max-w-sm text-muted-foreground text-sm">
+            <p className="max-w-sm text-sm text-muted-foreground">
                 This page doesn't exist, or the space it pointed at is gone.
             </p>
             <Button asChild variant="outline">
@@ -32,10 +32,10 @@ export function ErrorView({ error }: ErrorComponentProps) {
     const message = error instanceof Error ? error.message : String(error);
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-            <h1 className="font-semibold text-foreground text-xl">
+            <h1 className="text-xl font-semibold text-foreground">
                 Something went wrong
             </h1>
-            <p className="max-w-md text-muted-foreground text-sm">
+            <p className="max-w-md text-sm text-muted-foreground">
                 {message || "An unexpected error occurred."}
             </p>
             <div className="flex gap-2">

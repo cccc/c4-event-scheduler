@@ -134,7 +134,7 @@ export function Header({ user, isAdmin }: HeaderProps) {
     return (
         <header className="border-b">
             <div className="container mx-auto flex items-center justify-between px-4 py-4">
-                <Link className="whitespace-nowrap font-bold text-xl" to="/">
+                <Link className="text-xl font-bold whitespace-nowrap" to="/">
                     C4 Events
                 </Link>
                 <div className="flex items-center gap-4 max-md:gap-2">

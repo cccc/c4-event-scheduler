@@ -31,7 +31,7 @@ function AdminApiKeysPage() {
     if (!isAdmin) {
         return (
             <div className="py-12 text-center">
-                <h1 className="mb-2 font-bold text-2xl">Access Denied</h1>
+                <h1 className="mb-2 text-2xl font-bold">Access Denied</h1>
                 <p className="text-muted-foreground">
                     You need admin privileges to access this page.
                 </p>
@@ -61,10 +61,10 @@ function AdminApiKeysPage() {
             ) : (
                 <div className="space-y-10">
                     <section>
-                        <h2 className="mb-1 font-semibold text-xl">
+                        <h2 className="mb-1 text-xl font-semibold">
                             Service keys
                         </h2>
-                        <p className="mb-4 text-muted-foreground text-sm">
+                        <p className="mb-4 text-sm text-muted-foreground">
                             Not tied to a person; they carry their own admin
                             flag and permissions.
                         </p>
@@ -76,10 +76,10 @@ function AdminApiKeysPage() {
                     </section>
 
                     <section>
-                        <h2 className="mb-1 font-semibold text-xl">
+                        <h2 className="mb-1 text-xl font-semibold">
                             Personal keys
                         </h2>
-                        <p className="mb-4 text-muted-foreground text-sm">
+                        <p className="mb-4 text-sm text-muted-foreground">
                             Created by users on their account page. They act as
                             their owner: an action needs both the key's and the
                             owner's permission, and events are attributed to the

@@ -89,7 +89,7 @@ export function NavMenuPage({
                             item={item}
                         >
                             <h2 className="mb-1 font-semibold">{item.label}</h2>
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                                 {item.description}
                             </p>
                             {item.requiresJs && (

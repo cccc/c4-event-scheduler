@@ -15,7 +15,7 @@ export function FieldError({
     if (!errors.length) return null;
 
     return (
-        <Component className={cn("mt-1 text-destructive text-sm", className)}>
+        <Component className={cn("mt-1 text-sm text-destructive", className)}>
             {errors
                 .map((error) =>
                     typeof error === "string" ? error : error?.message,

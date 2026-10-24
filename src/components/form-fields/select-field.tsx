@@ -50,7 +50,7 @@ export function SelectField({
                 </SelectContent>
             </Select>
             {description && (
-                <p className="mt-1 text-muted-foreground text-xs">
+                <p className="mt-1 text-xs text-muted-foreground">
                     {description}
                 </p>
             )}
